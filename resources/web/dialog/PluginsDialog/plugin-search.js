@@ -49,11 +49,6 @@ function InitPluginSearch() {
   if (!pluginSearchInput)
     return;
 
-  // why: common.js installs a document-level onkeydown that cancels the default action of every key
-  //      (returnValue=false) to block webview shortcuts; on the way up it also swallows typing. Stop the
-  //      field's keydowns from bubbling to it so the input stays editable, leaving the global guard intact.
-  pluginSearchInput.addEventListener("keydown", (event) => event.stopPropagation());
-
   pluginSearchInput.addEventListener("input", OnPluginSearchInput);
   pluginSearchClear?.addEventListener("click", ClearPluginSearch);
   pluginSearchCc?.addEventListener("click", () => TogglePluginSearchFlag(pluginSearchCc, "caseSensitive"));

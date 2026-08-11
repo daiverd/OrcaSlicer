@@ -81,10 +81,6 @@ function OnInit() {
   document.getElementById("configRestoreBtn")?.addEventListener("click", RestoreCapabilityConfig);
 
   const configText = document.getElementById("configText");
-  // why: common.js cancels every key at the document level (returnValue=false) to block webview
-  //      shortcuts, which also swallows typing; don't bubble to it, so the textarea stays editable.
-  //      Same treatment as the search field (see plugin-search.js).
-  configText?.addEventListener("keydown", (event) => event.stopPropagation());
   configText?.addEventListener("input", ValidateConfigText);
   // The custom UI is sandboxed into an opaque origin, so postMessage is its only channel.
   // OnCustomConfigMessage matches on the frame's contentWindow, not the origin ("null" when

@@ -27,7 +27,7 @@
 <div id="EmptyArea">
 	<div><img src="img/null.png"></div>
 	<div class="Text_Title Text_Bold trans" tid='orca2'>No model information</div>
-	<div id="AddModelInfoBtn" class="ButtonStyleConfirm ButtonTypeWindow trans" tid='orca1' onClick="OnClickEditProjectInfo()">Edit Project Info</div>
+	<div id="AddModelInfoBtn" class="ButtonStyleConfirm ButtonTypeWindow trans" tid='orca1' tabindex="0" role="button" onClick="OnClickEditProjectInfo()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnClickEditProjectInfo();}">Edit Project Info</div>
 </div>
 	
 <div id="WholeArea">
@@ -35,16 +35,16 @@
 	
   <div id="Info_Inside_Board" class="ZScrol" >
   <div id="LeftProcessBlock" class="Block_BKGA">
-    <div id="Info_ProcessBar" class="LeftProcessBar ProcessBarSelected" onclick="OnMenuClick('Model_Basic');">
+    <div id="Info_ProcessBar" class="LeftProcessBar ProcessBarSelected" tabindex="0" role="button" onclick="OnMenuClick('Model_Basic');" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnMenuClick('Model_Basic');}">
 	  <img class="LeftTipIcon" src="img/info_h.svg" /><span class="trans" tid='t95'>Model Information</span>
 	</div>
-    <div id="File_ProcessBar" class="LeftProcessBar" onclick="OnMenuClick('Model_Accessories');">
+    <div id="File_ProcessBar" class="LeftProcessBar" tabindex="0" role="button" onclick="OnMenuClick('Model_Accessories');" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnMenuClick('Model_Accessories');}">
 	  <img class="LeftTipIcon" src="img/file_h.svg" /><span class="trans" tid='t96'>Accessories</span>
 	</div>
-    <div id="Profile_ProcessBar" class="LeftProcessBar" onclick="OnMenuClick('Model_Profile');">
+    <div id="Profile_ProcessBar" class="LeftProcessBar" tabindex="0" role="button" onclick="OnMenuClick('Model_Profile');" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnMenuClick('Model_Profile');}">
 	  <img class="LeftTipIcon ProfileIcon" src="img/profile_h.svg" /><span class="trans" tid='t97'>Profile Information</span>
-	</div>	  
-    <div id="Edit_ProcessBar" class="LeftProcessBar" onclick="OnClickEditProjectInfo();">
+	</div>
+    <div id="Edit_ProcessBar" class="LeftProcessBar" tabindex="0" role="button" onclick="OnClickEditProjectInfo();" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnClickEditProjectInfo();}">
 		<img class="LeftTipIcon" src="img/edit.svg" /><span class="trans" tid='orca1'>Edit Project Info</span>
 	</div>
   </div>	  

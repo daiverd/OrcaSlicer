@@ -13,6 +13,46 @@ function OnInit()
 	SendMsg_GetStaffPick();
 
 	Set_AccountMenu_Event();
+	BindKeyboardHandlers();
+}
+
+// ORCA: Enter/Space activation for the div-based actionable elements above,
+// mirroring each one's existing onClick handler. The account panel's own
+// controls are covered by Set_AccountMenu_Event's #LoginArea delegate.
+function BindKeyboardHandlers()
+{
+	function onEnterOrSpace(id, fn)
+	{
+		var el = document.getElementById(id);
+		if (!el) return;
+		el.addEventListener('keydown', function (event) {
+			if (event.key === 'Enter' || event.key === ' ') {
+				event.preventDefault();
+				fn();
+			}
+		});
+	}
+
+	onEnterOrSpace('RecentClearAllBtn', OnDeleteAllRecentFiles);
+	onEnterOrSpace('CT_Delete_Bar', OnDeleteRecentFile);
+	onEnterOrSpace('CT_Folder_Bar', OnExploreRecentFile);
+
+	$('.BtnItem[menu="recent"]').on('keydown', function (event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			GotoMenu('recent');
+		}
+	});
+
+	$('.BtnItem.BtnShortcut').on('keydown', function (event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			OpenUrlInLocalBrowser('https://cloud.orcaslicer.com');
+		}
+	});
+
+	onEnterOrSpace('NewProjectMenuItem', OnClickNewProject);
+	onEnterOrSpace('OpenProjectMenuItem', OnClickOpenProject);
 }
 
 //------最佳打开文件的右键菜单功能----------
@@ -40,6 +80,14 @@ function Set_RecentFile_MouseRightBtn_Event()
 				OnOpenRecentFile( encodeURI(RightBtnFilePath) );
 			}
 		});
+
+	// ORCA: Enter/Space opens the file, mirroring the left-click branch above
+	$(".FileItem").on("keydown", function (event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			OnOpenRecentFile( encodeURI($(this).attr('fpath')) );
+		}
+	});
 
 	$(document).bind("contextmenu",function(e){
 		//在这里书写代码，构建个性右键化菜单
@@ -152,10 +200,10 @@ function GotoMenu( strMenu )
 		
 		if( $(OneBtn).attr("menu")==strMenu )
 		{
-			$(".BtnItem").removeClass("BtnItemSelected");			
-			
-			$(OneBtn).addClass("BtnItemSelected");
-			
+			$(".BtnItem[menu]").removeClass("BtnItemSelected").attr("aria-pressed", "false");
+
+			$(OneBtn).addClass("BtnItemSelected").attr("aria-pressed", "true");
+
 			$("div[board]").hide();
 			$("div[board=\'"+strMenu+"\']").show();
 		}
@@ -314,7 +362,7 @@ function ShowRecentFileList( pList )
 		let sBadge=sPublished? '<span class="FilePublishedBadge">PUB</span>':'';
 		let sLogoBadge=sPublished? '<img class="FileLogoBadge" src="../../images/OrcaSlicer_gradient_circle.svg" alt="" />':'';
 
-		let TmpHtml='<div class="FileItem"  fpath="'+sPath+'"  >'+
+		let TmpHtml='<div class="FileItem" tabindex="0" role="button" fpath="'+sPath+'"  >'+
 				'<a class="FileTip" title="'+sPath+'"></a>'+
 				'<div class="FileImg" ><img src="'+sImg+'" onerror="this.onerror=null;this.src=\'img/d.png\';"  alt="No Image"  />'+sLogoBadge+'</div>'+
 				'<div class="FileNamePack">'+sBadge+'<div class="FileName TextS1">'+sName+'</div></div>'+

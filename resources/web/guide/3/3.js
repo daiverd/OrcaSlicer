@@ -2,8 +2,27 @@
 function OnInit()
 {
 	TranslatePage();
-	
+
 	SendPrivacySelect();
+
+	BindKeyboardHandlers();
+}
+
+function BindKeyboardHandlers()
+{
+	document.getElementById('PreBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			window.open('../11/index.html','_self');
+		}
+	});
+
+	document.getElementById('AcceptBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			GotoNextPage();
+		}
+	});
 }
 
 

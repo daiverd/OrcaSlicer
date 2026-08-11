@@ -63,6 +63,9 @@ function OnSelectMenu( nIndex )
 			$('#CustomFilamentBtn').addClass('TitleUnselected');
 			$('#CustomFilamentBtn').removeClass('TitleSelected');	
 			
+			$('#SystemFilamentBtn').attr('aria-selected', 'true');
+			$('#CustomFilamentBtn').attr('aria-selected', 'false');
+
 			$('#SystemFilamentsArea').css('display','flex');
 			$('#CustomFilamentsArea').css('display','none');
 			break;
@@ -73,6 +76,9 @@ function OnSelectMenu( nIndex )
 			$('#SystemFilamentBtn').addClass('TitleUnselected');
 			$('#SystemFilamentBtn').removeClass('TitleSelected');	
 			
+			$('#CustomFilamentBtn').attr('aria-selected', 'true');
+			$('#SystemFilamentBtn').attr('aria-selected', 'false');
+
 			$('#CustomFilamentsArea').css('display','flex');
 			$('#SystemFilamentsArea').css('display','none');			
 			break;
@@ -109,7 +115,7 @@ function UpdateCustomFilaments( CFList )
 		let F_name=pItem['name'];
 		
 		let strAdd='<div class="CFilament_Item">'+
-			       '<a  class="CFilament_Name" title="'+F_name+'">'+F_name+'</a><img onClick="CFEdit(\''+F_id+'\')" class="CFilament_EditBtn" src="../../image/edit.svg" />'+
+			       '<a  class="CFilament_Name" title="'+F_name+'">'+F_name+'</a><img onClick="CFEdit(\''+F_id+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();CFEdit(\''+F_id+'\');}" tabindex="0" role="button" aria-label="Edit '+F_name+'" class="CFilament_EditBtn" src="../../image/edit.svg" />'+
 		           '</div>';
 		
 		strHtml+=strAdd;

@@ -27,33 +27,17 @@ function OnInit()
 
 function InstallInputSafeKeydown()
 {
-    // common.js blocks all key events globally; allow typing in text inputs.
+    // Only Escape is handled specially, to close the dialog. Every other key
+    // - including Tab/Enter/Space/arrows needed for keyboard navigation, and
+    // normal typing in text inputs - is left alone.
     document.onkeydown = function (event) {
         var e = event || window.event || arguments.callee.caller.arguments[0];
-        var target = e && e.target ? e.target : null;
-        var tag = target && target.tagName ? String(target.tagName).toUpperCase() : "";
-        var type = target && target.type ? String(target.type).toLowerCase() : "";
 
-        var editable =
-            !!(target && target.isContentEditable) ||
-            tag === "TEXTAREA" ||
-            (tag === "INPUT" && type !== "checkbox" && type !== "radio" && type !== "button" && type !== "submit");
-
-        if (editable)
-            return true;
-
-        if (e && e.keyCode === 27 && typeof ClosePage === "function")
+        if (e && e.keyCode === 27 && typeof ClosePage === "function") {
             ClosePage();
-
-        if (window.event) {
-            try { e.keyCode = 0; } catch (err) { }
-            e.returnValue = false;
+            if (typeof e.preventDefault === "function")
+                e.preventDefault();
         }
-
-        if (e && typeof e.preventDefault === "function")
-            e.preventDefault();
-
-        return false;
     };
 }
 

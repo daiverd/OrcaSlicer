@@ -13,6 +13,46 @@ function OnInit()
 	
 	TranslatePage();
 	SendDownloadCmd();
+
+	BindKeyboardHandlers();
+}
+
+function BindKeyboardHandlers()
+{
+	document.getElementById('RetryBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			RetryDownload();
+		}
+	});
+
+	document.getElementById('CancelBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			CancelDownload();
+		}
+	});
+
+	document.getElementById('RestartBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			RestartBambuStudio();
+		}
+	});
+
+	document.getElementById('CloseBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			CloseDownDialog();
+		}
+	});
+
+	document.getElementById('OpenPluginFolderBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			OpenPluginFolder();
+		}
+	});
 }
 
 function SendDownloadCmd()

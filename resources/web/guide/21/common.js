@@ -279,7 +279,7 @@ function CreateVendorBlock(vendorName)
 	return 	'<div class="OneVendorBlock" Vendor="' + vendorName + '">' +
 			'	<div class="BlockBanner">' +
 			'		<a>' + alt + '</a>' +
-			'		<div class="BannerBtns" onClick="ChooseVendor('+"\'"+vendorName+"\'"+')">'+
+			`		<div class="BannerBtns" tabindex="0" role="button" aria-label="Select all ${alt} printers" onClick="ChooseVendor('${vendorName}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ChooseVendor('${vendorName}');}">`+
 			'			<div class="modelCount"></div>' +
 			'			<input type="checkbox" class="VendorCheckbox"/>'+
 			'		</div>'+	
@@ -309,7 +309,7 @@ function CreatePrinterBlock(OneModel)
 	else if (vendor == "RolohaunDesign" && modelName.startsWith("Rolohaun"))
 		modelName = modelName.slice(("Rolohaun").length);
 
-	return	'<div class="PrinterBlock" onClick="ChooseModel(\''+vendor+'\',\''+OneModel['model']+'\')">'+
+	return	`<div class="PrinterBlock" tabindex="0" role="button" onClick="ChooseModel('${vendor}','${OneModel['model']}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ChooseModel('${vendor}','${OneModel['model']}');}">`+
 			'	<div class="PImg">'+
 			'		<img class="ModelThumbnail" src="' + OneModel['cover'] + '" />'+
 			'	</div>'+
@@ -338,7 +338,7 @@ function UpdateSidebarVendors()
 	let SidebarHTML = "";
 	$(`.OneVendorBlock`).each((i, el)=>{
 		UpdateVendorCheckbox(el.getAttribute("vendor"));
-		SidebarHTML +=`<div class="SidebarItem" onclick="scrollToVendor(this.textContent)">${el.getAttribute('vendor')}</div>`;
+		SidebarHTML +=`<div class="SidebarItem" tabindex="0" role="button" onclick="scrollToVendor(this.textContent)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();scrollToVendor(this.textContent);}">${el.getAttribute('vendor')}</div>`;
 	});
 	$('#SidebarVendors').html(SidebarHTML)
 }
@@ -625,8 +625,9 @@ function LayoutMode(value) {
 		}
 	}
 
-	LayoutBtns.forEach(el => el.classList.remove('selected'));
+	LayoutBtns.forEach(el => { el.classList.remove('selected'); el.setAttribute('aria-selected', 'false'); });
 	LayoutBtns[LayoutTypes.indexOf(value)].classList.add('selected');
+	LayoutBtns[LayoutTypes.indexOf(value)].setAttribute('aria-selected', 'true');
 	$content[0].setAttribute("layout", value);
 
 	if (target) scrollToVendor(target);

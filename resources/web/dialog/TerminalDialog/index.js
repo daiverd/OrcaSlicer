@@ -44,7 +44,8 @@ function OnInit() {
     fontSize: 13,
     fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", monospace',
     theme: XtermTheme(),
-    allowProposedApi: true
+    allowProposedApi: true,
+    screenReaderMode: true
   });
 
   WatchXtermTheme();

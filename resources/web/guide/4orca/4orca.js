@@ -2,8 +2,27 @@
 function OnInit()
 {
 	TranslatePage();
-	
+
 	SendStealthModeCheck();
+
+	BindKeyboardHandlers();
+}
+
+function BindKeyboardHandlers()
+{
+	document.getElementById('PreBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			window.history.back();
+		}
+	});
+
+	document.getElementById('GotoNetPluginBtn').addEventListener('keydown', function(event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			GotoNetPluginPage();
+		}
+	});
 }
 
 

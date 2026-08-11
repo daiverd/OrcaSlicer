@@ -271,6 +271,8 @@
           class="ButtonStyleConfirm ButtonTypeWindow"
           onclick="calcFlushingVolumes()"
           id="calc_btn"
+          tabindex="0"
+          role="button"
         >
           Re-Calculate
       </div>
@@ -335,10 +337,10 @@
       </div>
 
       <div class="button-container" style="padding: 0px; margin: 0px;">
-        <div class="ButtonStyleConfirm ButtonTypeChoice" id="ok_btn" onclick="storeData()">
+        <div class="ButtonStyleConfirm ButtonTypeChoice" id="ok_btn" onclick="storeData()" tabindex="0" role="button">
           Save
         </div>
-        <div class="ButtonStyleRegular ButtonTypeChoice" id="cancel_btn" onclick="quit()">
+        <div class="ButtonStyleRegular ButtonTypeChoice" id="cancel_btn" onclick="quit()" tabindex="0" role="button">
           Cancel
         </div>
       </div>
@@ -426,6 +428,27 @@
           quit();
         }
       }, true);
+
+      // Keyboard activation (Enter/Space) for the div-based action buttons,
+      // mirroring their existing onclick handlers.
+      document.getElementById("calc_btn").addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          calcFlushingVolumes();
+        }
+      });
+      document.getElementById("ok_btn").addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          storeData();
+        }
+      });
+      document.getElementById("cancel_btn").addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          quit();
+        }
+      });
 
       function buildText(data) {
         document.getElementById('volume_desp_panel').innerText = data.volume_desp_panel
