@@ -40,6 +40,8 @@ def is_actionable(tag, attrs):
         return False
     if tag == "a" and "href" in attrs:
         return False
+    if attrs.get("aria-hidden", "").lower() == "true":
+        return False
     return "onclick" in attrs or attrs.get("role", "").lower() in ACTIONABLE_ROLES
 
 
