@@ -94,23 +94,6 @@ function OnInit() {
     renderBottomForBundle(selectedBundleId);                                                                                                                                                                                                                                                                                                                     
   });
 
-  // Keyboard activation (Enter/Space) for top list rows, mirroring the
-  // default row-selection branch of the click handler above. Nested
-  // interactive controls (cloud link, update button) already handle their
-  // own Enter/Space activation natively, so they are excluded here.
-  topList.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" && e.key !== " ") return;
-    if (e.target.closest(".bundle-cloud-link") || e.target.closest(".bundle-update-btn")) return;
-
-    const row = e.target.closest(".row");
-    if (!row) return;
-
-    e.preventDefault();
-    selectTopRow(row);
-    selectedBundleId = String(row.dataset.id || "");
-    renderBottomForBundle(selectedBundleId);
-  });
-
   // for top list rows if right click open context menu
   topList.addEventListener("contextmenu", (e) => {
     const row = e.target.closest(".row");
@@ -238,7 +221,7 @@ function renderTop() {
     const bundles = Array.from(bundlesById.values());                                                                                                                                                                                                                                                                                                            
                                                                                                                                                                                                                                                                                                                                                                  
     topList.innerHTML = bundles.map(b => `                                                                                                                                                                                                                                                                                                                       
-      <div class="row" data-id="${escapeAttr(b.id)}" data-bundle-type="${escapeAttr(String(b.type || "").toLowerCase())}" tabindex="0" role="button">
+      <div class="row" data-id="${escapeAttr(b.id)}" data-bundle-type="${escapeAttr(String(b.type || "").toLowerCase())}" tabindex="0" role="option">
         <div class="cell bundle-name-cell" title="${escapeAttr(b.name)}">                                                                                                                                                                                                                                                                                        
           ${b.unauthorized
             ? `<span class="bundle-status-icon bundle-status-icon-unauthorized" title="${escapeAttr(UNAUTHORIZED_TOOLTIP)}" aria-label="${escapeAttr(UNAUTHORIZED_TOOLTIP)}">!</span>`
@@ -318,8 +301,12 @@ function clearSelection() {
 
 function selectTopRow(rowEl) {
   // only clear selection in top list, not bottom
-  topList.querySelectorAll(".row.selected").forEach(r => r.classList.remove("selected"));
+  topList.querySelectorAll(".row.selected").forEach(r => {
+    r.classList.remove("selected");
+    r.setAttribute("aria-selected", "false");
+  });
   rowEl.classList.add("selected");
+  rowEl.setAttribute("aria-selected", "true");
 }
 
 function autoSelectFirstBundle() {

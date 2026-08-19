@@ -13,14 +13,15 @@
 <script type="text/javascript" src="../js/json2.js"></script>	
 <script type="text/javascript" src="../../data/text.js"></script>	
 <script type="text/javascript" src="../js/globalapi.js"></script>	
+<script type="text/javascript" src="../../include/a11y.js"></script>
 <script type="text/javascript" src="../js/common.js"></script>
 <script type="text/javascript" src="../22/common.js"></script> <!-- ORCA use common sources for setup guide and standalone dialog -->
 <script type="text/javascript" src="./23.js"></script>	
 </head>
 <body onLoad="OnInit()">
 <div id="Title" role="tablist">
-	<div id="SystemFilamentBtn" class="TitleSelected trans" tid="t109" onClick="OnSelectMenu(1)" tabindex="0" role="tab" aria-selected="true" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnSelectMenu(1);}">System Filaments</div>
-	<div id="CustomFilamentBtn" class="TitleUnselected trans" tid="t110" onClick="OnSelectMenu(2)" tabindex="0" role="tab" aria-selected="false" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnSelectMenu(2);}">Custom Filaments</div>
+	<div id="SystemFilamentBtn" class="TitleSelected trans" tid="t109" onClick="OnSelectMenu(1)" tabindex="0" role="tab" aria-selected="true">System Filaments</div>
+	<div id="CustomFilamentBtn" class="TitleUnselected trans" tid="t110" onClick="OnSelectMenu(2)" tabindex="0" role="tab" aria-selected="false">Custom Filaments</div>
 </div>
 <div id="Content" class="ZScrol">
 	
@@ -93,8 +94,8 @@
 			<div class="cbr-filter-btns">
 				<span class="cbr-filter-mode-filter  trans">Select filtered</span>
 				<span class="cbr-filter-mode-visible trans">Select visible</span>
-				<div class="ButtonStyleConfirm ButtonTypeWindow  trans" tid="t11" onClick="SelectAllFilament(1)" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();SelectAllFilament(1);}">all</div>
-				<div class="ButtonStyleRegular ButtonTypeWindow  trans" tid="t12" onClick="SelectAllFilament(0)" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();SelectAllFilament(0);}">Clear all</div>
+				<div class="ButtonStyleConfirm ButtonTypeWindow  trans" tid="t11" onClick="SelectAllFilament(1)" tabindex="0" role="button">all</div>
+				<div class="ButtonStyleRegular ButtonTypeWindow  trans" tid="t12" onClick="SelectAllFilament(0)" tabindex="0" role="button">Clear all</div>
 			</div>	
 		</div>
 		<div class="cbr-content thin-scroll" id="ItemBlockArea">
@@ -108,7 +109,7 @@
 	
 <div id="CustomFilamentsArea">
 	<div id="CFilament_Btn_Area">
-		<div class="ButtonStyleConfirm ButtonTypeWindow trans" tid="t111" onClick="OnClickCustomFilamentAdd()" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();OnClickCustomFilamentAdd();}">Create New</div>
+		<div class="ButtonStyleConfirm ButtonTypeWindow trans" tid="t111" onClick="OnClickCustomFilamentAdd()" tabindex="0" role="button">Create New</div>
 	</div>
     <div id="CFilament_List" class="thin-scroll">
 	</div>
@@ -116,8 +117,8 @@
 	
 </div>
 <div id="AcceptArea">
-	<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t39" id="AcceptBtn"  onclick="ConfirmSelect()" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ConfirmSelect();}">Confirm</div>
-	<div class="ButtonStyleRegular ButtonTypeChoice trans" tid="t38" id="PreBtn"  onclick="CancelSelect()" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CancelSelect();}">Cancel</div>
+	<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t39" id="AcceptBtn"  onclick="ConfirmSelect()" tabindex="0" role="button">Confirm</div>
+	<div class="ButtonStyleRegular ButtonTypeChoice trans" tid="t38" id="PreBtn"  onclick="CancelSelect()" tabindex="0" role="button">Cancel</div>
 </div>
 <div id="NoticeMask">
 </div>
@@ -127,8 +128,8 @@
 	<div id="NoticeText" class="trans" tid="t19">At least one filament must be selected. </div>
 	<div id="NoticeText" class="trans" tid="t20">Do you want to use default filament ?</div>
 	<div id="NoticeBtns">
-		<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t21" onClick="ChooseDefaultFilament()" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ChooseDefaultFilament();}">yes</div>
-		<div class="ButtonStyleRegular ButtonTypeChoice trans" tid="t22" onClick="ShowNotice(0)" tabindex="0" role="button" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ShowNotice(0);}">no</div>
+		<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t21" onClick="ChooseDefaultFilament()" tabindex="0" role="button">yes</div>
+		<div class="ButtonStyleRegular ButtonTypeChoice trans" tid="t22" onClick="ShowNotice(0)" tabindex="0" role="button">no</div>
 	</div>
 	</div>
 	</div>

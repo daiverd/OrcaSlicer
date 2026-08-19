@@ -12,6 +12,7 @@
 <script type="text/javascript" src="../include/jquery-2.1.1.min.js"></script>
 <script type="text/javascript" src="../include/json2.js"></script>	
 <script type="text/javascript" src="../include/globalapi.js"></script>	
+<script type="text/javascript" src="../include/a11y.js"></script>
 
 <link rel="stylesheet" type="text/css" href="../include/swiper/swiper-bundle.min.css" />
 <script type="text/javascript" src="../include/swiper/swiper-bundle.min.js"></script>
@@ -249,9 +250,7 @@
 
 		if (e.shiftKey && e.metaKey)
 			OutputKey(e.keyCode, false, true, true);
-		// Only the Ctrl/Cmd combos above are forwarded to the host; every other
-		// key (Tab, Enter, Space, arrows, plain letters, ...) is intentionally
-		// left alone so normal keyboard navigation works in this page.
+		// forward only the combos above; leave all other keys alone
 	};
 
 	window.addEventListener('mousewheel', function (event) {

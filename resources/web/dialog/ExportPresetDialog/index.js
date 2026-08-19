@@ -15,7 +15,7 @@ function OnInit()
     if (typeof TranslatePage === "function")
         TranslatePage();
 
-    InstallInputSafeKeydown();
+    InstallEscapeToClose();
     BindSearchInputs();
     BindClearIcons();
     BindBottomButtons();
@@ -25,18 +25,13 @@ function OnInit()
     RequestProfile();
 }
 
-function InstallInputSafeKeydown()
+function InstallEscapeToClose()
 {
-    // Only Escape is handled specially, to close the dialog. Every other key
-    // - including Tab/Enter/Space/arrows needed for keyboard navigation, and
-    // normal typing in text inputs - is left alone.
+    // Escape closes the dialog; every other key is left alone.
     document.onkeydown = function (event) {
-        var e = event || window.event || arguments.callee.caller.arguments[0];
-
-        if (e && e.keyCode === 27 && typeof ClosePage === "function") {
+        if (event.key === "Escape" && typeof ClosePage === "function") {
             ClosePage();
-            if (typeof e.preventDefault === "function")
-                e.preventDefault();
+            event.preventDefault();
         }
     };
 }

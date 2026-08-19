@@ -7,31 +7,8 @@ function OnInit()
 	//HandleStudio(strInput);
 	
 	TranslatePage();
-
+	
 	RequestProfile();
-
-	BindKeyboardHandlers();
-}
-
-function BindKeyboardHandlers()
-{
-	$('.RegionItem').each(function() {
-		let strRegion = $(this).attr('region');
-
-		$(this).on('keydown', function(event) {
-			if (event.key === 'Enter' || event.key === ' ') {
-				event.preventDefault();
-				ChooseRegion(strRegion);
-			}
-		});
-	});
-
-	document.getElementById('AcceptBtn').addEventListener('keydown', function(event) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			GotoPolicyPage();
-		}
-	});
 }
 
 

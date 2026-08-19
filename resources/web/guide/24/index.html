@@ -14,6 +14,7 @@
 <script type="text/javascript" src="../js/json2.js"></script>	
 <script type="text/javascript" src="../../data/text.js"></script>	
 <script type="text/javascript" src="../js/globalapi.js"></script>	
+<script type="text/javascript" src="../../include/a11y.js"></script>
 <script type="text/javascript" src="../js/common.js"></script>
 <script type="text/javascript" src="../21/common.js"></script> <!-- ORCA use common sources for setup guide and standalone dialog -->
 <script type="text/javascript" src="24.js"></script>	
@@ -30,9 +31,9 @@
 			<!-- <div class="SidebarItem"></div> -->
 		</div>
 	</div>
-	<div class="back" tabindex="0" role="button" aria-label="Close sidebar" onclick="document.getElementById('SidebarContainer').setAttribute('open', '0')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('SidebarContainer').setAttribute('open', '0');}"></div>
+	<div class="back" tabindex="0" role="button" aria-label="Close sidebar" onclick="document.getElementById('SidebarContainer').setAttribute('open', '0')"></div>
 </div>
-<div class="SidebarBtn ButtonStyleRegular" tabindex="0" role="button" aria-label="Open sidebar" onclick="document.getElementById('SidebarContainer').setAttribute('open', '1')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('SidebarContainer').setAttribute('open', '1');}">
+<div class="SidebarBtn ButtonStyleRegular" tabindex="0" role="button" aria-label="Open sidebar" onclick="document.getElementById('SidebarContainer').setAttribute('open', '1')">
 	<div class="icon16"></div>
 </div>
 
@@ -43,9 +44,9 @@
 </div>
 <div class="LayoutSelector">
 	<div class="TabGroup" role="tablist">
-		<div class="TabButton" role="tab" aria-selected="false" aria-label="Compact list view" tabindex="0" onclick="LayoutMode('compact-list')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();LayoutMode('compact-list');}" ><div class="icon16"></div></div>
-		<div class="TabButton" role="tab" aria-selected="false" aria-label="Compact cover view" tabindex="0" onclick="LayoutMode('compact-cover')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();LayoutMode('compact-cover');}"><div class="icon16"></div></div>
-		<div class="TabButton" role="tab" aria-selected="true" aria-label="Large cover view" tabindex="0" onclick="LayoutMode('large-cover')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();LayoutMode('large-cover');}"  ><div class="icon16"></div></div>
+		<div class="TabButton" role="tab" aria-selected="false" aria-label="Compact list view" tabindex="0" onclick="LayoutMode('compact-list')" ><div class="icon16"></div></div>
+		<div class="TabButton" role="tab" aria-selected="false" aria-label="Compact cover view" tabindex="0" onclick="LayoutMode('compact-cover')"><div class="icon16"></div></div>
+		<div class="TabButton" role="tab" aria-selected="true" aria-label="Large cover view" tabindex="0" onclick="LayoutMode('large-cover')"  ><div class="icon16"></div></div>
 	</div>
 </div>
 
@@ -81,10 +82,10 @@
 	
 </div>
 <div id="AcceptArea">
-	<div class="ButtonStyleRegular ButtonTypeChoice trans"           id="CreateBtn" tabindex="0" role="button"  onclick="CreateNewPrinter()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CreateNewPrinter();}">Create</div>
-	<div class="ButtonStyleRegular ButtonTypeChoice" id="CheckNewPrintersBtn" tabindex="0" role="button" onclick="CheckForNewPrinters()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CheckForNewPrinters();}">Check for new printers</div>
-	<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t39" id="AcceptBtn" tabindex="0" role="button"  onclick="ConfirmSelect()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ConfirmSelect();}">Confirm</div>
-	<div class="ButtonStyleRegular ButtonTypeChoice trans" tid="t38" id="PreBtn" tabindex="0" role="button"  onclick="CancelSelect()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CancelSelect();}">Cancel</div>
+	<div class="ButtonStyleRegular ButtonTypeChoice trans"           id="CreateBtn" tabindex="0" role="button"  onclick="CreateNewPrinter()">Create</div>
+	<div class="ButtonStyleRegular ButtonTypeChoice" id="CheckNewPrintersBtn" tabindex="0" role="button" onclick="CheckForNewPrinters()">Check for new printers</div>
+	<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t39" id="AcceptBtn" tabindex="0" role="button"  onclick="ConfirmSelect()">Confirm</div>
+	<div class="ButtonStyleRegular ButtonTypeChoice trans" tid="t38" id="PreBtn" tabindex="0" role="button"  onclick="CancelSelect()">Cancel</div>
 </div>
 	
 <div id="NoticeMask"></div>
@@ -93,7 +94,7 @@
 	<div id="NoticeContent">
 	<div id="NoticeText" class="trans" tid="t37">At least one printer must be selected.</div>
 	<div id="NoticeBtns">
-		<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t36" tabindex="0" role="button" onClick="ShowNotice(0)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ShowNotice(0);}">ok</div>
+		<div class="ButtonStyleConfirm ButtonTypeChoice trans" tid="t36" tabindex="0" role="button" onClick="ShowNotice(0)">ok</div>
 	</div>
 	</div>
 </div>	

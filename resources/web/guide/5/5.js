@@ -2,27 +2,8 @@
 function OnInit()
 {
 	TranslatePage();
-
+	
 	SendInstallPluginCheck();
-
-	BindKeyboardHandlers();
-}
-
-function BindKeyboardHandlers()
-{
-	document.getElementById('PreBtn').addEventListener('keydown', function(event) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			window.history.back();
-		}
-	});
-
-	document.getElementById('AcceptBtn').addEventListener('keydown', function(event) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			FinishGuide();
-		}
-	});
 }
 
 

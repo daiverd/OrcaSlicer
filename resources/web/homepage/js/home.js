@@ -13,46 +13,6 @@ function OnInit()
 	SendMsg_GetStaffPick();
 
 	Set_AccountMenu_Event();
-	BindKeyboardHandlers();
-}
-
-// ORCA: Enter/Space activation for the div-based actionable elements above,
-// mirroring each one's existing onClick handler. The account panel's own
-// controls are covered by Set_AccountMenu_Event's #LoginArea delegate.
-function BindKeyboardHandlers()
-{
-	function onEnterOrSpace(id, fn)
-	{
-		var el = document.getElementById(id);
-		if (!el) return;
-		el.addEventListener('keydown', function (event) {
-			if (event.key === 'Enter' || event.key === ' ') {
-				event.preventDefault();
-				fn();
-			}
-		});
-	}
-
-	onEnterOrSpace('RecentClearAllBtn', OnDeleteAllRecentFiles);
-	onEnterOrSpace('CT_Delete_Bar', OnDeleteRecentFile);
-	onEnterOrSpace('CT_Folder_Bar', OnExploreRecentFile);
-
-	$('.BtnItem[menu="recent"]').on('keydown', function (event) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			GotoMenu('recent');
-		}
-	});
-
-	$('.BtnItem.BtnShortcut').on('keydown', function (event) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			OpenUrlInLocalBrowser('https://cloud.orcaslicer.com');
-		}
-	});
-
-	onEnterOrSpace('NewProjectMenuItem', OnClickNewProject);
-	onEnterOrSpace('OpenProjectMenuItem', OnClickOpenProject);
 }
 
 //------最佳打开文件的右键菜单功能----------
@@ -81,7 +41,7 @@ function Set_RecentFile_MouseRightBtn_Event()
 			}
 		});
 
-	// ORCA: Enter/Space opens the file, mirroring the left-click branch above
+	// ORCA: the open action above is bound to mousedown, so a11y.js cannot reach it
 	$(".FileItem").on("keydown", function (event) {
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
