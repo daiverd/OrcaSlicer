@@ -279,7 +279,7 @@ function CreateVendorBlock(vendorName)
 	return 	'<div class="OneVendorBlock" Vendor="' + vendorName + '">' +
 			'	<div class="BlockBanner">' +
 			'		<a>' + alt + '</a>' +
-			`		<div class="BannerBtns" tabindex="0" role="button" aria-label="Select all ${alt} printers" onClick="ChooseVendor('${vendorName}')">`+
+			`		<div class="BannerBtns" tabindex="0" role="button" aria-label="${GetTransText('a11y_select_all_printers','Select all {0} printers').replace('{0}',alt)}" onClick="ChooseVendor('${vendorName}')">`+
 			'			<div class="modelCount"></div>' +
 			'			<input type="checkbox" class="VendorCheckbox"/>'+
 			'		</div>'+	

@@ -118,6 +118,15 @@ var LangText = {
     orca10: "Not connected",
     orca11: "Connected",
     orca12: "Note: When Stealth Mode is enabled, your user profiles will not be backed up to Orca Cloud.",
+    a11y_open_sidebar: "Open sidebar",
+    a11y_view_compact_list: "Compact list view",
+    a11y_view_compact_cover: "Compact cover view",
+    a11y_view_large_cover: "Large cover view",
+    a11y_select_all_printers: "Select all {0} printers",
+    a11y_edit_item: "Edit {0}",
+    a11y_retry: "Retry",
+    a11y_open_file: "Open file",
+    a11y_open_image: "Open image",
   },
   ca_ES: {
     t1: "Benvingut a Orca Slicer",
@@ -1750,7 +1759,7 @@ var LangText = {
 var LANG_COOKIE_NAME = "BambuWebLang";
 var LANG_COOKIE_EXPIRESECOND = 365 * 86400;
 
-function TranslatePage() {
+function GetCurrentLang() {
   let strLang = GetQueryString("lang");
   if (strLang != null) {
     //setCookie(LANG_COOKIE_NAME,strLang,LANG_COOKIE_EXPIRESECOND,'/');
@@ -1764,6 +1773,21 @@ function TranslatePage() {
 
   if (!LangText.hasOwnProperty(strLang)) strLang = "en";
 
+  return strLang;
+}
+
+// For accessible names built in JS - strDefault is the English fallback.
+function GetTransText(tid, strDefault) {
+  let strLang = GetCurrentLang();
+
+  if (LangText[strLang].hasOwnProperty(tid)) return LangText[strLang][tid];
+
+  return strDefault;
+}
+
+function TranslatePage() {
+  let strLang = GetCurrentLang();
+
   let AllNode = $(".trans");
   let nTotal = AllNode.length;
   for (let n = 0; n < nTotal; n++) {
@@ -1772,6 +1796,17 @@ function TranslatePage() {
     let tid = $(OneNode).attr("tid");
     if (LangText[strLang].hasOwnProperty(tid)) {
       $(OneNode).html(LangText[strLang][tid]);
+    }
+  }
+
+  let LabelNode = $("[label-tid]");
+  nTotal = LabelNode.length;
+  for (let n = 0; n < nTotal; n++) {
+    let OneNode = LabelNode[n];
+
+    let tid = $(OneNode).attr("label-tid");
+    if (LangText[strLang].hasOwnProperty(tid)) {
+      $(OneNode).attr("aria-label", LangText[strLang][tid]);
     }
   }
 }
