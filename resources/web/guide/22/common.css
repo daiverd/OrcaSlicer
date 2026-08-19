@@ -127,7 +127,7 @@
 	margin: 5px 5px 5px auto;
 }
 
-.cbr-filter-btns div:first-of-type {
+.cbr-filter-btns button:first-of-type {
 	margin-left: 10px;
 }
 

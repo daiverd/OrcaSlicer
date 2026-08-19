@@ -635,9 +635,9 @@ function LayoutMode(value) {
 		}
 	}
 
-	LayoutBtns.forEach(el => { el.classList.remove('selected'); el.setAttribute('aria-selected', 'false'); });
+	LayoutBtns.forEach(el => { el.classList.remove('selected'); el.setAttribute('aria-pressed', 'false'); });
 	LayoutBtns[LayoutTypes.indexOf(value)].classList.add('selected');
-	LayoutBtns[LayoutTypes.indexOf(value)].setAttribute('aria-selected', 'true');
+	LayoutBtns[LayoutTypes.indexOf(value)].setAttribute('aria-pressed', 'true');
 	$content[0].setAttribute("layout", value);
 
 	if (target) scrollToVendor(target);

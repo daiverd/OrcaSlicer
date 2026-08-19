@@ -6,6 +6,13 @@
     font-family: "system-ui", "Segoe UI", Roboto, Oxygen, Ubuntu, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-sans;	
 }
 
+/* keep converted <button> elements metric-identical to the divs they replaced */
+button
+{
+	box-sizing: content-box;
+	background: none;
+}
+
 html,body
 {
 	font-size: 14px;

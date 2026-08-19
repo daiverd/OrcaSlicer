@@ -63,8 +63,8 @@ function OnSelectMenu( nIndex )
 			$('#CustomFilamentBtn').addClass('TitleUnselected');
 			$('#CustomFilamentBtn').removeClass('TitleSelected');	
 			
-			$('#SystemFilamentBtn').attr('aria-selected', 'true');
-			$('#CustomFilamentBtn').attr('aria-selected', 'false');
+			$('#SystemFilamentBtn').attr('aria-pressed', 'true');
+			$('#CustomFilamentBtn').attr('aria-pressed', 'false');
 
 			$('#SystemFilamentsArea').css('display','flex');
 			$('#CustomFilamentsArea').css('display','none');
@@ -76,8 +76,8 @@ function OnSelectMenu( nIndex )
 			$('#SystemFilamentBtn').addClass('TitleUnselected');
 			$('#SystemFilamentBtn').removeClass('TitleSelected');	
 			
-			$('#CustomFilamentBtn').attr('aria-selected', 'true');
-			$('#SystemFilamentBtn').attr('aria-selected', 'false');
+			$('#CustomFilamentBtn').attr('aria-pressed', 'true');
+			$('#SystemFilamentBtn').attr('aria-pressed', 'false');
 
 			$('#CustomFilamentsArea').css('display','flex');
 			$('#SystemFilamentsArea').css('display','none');			

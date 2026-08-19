@@ -102,16 +102,17 @@ function OnMenuSelected(strID)
 	
 	//UI 
 	$('.LeftProcessBar').removeClass('ProcessBarSelected');
+	$('.LeftProcessBar[aria-pressed]').attr('aria-pressed','false');
 	switch(strID)
 	{
 		case 'Model_Basic':
-			$('#Info_ProcessBar').addClass('ProcessBarSelected');
+			$('#Info_ProcessBar').addClass('ProcessBarSelected').attr('aria-pressed','true');
 			break;
 		case 'Model_Accessories':
-			$('#File_ProcessBar').addClass('ProcessBarSelected');
+			$('#File_ProcessBar').addClass('ProcessBarSelected').attr('aria-pressed','true');
 			break;
 		case 'Model_Profile':
-			$('#Profile_ProcessBar').addClass('ProcessBarSelected');
+			$('#Profile_ProcessBar').addClass('ProcessBarSelected').attr('aria-pressed','true');
 			break;
 	}	
 }

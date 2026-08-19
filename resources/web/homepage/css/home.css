@@ -8,6 +8,13 @@
 	user-select: none;
 }
 
+/* keep converted <button> elements metric-identical to the divs they replaced */
+button
+{
+	box-sizing: content-box;
+	background: none;
+}
+
 html, body {
 	height: 100%;
 	width: 100%;

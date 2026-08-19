@@ -23,11 +23,11 @@
 <div id="Content">
 	<div id="EarthIcon"><img src="earth.png"/></div>
 	<div id="RegionList">
-		<div class="trans RegionItem RegionSelected TextS1" tid="t48" region="Asia-Pacific" onclick="ChooseRegion('Asia-Pacific')" tabindex="0" role="button">Asia-Pacific</div>
-		<div class="trans RegionItem" tid="t49" region="China" onclick="ChooseRegion('China')" tabindex="0" role="button">China</div>
-		<div class="trans RegionItem" tid="t60" region="Europe" onclick="ChooseRegion('Europe')" tabindex="0" role="button">Europe</div>
-		<div class="trans RegionItem" tid="t61" region="North America" onclick="ChooseRegion('North America')" tabindex="0" role="button">North America</div>
-		<div class="trans RegionItem" tid="t62" region="Others" onclick="ChooseRegion('Others')" tabindex="0" role="button">Others</div>
+		<div class="trans RegionItem RegionSelected TextS1" tid="t48" region="Asia-Pacific" onclick="ChooseRegion('Asia-Pacific')" tabindex="0" role="button" aria-pressed="true">Asia-Pacific</div>
+		<div class="trans RegionItem" tid="t49" region="China" onclick="ChooseRegion('China')" tabindex="0" role="button" aria-pressed="false">China</div>
+		<div class="trans RegionItem" tid="t60" region="Europe" onclick="ChooseRegion('Europe')" tabindex="0" role="button" aria-pressed="false">Europe</div>
+		<div class="trans RegionItem" tid="t61" region="North America" onclick="ChooseRegion('North America')" tabindex="0" role="button" aria-pressed="false">North America</div>
+		<div class="trans RegionItem" tid="t62" region="Others" onclick="ChooseRegion('Others')" tabindex="0" role="button" aria-pressed="false">Others</div>
 	</div>
 <!--	<div id="ChangeTip">
 		<div><img class="TipIcon" src="tip.png" /></div>
@@ -35,7 +35,7 @@
 	</div>-->
 </div>
 <div id="AcceptArea">
-	<div class="ButtonStyleConfirm ButtonTypeChoice trans" id="AcceptBtn" tid="t9"  onclick="GotoPolicyPage()" tabindex="0" role="button">Next</div>
+	<button type="button" class="ButtonStyleConfirm ButtonTypeChoice trans" id="AcceptBtn" tid="t9"  onclick="GotoPolicyPage()">Next</button>
 </div>	
 </body>
 </html>

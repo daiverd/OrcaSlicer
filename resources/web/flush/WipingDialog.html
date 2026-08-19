@@ -9,6 +9,12 @@
         box-sizing: border-box;
       }
 
+      /* keep converted <button> elements metric-identical to the divs they replaced */
+      button {
+        border: none;
+        font: inherit;
+      }
+
       html, body {
         margin: 0px;
         padding: 0px;
@@ -267,15 +273,14 @@
       </div>
 
       <div style="margin-bottom: 10px; display: flex; align-items: center; flex-shrink: 0;">
-        <div
+        <button
+          type="button"
           class="ButtonStyleConfirm ButtonTypeWindow"
           onclick="calcFlushingVolumes()"
           id="calc_btn"
-          tabindex="0"
-          role="button"
         >
           Re-Calculate
-      </div>
+      </button>
         <div class="ComboBox">
           <div class="arrow-icon"></div>
           <select
@@ -337,12 +342,12 @@
       </div>
 
       <div class="button-container" style="padding: 0px; margin: 0px;">
-        <div class="ButtonStyleConfirm ButtonTypeChoice" id="ok_btn" onclick="storeData()" tabindex="0" role="button">
+        <button type="button" class="ButtonStyleConfirm ButtonTypeChoice" id="ok_btn" onclick="storeData()">
           Save
-        </div>
-        <div class="ButtonStyleRegular ButtonTypeChoice" id="cancel_btn" onclick="quit()" tabindex="0" role="button">
+        </button>
+        <button type="button" class="ButtonStyleRegular ButtonTypeChoice" id="cancel_btn" onclick="quit()">
           Cancel
-        </div>
+        </button>
       </div>
     </div>
 
