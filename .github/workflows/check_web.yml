@@ -1,0 +1,22 @@
+name: Check web accessibility
+
+on:
+    pull_request:
+      branches:
+       - main
+      paths:
+       - 'resources/web/**'
+       - 'scripts/check_web_accessibility.py'
+       - '.github/workflows/check_web.yml'
+
+jobs:
+  check_web_accessibility:
+    name: Check web accessibility
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Check web accessibility
+        run: |
+          python3 ./scripts/check_web_accessibility.py resources/web
