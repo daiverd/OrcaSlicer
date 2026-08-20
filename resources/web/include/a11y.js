@@ -29,7 +29,11 @@ document.addEventListener('keydown', function (e) {
 // application UI, not websites. Successor to the old blanket key canceller,
 // which also swallowed the Tab/Enter/Space/arrow keys needed for keyboard use.
 document.addEventListener('keydown', function (e) {
-	if (e.key === 'F5' || e.key === 'F3') {
+	// F6 is Chromium's cycle-browser-pane key; with no chrome to cycle to it
+	// drops focus on the bare webview host window - a dead end for keyboard
+	// and screen-reader users. Pages that repurpose F6 (the homepage forwards
+	// it to the app's pane cycle) keep their own listener, which still runs.
+	if (e.key === 'F5' || e.key === 'F3' || e.key === 'F6') {
 		e.preventDefault();
 		return;
 	}
