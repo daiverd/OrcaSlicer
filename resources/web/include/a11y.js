@@ -24,19 +24,43 @@ document.addEventListener('keydown', function (e) {
 	el.click();
 });
 
-// Keep the webview's browser-chrome shortcuts (reload, find bar, print, zoom,
-// save/open page, view source, downloads) out of these pages - they are
-// application UI, not websites. Successor to the old blanket key canceller,
-// which also swallowed the Tab/Enter/Space/arrow keys needed for keyboard use.
+// Keep the webview's browser-chrome shortcuts out of these pages - they are
+// application UI, not websites. Deny by default: cancel every function key and
+// unclaimed modifier chord instead of enumerating the browser's bindings
+// (reload, find bar, print, zoom, view source, pane cycling, history
+// navigation, ...). Successor to the old blanket key canceller, which also
+// swallowed the Tab/Enter/Space/arrow keys needed for keyboard use - so plain
+// keys pass through untouched. Pages that repurpose one of these keys (the
+// homepage forwards Ctrl chords and F6 to the app's shortcut bridge) keep
+// their own listeners, which a cancelled default does not stop.
 document.addEventListener('keydown', function (e) {
-	// F6 is Chromium's cycle-browser-pane key; with no chrome to cycle to it
-	// drops focus on the bare webview host window - a dead end for keyboard
-	// and screen-reader users. Pages that repurpose F6 (the homepage forwards
-	// it to the app's pane cycle) keep their own listener, which still runs.
-	if (e.key === 'F5' || e.key === 'F3' || e.key === 'F6') {
-		e.preventDefault();
+	if (e.defaultPrevented)
+		return;
+	var editable = e.target.closest('input, textarea') || e.target.isContentEditable;
+	if (/^F\d\d?$/.test(e.key)) {
+		// Shift+F10 in a text field opens the edit menu (cut/copy/paste) -
+		// that one is page content, not browser chrome
+		if (!(e.shiftKey && e.key === 'F10' && editable))
+			e.preventDefault();
 		return;
 	}
-	if ((e.ctrlKey || e.metaKey) && e.key.length === 1 && 'rfgpsouj+-=0'.indexOf(e.key.toLowerCase()) !== -1)
-		e.preventDefault();
+	if (!e.ctrlKey && !e.metaKey && !e.altKey)
+		return;   // plain and Shift+ keys belong to the page
+	if (e.key.length > 1 && !e.altKey)
+		return;   // Ctrl+named-key: caret movement in fields; the browser binds none
+	if (e.ctrlKey && e.altKey && e.key.length === 1)
+		return;   // AltGr-composed characters on European layouts
+	if (!e.altKey && 'acvxyz'.indexOf(e.key.toLowerCase()) !== -1)
+		return;   // select-all / clipboard / undo-redo editing chords
+	e.preventDefault();
+});
+
+// The default context menu is browser chrome too, and the keyboard reaches it
+// (Shift+F10, the ContextMenu key) as well as the mouse - suppress both routes
+// together. Pages with a menu of their own preventDefault on their own element
+// first; text fields keep the edit menu, matching the Shift+F10 carve-out.
+document.addEventListener('contextmenu', function (e) {
+	if (e.defaultPrevented || e.target.closest('input, textarea') || e.target.isContentEditable)
+		return;
+	e.preventDefault();
 });
