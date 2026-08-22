@@ -53,21 +53,21 @@
 <div id="Content"  class="thin-scroll">
 
 <!-- EXAMPLE GENERATED CODE BLOCK
-<div class="OneVendorBlock" Vendor="VendorName">
+<div class="OneVendorBlock" Vendor="VendorName" role="group" aria-label="VendorName">
 	<div class="BlockBanner">
 		<h2>VendorName</h2>
-			<div class="BannerBtns" role="checkbox" aria-checked="false" onClick="ChooseVendor('VendorName')" >
+			<label class="BannerBtns">
 				<div class="modelCount"></div>
-				<input type="checkbox" class="VendorCheckbox" aria-hidden="true" />
-			</div>
+				<input type="checkbox" class="VendorCheckbox" aria-label="Select all VendorName printers" onChange="ChooseVendor('VendorName')" />
+			</label>
 	</div>
 	<div class="PrinterArea">
-		<div class="PrinterBlock" role="checkbox" aria-checked="false" onClick="ChooseModel('VendorName','ModelName')" >
+		<div class="PrinterBlock" role="checkbox" aria-checked="false" aria-label="ModelName" aria-describedby="PrinterInfo1" onClick="ChooseModel('VendorName','ModelName')" >
 			<div class="PImg" >
 			<img class="ModelThumbnail" src="CoverPath" />
 			</div>
 			<div class="PrinterInfoMark">?</div>
-			<div class="PrinterInfo">
+			<div class="PrinterInfo" id="PrinterInfo1">
 				<div class="title trans">Nozzle</div>
 				<div class="value">nozzleInfo</div>
 			</div>

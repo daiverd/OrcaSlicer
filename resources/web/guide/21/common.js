@@ -266,6 +266,12 @@ function textInput(obj) {
 	FilterModelList(obj.value);
 }
 
+// profile supplied names, keep them out of the attributes
+function EscAttr(strText)
+{
+	return strText.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
 function CreateVendorBlock(vendorName)
 {
 	let alt = vendorName;
@@ -275,20 +281,27 @@ function CreateVendorBlock(vendorName)
 		alt = "Custom Printer";
 	if( alt == "Other")
 		alt = "Orca colosseum";
-	
-	return 	'<div class="OneVendorBlock" Vendor="' + vendorName + '">' +
+
+	let altAttr = EscAttr(alt);
+
+	return 	`<div class="OneVendorBlock" Vendor="${vendorName}" role="group" aria-label="${altAttr}">` +
 			'	<div class="BlockBanner">' +
 			'		<h2>' + alt + '</h2>' +
-			`		<div class="BannerBtns" tabindex="0" role="checkbox" aria-checked="false" aria-label="${GetTransText('a11y_select_all_printers','Select all {0} printers').replace('{0}',alt)}" onClick="ChooseVendor('${vendorName}')">`+
+			'		<label class="BannerBtns">'+
 			'			<div class="modelCount"></div>' +
-			// the native box only draws the tick - the row above is the control screen readers see
-			'			<input type="checkbox" class="VendorCheckbox" tabindex="-1" aria-hidden="true"/>'+
-			'		</div>'+
+			// the row is the box's label, so the name belongs on the box - the label's own
+			// text is the "3 / 12" count, which is state rather than a name
+			`			<input type="checkbox" class="VendorCheckbox" aria-label="${GetTransText('a11y_select_all_printers','Select all {0} printers').replace('{0}',altAttr)}" onChange="ChooseVendor('${vendorName}')"/>`+
+			'		</label>'+
 			'	</div>' +
 			'	<div class="PrinterArea">	' +
 			'	</div>' +
 			'</div>';
 }
+
+// the hover card needs an id for aria-describedby to point at, and the cards are rebuilt
+// on every search - a running number is the cheapest id that is unique across rebuilds
+let PrinterInfoSeq = 0;
 
 function CreatePrinterBlock(OneModel)
 {
@@ -313,16 +326,18 @@ function CreatePrinterBlock(OneModel)
 		modelName = modelName.slice(("Rolohaun").length).trim();
 
 	// the card is a multi-select toggle, so it is a checkbox; the model name is its explicit
-	// accessible name so it is announced first, and the "?" mark and its hover card - which
-	// screen readers never see - are offered as the description instead
+	// accessible name so it is announced first, and the hover card the "?" mark reveals is
+	// its description. The card stays aria-hidden - it is a pointer-only duplicate anywhere
+	// else in the tree - but a node named by aria-describedby is read even when hidden.
 	let nozzles = OneModel['nozzle_diameter'].replaceAll(";", " · ");
+	let infoId  = 'PrinterInfo' + (++PrinterInfoSeq);
 
-	return	`<div class="PrinterBlock" tabindex="0" role="checkbox" aria-checked="${!!GetModelSelect(vendor, OneModel['model'])}" aria-label="${modelName}" aria-description="${GetTransText('a11y_nozzle','Nozzle: {0}').replace('{0}',nozzles)}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
+	return	`<div class="PrinterBlock" tabindex="0" role="checkbox" aria-checked="${!!GetModelSelect(vendor, OneModel['model'])}" aria-label="${EscAttr(modelName)}" aria-describedby="${infoId}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
 			'	<div class="PImg">'+
 			'		<img class="ModelThumbnail" src="' + OneModel['cover'] + '" alt="" />'+
 			'	</div>'+
 			'	<div class="PrinterInfoMark" aria-hidden="true">?</div>'+
-			'	<div class="PrinterInfo" aria-hidden="true">'+
+			`	<div class="PrinterInfo" id="${infoId}" aria-hidden="true">`+
 			'		<div class="title trans">Nozzle</div>'+
 			'		<div class="value">' + nozzles + '</div>'+
 			'	</div>'+
@@ -379,9 +394,9 @@ function UpdateVendorCheckbox(sVendor) {
 	const allSel   = selCount === $cbs.length && selCount > 0;
 	const nonSel   = selCount === 0;
 
+	// the native `indeterminate` property is the mixed state - the box maps it to
+	// aria-checked="mixed" itself, so there is nothing to mirror onto the row
 	$vcb.prop({checked: allSel , indeterminate: !allSel && !nonSel});
-	// AT support for a bare `indeterminate` is patchy, so state the tri-state on the row too
-	$vb.find(".BannerBtns").attr('aria-checked', allSel ? 'true' : nonSel ? 'false' : 'mixed');
 
 	$vb.find(".modelCount").text(selCount + " / " + $cbs.length);
 }
