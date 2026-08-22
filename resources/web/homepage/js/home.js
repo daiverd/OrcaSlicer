@@ -60,11 +60,35 @@ function Set_RecentFile_MouseRightBtn_Event()
 		if (event.key !== 'Escape' || !$("#recnet_context_menu").is(":visible"))
 			return;
 
-		$("#recnet_context_menu").hide();
-		if (ContextMenuOpener) {
-			$(ContextMenuOpener).focus();
-			ContextMenuOpener=null;
+		CloseRecnetFileContextMenu();
+	});
+
+	// ORCA: the menu keyboard pattern - the arrows and Home/End walk the items, Tab leaves.
+	// Enter and Space come from a11y.js, which clicks whatever menuitem holds the focus.
+	$("#recnet_context_menu").off("keydown.recnetmenu").on("keydown.recnetmenu", "[role='menuitem']", function (event) {
+		let Items=$("#recnet_context_menu [role='menuitem']");
+		let nCount=Items.length;
+		let nNext=Items.index(this);
+
+		if (event.key === 'ArrowDown')
+			nNext=(nNext+1)%nCount;
+		else if (event.key === 'ArrowUp')
+			nNext=(nNext+nCount-1)%nCount;
+		else if (event.key === 'Home')
+			nNext=0;
+		else if (event.key === 'End')
+			nNext=nCount-1;
+		else if (event.key === 'Tab') {
+			// leaving the menu closes it - the focus goes back to the file first so the
+			// browser's own move carries on from there and not from the top of the page
+			CloseRecnetFileContextMenu();
+			return;
 		}
+		else
+			return;
+
+		event.preventDefault();
+		Items.eq(nNext).focus();
 	});
 
 	$(document).bind("contextmenu",function(e){
@@ -377,6 +401,18 @@ function ShowRecnetFileContextMenu()
 		RealY=DocumentHeight-ContextMenuHeight-24;
 	
 	$("#recnet_context_menu").offset({top: RealY, left:RealX});
+}
+
+// ORCA: the keyboard close paths - Escape and Tab - both hand the focus back to the file
+// the menu was opened from, since the menu itself is about to disappear from under it
+function CloseRecnetFileContextMenu()
+{
+	$("#recnet_context_menu").hide();
+
+	if (ContextMenuOpener) {
+		$(ContextMenuOpener).focus();
+		ContextMenuOpener=null;
+	}
 }
 
 // ORCA: keyboard route to the same menu - anchor it to the item instead of the pointer
