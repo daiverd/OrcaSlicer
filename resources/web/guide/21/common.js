@@ -237,17 +237,6 @@ function FilterModelList(keyword) {
 		obj.append(ModelHtml[key]);
 	}
 
-	//Update Checkbox
-	ModelSelect = $('.ModelCheckBox');
-	for (let n = 0; n < ModelSelect.length; n++) {
-		let OneItem = ModelSelect[n];
-
-		let strModel = OneItem.getAttribute("model");
-		let strVendor = OneItem.getAttribute("vendor");
-
-		SetModelChecked($(OneItem), GetModelSelect(strVendor, strModel));
-	}
-
 	UpdateSidebarVendors();
 
 	$content.css("padding-right",  $content[0].scrollHeight > $content[0].clientHeight ? "10px" : "20px");
@@ -259,17 +248,13 @@ function FilterModelList(keyword) {
 	//	$("div.OneVendorBlock[vendor='"+BBL+"'] .ModelCheckBox").addClass('ModelCheckBoxSelected');
 	// }
 
-	TranslatePage();
+	// ORCA runs on every keystroke, so only the cards just rebuilt are re-translated -
+	// the rest of the page is static chrome that the full TranslatePage on load handled
+	TranslateNodes($content);
 }
 
 function textInput(obj) {
 	FilterModelList(obj.value);
-}
-
-// profile supplied names, keep them out of the attributes
-function EscAttr(strText)
-{
-	return strText.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 }
 
 function CreateVendorBlock(vendorName)
@@ -332,8 +317,12 @@ function CreatePrinterBlock(OneModel)
 	// else in the tree - but a node named by aria-describedby is read even when hidden.
 	let nozzles = OneModel['nozzle_diameter'].replaceAll(";", " · ");
 	let infoId  = 'PrinterInfo' + (++PrinterInfoSeq);
+	// the selection bar and aria-checked are the visual and announced halves of one state
+	// (SetModelChecked keeps them in sync later) - emitting both here saves the search
+	// rebuild a second pass over every card it just created
+	let checked = !!GetModelSelect(vendor, OneModel['model']);
 
-	return	`<div class="PrinterBlock" tabindex="0" role="checkbox" aria-checked="${!!GetModelSelect(vendor, OneModel['model'])}" aria-label="${EscAttr(modelName)}" aria-describedby="${infoId}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
+	return	`<div class="PrinterBlock" tabindex="0" role="checkbox" aria-checked="${checked}" aria-label="${EscAttr(modelName)}" aria-describedby="${infoId}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
 			'	<div class="PImg">'+
 			'		<img class="ModelThumbnail" src="' + OneModel['cover'] + '" alt="" />'+
 			'	</div>'+
@@ -343,7 +332,7 @@ function CreatePrinterBlock(OneModel)
 			'		<div class="value">' + nozzles + '</div>'+
 			'	</div>'+
 			'	<div style="display: flex;">'+
-			'		<div class="ModelCheckBox" vendor="' +vendor+ '" model="'+OneModel['model']+'"></div>'+
+			`		<div class="ModelCheckBox${checked ? ' ModelCheckBoxSelected' : ''}" vendor="${vendor}" model="${OneModel['model']}"></div>`+
 			'		<div class="PName">'+ modelName +'</div>'+ // ><p>'+ vendorName +'</p>
 			'	</div>'+
 			'</div>';
@@ -473,29 +462,6 @@ function OnExitFilter() {
 	SendWXMessage(JSON.stringify(tSend));
 
 	return nTotal;
-}
-
-// ORCA: the element focus came from, so hiding the notice can hand it back
-let NoticeOpener = null;
-
-function ShowNotice( nShow )
-{
-	if(nShow==0) {
-		$("#NoticeMask").hide();
-		$("#NoticeBody").hide();
-
-		if(NoticeOpener && document.contains(NoticeOpener))
-			NoticeOpener.focus();
-		NoticeOpener = null;
-	}
-	else {
-		NoticeOpener = document.activeElement;
-
-		$("#NoticeMask").show();
-		$("#NoticeBody").show();
-
-		$("#NoticeBtns button:first").focus();
-	}
 }
 
 // SNAPPY SCROLLING WITHOUT LAGS

@@ -1769,7 +1769,15 @@ var LangText = {
 var LANG_COOKIE_NAME = "BambuWebLang";
 var LANG_COOKIE_EXPIRESECOND = 365 * 86400;
 
+// Resolved once: the language comes from the ?lang the app opens the page with, or
+// failing that from what the last page stored, and neither can change while the page
+// is open. GetTransText is called per rebuilt item on the model and filament lists,
+// so re-reading the query string and localStorage every time is pure overhead.
+let CurrentLang = null;
+
 function GetCurrentLang() {
+  if (CurrentLang !== null) return CurrentLang;
+
   let strLang = GetQueryString("lang");
   if (strLang != null) {
     //setCookie(LANG_COOKIE_NAME,strLang,LANG_COOKIE_EXPIRESECOND,'/');
@@ -1783,7 +1791,15 @@ function GetCurrentLang() {
 
   if (!LangText.hasOwnProperty(strLang)) strLang = "en";
 
+  CurrentLang = strLang;
+
   return strLang;
+}
+
+// Text on its way into an HTML attribute - profile and user supplied names, keep them
+// out of the markup. Shared by every page that builds attributes in JS.
+function EscAttr(strText) {
+  return strText.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 // For accessible names built in JS - strDefault is the English fallback.
@@ -1795,14 +1811,14 @@ function GetTransText(tid, strDefault) {
   return strDefault;
 }
 
-function TranslatePage() {
+// The .trans pass on its own, so a page that rebuilds part of its DOM can re-translate
+// just the new nodes. root is anything jQuery takes as a context (a selector, an element,
+// a jQuery object) and defaults to the whole document; nodes carrying .trans on root
+// itself are not searched, only its descendants.
+function TranslateNodes(root) {
   let strLang = GetCurrentLang();
 
-  // The language a screen reader picks its pronunciation rules from. The table keys are
-  // the app's locale names, BCP-47 wants the hyphenated form - en, zh-CN, pt-BR.
-  document.documentElement.lang = strLang.replace("_", "-");
-
-  let AllNode = $(".trans");
+  let AllNode = $(".trans", root || document);
   let nTotal = AllNode.length;
   for (let n = 0; n < nTotal; n++) {
     let OneNode = AllNode[n];
@@ -1812,9 +1828,19 @@ function TranslatePage() {
       $(OneNode).html(LangText[strLang][tid]);
     }
   }
+}
+
+function TranslatePage() {
+  let strLang = GetCurrentLang();
+
+  // The language a screen reader picks its pronunciation rules from. The table keys are
+  // the app's locale names, BCP-47 wants the hyphenated form - en, zh-CN, pt-BR.
+  document.documentElement.lang = strLang.replace("_", "-");
+
+  TranslateNodes();
 
   let LabelNode = $("[label-tid]");
-  nTotal = LabelNode.length;
+  let nTotal = LabelNode.length;
   for (let n = 0; n < nTotal; n++) {
     let OneNode = LabelNode[n];
 
