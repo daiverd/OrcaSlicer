@@ -682,6 +682,21 @@ function LayoutMode(value) {
 document.addEventListener('DOMContentLoaded', () => {
 	LayoutMode("large-cover");
 	SetSidebarOpen(0);
+
+	// ORCA the open sidebar covers the page with a pointer-blocking scrim, so focus must
+	// never land behind it: Tab off the last vendor would otherwise leave the keyboard on
+	// dimmed, unclickable controls. A null relatedTarget is left alone on purpose: it means
+	// focus left the document (window switch) or a click hit something unfocusable, and the
+	// scrim already closes itself on click, so the only clicks it would catch are ones
+	// inside the panel's own dead space.
+	let sidebar = document.getElementById('SidebarContainer');
+	sidebar.addEventListener('focusout', e => {
+		if (sidebar.getAttribute('open') != "1" || !e.relatedTarget)
+			return;
+		// the hamburger is excluded so re-opening by click is not undone by the focus it moved
+		if (!sidebar.contains(e.relatedTarget) && !e.relatedTarget.closest('.SidebarBtn'))
+			SetSidebarOpen(0);
+	});
 });
 
 // KEY EVENTS
@@ -705,11 +720,13 @@ function initKeyEvents(closeOnESC) {
 
 		// ORCA focus search bar on key input
 		// writable character, no modifier, not already typing in a field,
-		// and not Space on a focused control (Space activates it instead)
+		// not Space on a focused control (Space activates it instead),
+		// and not while the notice dialog is topmost
 		let a = document.activeElement || document.body;
 		if (a != SearchBox && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
 			&& !a.matches('input, textarea, select')
-			&& !(e.key === ' ' && a.matches('button, a, [role], [tabindex]'))) {
+			&& !(e.key === ' ' && a.matches('button, a, [role], [tabindex]'))
+			&& !$("#NoticeBody").is(":visible")) {
 			SearchBox.focus();
 			SetSidebarOpen(0); // typing implies leaving the sidebar
 		}

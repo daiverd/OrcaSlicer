@@ -124,6 +124,16 @@
 
 </body>
 <script>
+	document.onkeydown = function (event) {
+		var e = event || window.event || arguments.callee.caller.arguments[0];
+
+		// ESC dismisses the notice dialog only. This is a wizard step, not a
+		// standalone dialog, so it has no close of its own to fall through to,
+		// same as the other wizard step, which calls initKeyEvents(false).
+		if (e.keyCode == 27 && $("#NoticeBody").is(":visible"))
+			ShowNotice(0);
+	};
+
 	initInputEvents();
 </script>
 </html>

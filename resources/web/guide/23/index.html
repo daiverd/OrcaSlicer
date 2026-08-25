@@ -140,8 +140,12 @@
 	document.onkeydown = function (event) {
 		var e = event || window.event || arguments.callee.caller.arguments[0];
 
-		if (e.keyCode == 27)
-			ClosePage();
+		if (e.keyCode == 27) {
+			if ($("#NoticeBody").is(":visible")) // the notice dialog is topmost, so it goes first
+				ShowNotice(0);
+			else
+				ClosePage();
+		}
 	};
     window.addEventListener('wheel', function (event) {
         if (event.ctrlKey === true || event.metaKey) {
