@@ -9,10 +9,13 @@
         box-sizing: border-box;
       }
 
-      /* keep converted <button> elements metric-identical to the divs they replaced */
-      button {
+      /* .PlainButtons on <body> pulls in the shared converted-button reset (global.css).
+         Two deltas here: this page is border-box throughout (see * above), so the divs
+         these buttons replaced were border-box too, and nothing else clears the native
+         border. Class specificity, so it wins wherever global.css is linked. */
+      .PlainButtons button {
+        box-sizing: border-box;
         border: none;
-        font: inherit;
       }
 
       html, body {
@@ -264,7 +267,7 @@
 
   <link rel="stylesheet" type="text/css" href="../include/global.css" /> <!-- ORCA One for all-->
 
-  <body>
+  <body class="PlainButtons">
     <div class="container">
       <div class="tip-panel" id="auto_flush_tip">
         Orca would re-calculate your flushing volumes every time the filament

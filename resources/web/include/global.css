@@ -68,6 +68,15 @@
 	outline-offset: 1px;
 }
 
+/* opt-in variant for a control its container clips (search fields drawn inside a
+   bordered box): the ring above would be cut off, so draw it inside the border.
+   Class specificity, so it also beats the `outline: none` those fields use to
+   suppress the browser ring in favour of a coloured border. */
+.FocusRingInset:focus-visible {
+	outline: 2px solid var(--fg-color-text);
+	outline-offset: -3px;
+}
+
 /*////////////////////////////*/
 /*           ICONS            */
 /*////////////////////////////*/
@@ -105,6 +114,26 @@
 /*////////////////////////////*/
 
 /*/// BUTTONS ///*/
+/* Pages that turned clickable <div>s into real <button>s mark the scope holding
+   them with .PlainButtons - usually <body>, or just the container when the page
+   also has buttons that were always buttons. Inside it the UA button chrome is
+   stripped so the converted elements keep the metrics they had as divs.
+   Deliberately not applied to every <button>: the plugin and terminal dialogs
+   were authored around that chrome (their .ButtonType* buttons are border-box)
+   and a blanket reset would resize them.
+   :where() keeps the scope free, leaving the rule at plain element specificity, so
+   the .ButtonType and .ButtonStyle classes below - and any page rule - still win
+   each property. Borders are left alone: the pages carry their own `* {border: 0}`
+   and their own border-color default. */
+:where(.PlainButtons) button {
+	box-sizing: content-box;
+	background: none;
+	font: inherit;
+	color: inherit;
+	text-align: inherit;
+	white-space: normal; /* WebKit buttons default to pre - keep div-style wrapping */
+}
+
 /*----Values slightly different since renderer is different----*/
 .ButtonTypeCompact   { font-size: 11px; padding: 0px 8px ; border-radius: 12px; line-height: 23px; height: 24px; text-align: center}
 .ButtonTypeWindow    { font-size: 13px; padding: 0px 11px; border-radius: 12px; line-height: 23px; height: 24px; text-align: center}

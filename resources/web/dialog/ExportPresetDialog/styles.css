@@ -64,11 +64,8 @@
     background: var(--cbr-input-focus-bg);
 }
 
-/* the border-color change above doubles as the hover cue - ring keyboard focus distinctly */
-.cbr-search-bar:focus-visible {
-    outline: 2px solid var(--fg-color-text);
-    outline-offset: -3px;
-}
+/* the border-color change above doubles as the hover cue, so these fields also carry
+   .FocusRingInset (global.css) to ring keyboard focus distinctly */
 
 .cbr-search-placeholder {
     position: absolute;
@@ -183,14 +180,4 @@
 
 #AcceptArea {
     border-top: 1px solid var(--cbr-border-color);
-}
-
-/* Element-specificity reset (:where()) so converted footer buttons stay metric-identical to
-   the divs they replaced and the .ButtonStyle/.ButtonType classes still win every property. */
-:where(#AcceptArea) button {
-    box-sizing: content-box;
-    background: none;
-    font: inherit;
-    color: inherit;
-    text-align: inherit;
 }

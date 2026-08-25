@@ -105,18 +105,17 @@
 
 .cbr-column-title-container input:is(:hover,:focus) {
 	border-color: var(--main-color);
-	outline: none;
 }
 
 .cbr-column-title-container input:is(:focus) {
 	background: var(--focus-bg-box);
 }
 
-/* the teal border and fill above are a state cue, not a focus indicator - ring it too */
-.cbr-column-title-container input:focus-visible {
-	outline: 2px solid var(--fg-color-text);
-	outline-offset: -3px;
-}
+/* the teal border and fill above are a state cue, not a focus indicator, so these
+   fields also carry .FocusRingInset (global.css) to ring them inside their clipping
+   container. That ring takes over from the `outline: none` this rule used to carry:
+   a text field matches :focus-visible whenever it is focused, so the browser ring
+   that was being suppressed is now always replaced by the shared one. */
 
 .cbr-filter-box {
 	position: relative;

@@ -19,7 +19,7 @@
 <script type="text/javascript" src="../21/common.js"></script> <!-- ORCA use common sources for setup guide and standalone dialog -->
 <script type="text/javascript" src="24.js"></script>	
 </head>
-<body onLoad="OnInit()">
+<body class="PlainButtons" onLoad="OnInit()">
 <div id="Title">
 	<h1 class="trans" tid="t10">Printer Selection</h1>
 </div>
@@ -39,7 +39,7 @@
 
 <div class="search" hasvalue="0">
 	<div class="search-icon icon16"></div>
-	<input type="text" class="searchTerm" placeholder=" " oninput="textInput(this)" aria-labelledby="SearchLabel">
+	<input type="text" class="searchTerm FocusRingInset" placeholder=" " oninput="textInput(this)" aria-labelledby="SearchLabel">
 	<span class="search-placeholder trans" id="SearchLabel">Search...</span>
 </div>
 <div class="LayoutSelector">

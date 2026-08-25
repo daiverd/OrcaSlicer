@@ -314,12 +314,8 @@ img.ModelThumbnail {
 	background: var(--button-bg-hover);
 }
 
-/* the shared global.css ring applies here too, but .search clips to its own
-   box - pull the ring inside it so it stays visible. */
-.searchTerm:focus-visible {
-	outline: 2px solid var(--fg-color-text);
-	outline-offset: -3px;
-}
+/* .search clips to its own box, so .searchTerm carries .FocusRingInset (global.css)
+   to pull the shared ring inside it and keep it visible. */
 
 .search-placeholder {
 	color: var(--fg-color-disabled);
