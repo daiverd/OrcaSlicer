@@ -373,6 +373,8 @@ wxString WipingDialog::BuildTextObjStr(bool multi_language)
     wxString calc_btn_panel;
     wxString extruder_label_0;
     wxString extruder_label_1;
+    wxString extruder_select_label;
+    wxString flush_cell_label;
     wxString multiplier_label;
     wxString ok_btn_label;
     wxString cancel_btn_label;
@@ -385,6 +387,11 @@ wxString WipingDialog::BuildTextObjStr(bool multi_language)
         calc_btn_panel = _L("Re-calculate");
         extruder_label_0 = _L("Left extruder");
         extruder_label_1 = _L("Right extruder");
+        // Accessible name of the nozzle selector; it has no visible label.
+        extruder_select_label = _L("Extruder");
+        // Accessible name template for a matrix cell. %1%/%2% are the 1-based
+        // filament indices; the page substitutes them.
+        flush_cell_label = _L("Flush from filament %1% to filament %2%");
         multiplier_label = _L("Multiplier");
         ok_btn_label = _L("OK");
         cancel_btn_label = _L("Cancel");
@@ -396,6 +403,8 @@ wxString WipingDialog::BuildTextObjStr(bool multi_language)
         calc_btn_panel = "Re-calculate";
         extruder_label_0 = "Left extruder";
         extruder_label_1 = "Right extruder";
+        extruder_select_label = "Extruder";
+        flush_cell_label = "Flush from filament %1% to filament %2%";
         multiplier_label = "Multiplier";
         ok_btn_label = "OK";
         cancel_btn_label = "Cancel";
@@ -408,6 +417,8 @@ wxString WipingDialog::BuildTextObjStr(bool multi_language)
     text_obj += wxString::Format("\"calc_btn_panel\":\"%s\",", calc_btn_panel);
     text_obj += wxString::Format("\"extruder_label_0\":\"%s\",", extruder_label_0);
     text_obj += wxString::Format("\"extruder_label_1\":\"%s\",", extruder_label_1);
+    text_obj += wxString::Format("\"extruder_select_label\":\"%s\",", extruder_select_label);
+    text_obj += wxString::Format("\"flush_cell_label\":\"%s\",", flush_cell_label);
     text_obj += wxString::Format("\"multiplier_label\":\"%s\",", multiplier_label);
     text_obj += wxString::Format("\"ok_btn_label\":\"%s\",", ok_btn_label);
     text_obj += wxString::Format("\"cancel_btn_label\":\"%s\",", cancel_btn_label);

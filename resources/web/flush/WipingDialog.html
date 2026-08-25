@@ -366,6 +366,14 @@
       let m_min_flush_multiplier = 0.50
       let m_max_flush_multiplier = 3
       let m_default_matrix //系统默认矩阵
+      // Accessible name template for a matrix cell. Replaced by the translated
+      // one in buildText(); the English default keeps the cells labelled until
+      // that payload arrives (buildTable runs first) and if the key is missing.
+      let m_flush_cell_label = "Flush from filament %1% to filament %2%"
+
+      function flushCellLabel(i, j) {
+        return m_flush_cell_label.replace("%1%", i + 1).replace("%2%", j + 1)
+      }
 
       function storeData() {
         var data = JSON.stringify({
@@ -443,6 +451,16 @@
         document.getElementById('calc_btn').innerText = data.calc_btn_panel
         document.getElementById('extruder_label_0').innerText = data.extruder_label_0
         document.getElementById('extruder_label_1').innerText = data.extruder_label_1
+        if (data.extruder_select_label)
+          document.getElementById('extruders').setAttribute("aria-label", data.extruder_select_label)
+        // buildTable() has already labelled the cells with the English default,
+        // so re-label them once the translated template is known.
+        if (data.flush_cell_label) {
+          m_flush_cell_label = data.flush_cell_label
+          for (let i = 0; i < m_cell_inputs.length; i++)
+            for (let j = 0; j < m_cell_inputs[i].length; j++)
+              m_cell_inputs[i][j].setAttribute("aria-label", flushCellLabel(i, j))
+        }
         document.getElementById('multiplier_label').innerText = data.multiplier_label
         document.getElementById('ok_btn').innerText = data.ok_btn_label
         document.getElementById('cancel_btn').innerText = data.cancel_btn_label
@@ -566,7 +584,7 @@
             input.className = "table-input"
             input.type = "number";
             input.value = readonly ? 0 : displayVal;
-            input.setAttribute("aria-label", "Flush from filament " + (i + 1) + " to filament " + (j + 1));
+            input.setAttribute("aria-label", flushCellLabel(i, j));
             if (readonly) {
               input.readOnly = true;
             }

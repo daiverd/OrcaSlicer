@@ -270,9 +270,9 @@ function ShowModelInfo( pModel )
 	}
 
 	if( sLicence.indexOf('CC')===0 )
-		$('#ModelLicenceImg img').attr('alt','License: '+sLicence);
+		$('#ModelLicenceImg img').attr('alt',GetTransText('a11y_license','License: {0}').replace('{0}',sLicence));
 	else
-		$('#ModelLicenceImg img').attr('alt','License: CC '+sLicence);
+		$('#ModelLicenceImg img').attr('alt',GetTransText('a11y_license','License: {0}').replace('{0}','CC '+sLicence));
 	
 	$('#Model_Desc').html( html_decode(sModelDesc) );
 			
@@ -293,7 +293,7 @@ function ShowModelInfo( pModel )
 			//let FTmpPath=decodeURIComponent(ModelPreviewList[pn]);
 			let FTmpPath=ModelPreviewList[pn]['filepath'];
 			
-			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" alt="'+sModelName.replace(/"/g,'&quot;')+' preview '+(pn+1)+'" /></div>';
+			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" alt="'+GetTransText('a11y_preview','{0} preview {1}').replace('{0}',sModelName.replace(/"/g,'&quot;')).replace('{1}',(pn+1))+'" /></div>';
 		}
 			
 	    $('#ModelPreviewList').html(htmlPreview);
@@ -510,7 +510,7 @@ function ShowProfilelInfo( pProfile )
 		{	
 			let FTmpPath=ProfilePreviewList[pn]['filepath'];
 			
-			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" alt="'+sProfileName.replace(/"/g,'&quot;')+' preview '+(pn+1)+'" /></div>';
+			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" alt="'+GetTransText('a11y_preview','{0} preview {1}').replace('{0}',sProfileName.replace(/"/g,'&quot;')).replace('{1}',(pn+1))+'" /></div>';
 		}
 			
 		$('#ProfilePreviewList').html(htmlPreview);
