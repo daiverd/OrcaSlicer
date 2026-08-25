@@ -9,6 +9,8 @@
 document.addEventListener('keydown', function (e) {
 	if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey)
 		return;
+	if (e.repeat)
+		return;   // auto-repeat must not re-activate; a native control fires once per press
 	var enter = e.key === 'Enter';
 	if (!enter && e.key !== ' ')
 		return;
@@ -55,19 +57,30 @@ document.addEventListener('keydown', function (e) {
 		          // Alt+F4, Alt-mnemonics) or AltGr composition - never eat
 		          // them, including the bare Alt tap itself. The history keys
 		          // Alt+Left/Right do nothing in these single-page views.
-	if (e.metaKey && 'qwmh,'.indexOf(e.key.toLowerCase()) !== -1)
+	if (e.metaKey && /^Key[QWMH]$|^Comma$/.test(e.code))
 		return;   // the macOS app-level Cmd set (quit, close, minimize, hide,
 		          // preferences) is the window system's, like the Alt set above;
 		          // whether WKWebView hands them to content first is untested,
-		          // so never eat them
+		          // so never eat them. Matched by physical key (e.code), like the
+		          // Ctrl chord whitelist below: e.key is layout-dependent, and on
+		          // a non-Latin layout it would miss this allowlist entirely
 	if (!e.ctrlKey && !e.metaKey)
 		return;   // plain and Shift+ keys belong to the page
+	if (e.target.closest('input, textarea') || e.target.isContentEditable)
+		return;   // a chord aimed at a text field is the field's: the edit chords
+		          // below are only the common ones, and fields also take Ctrl+
+		          // Backspace/Delete, Ctrl+Home/End and the browser's own inserts
 	if (e.key.length > 1)
-		return;   // Ctrl+named-key: caret movement in fields; the browser's own
-		          // (Ctrl+Tab, Ctrl+PageUp/Down) switch tabs, which a single-
-		          // page webview does not have
-	if ('acvxyz'.indexOf(e.key.toLowerCase()) !== -1)
-		return;   // select-all / clipboard / undo-redo editing chords
+		return;   // Ctrl+named-key: the browser's own (Ctrl+Tab, Ctrl+PageUp/Down)
+		          // switch tabs, which a single-page webview does not have; the
+		          // rest are caret and selection keys, harmless outside a field
+	if (/^Key[ACVXYZ]$/.test(e.code))
+		return;   // select-all / clipboard / undo-redo editing chords, which work
+		          // on read-only content too (copy from a page, select-all).
+		          // Matched by physical key (e.code), because the browser resolves
+		          // these chords positionally: on a Russian, Greek or Hebrew layout
+		          // Ctrl+V still pastes while e.key reports that layout's letter, so
+		          // an e.key whitelist would cancel the very paste the browser fired.
 	e.preventDefault();
 });
 
