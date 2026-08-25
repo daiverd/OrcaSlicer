@@ -29,10 +29,19 @@ function InstallEscapeToClose()
 {
     // Escape closes the dialog; every other key is left alone.
     document.onkeydown = function (event) {
-        if (event.key === "Escape" && typeof ClosePage === "function") {
-            ClosePage();
-            event.preventDefault();
-        }
+        if (event.key !== "Escape" || typeof ClosePage !== "function")
+            return;
+
+        // Escape must stay inert while typing/composing in the search fields.
+        var target = event.target;
+        var tag = target && target.tagName ? String(target.tagName).toUpperCase() : "";
+        var editable = !!(target && target.isContentEditable) || tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT";
+
+        if (event.isComposing || editable)
+            return;
+
+        ClosePage();
+        event.preventDefault();
     };
 }
 
