@@ -7,6 +7,8 @@ function OnInit()
 	//-----Official-----
     TranslatePage();
 
+	Init_RecentFile_Events();
+
 	SendMsg_GetLoginInfo();
 	SendMsg_GetBambuLoginInfo();
 	SendMsg_GetRecentFile();
@@ -34,21 +36,23 @@ function Set_RecentFile_MouseRightBtn_Event()
 			if(e.which == 3){
 				//鼠标点击了右键+$(this).attr('ff') );
 				ShowRecnetFileContextMenu();
-			}else if(e.which == 2){
-				//鼠标点击了中键
-			}else if(e.which == 1){
-				//鼠标点击了左键
-				OnOpenRecentFile( encodeURI(RightBtnFilePath) );
 			}
 		});
+}
 
-	// ORCA: the open action above is bound to mousedown, so a11y.js cannot reach it
-	$(".FileItem").on("keydown", function (event) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			OnOpenRecentFile( encodeURI($(this).attr('fpath')) );
-		}
-		else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+// ORCA: everything below is bound once - the list is re-rendered on every push from
+// the app, so these handlers are delegated or document-level rather than per item
+function Init_RecentFile_Events()
+{
+	// ORCA: opening on click rather than mousedown lets a11y.js activate the item
+	// with Enter/Space, like any other role=button
+	$("#FileList").on("click", ".FileItem", function () {
+		OnOpenRecentFile( encodeURI($(this).attr('fpath')) );
+	});
+
+	// ORCA: the context menu keys are the only ones the item handles itself
+	$("#FileList").on("keydown", ".FileItem", function (event) {
+		if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
 			event.preventDefault();
 			RightBtnFilePath=$(this).attr('fpath');
 			OpenRecnetFileContextMenuAt(this);
@@ -56,7 +60,7 @@ function Set_RecentFile_MouseRightBtn_Event()
 	});
 
 	// ORCA: Escape closes the keyboard-opened menu and hands focus back to the file
-	$(document).off("keydown.recnetmenu").on("keydown.recnetmenu", function (event) {
+	$(document).on("keydown", function (event) {
 		if (event.key !== 'Escape' || !$("#recnet_context_menu").is(":visible"))
 			return;
 
@@ -65,7 +69,7 @@ function Set_RecentFile_MouseRightBtn_Event()
 
 	// ORCA: the menu keyboard pattern - the arrows and Home/End walk the items, Tab leaves.
 	// Enter and Space come from a11y.js, which clicks whatever menuitem holds the focus.
-	$("#recnet_context_menu").off("keydown.recnetmenu").on("keydown.recnetmenu", "[role='menuitem']", function (event) {
+	$("#recnet_context_menu").on("keydown", "[role='menuitem']", function (event) {
 		let Items=$("#recnet_context_menu [role='menuitem']");
 		let nCount=Items.length;
 		let nNext=Items.index(this);
@@ -122,8 +126,7 @@ function Set_RecentFile_MouseRightBtn_Event()
 			elem = elem.parentNode;
 		}		
 		
-		$("#recnet_context_menu").hide();
-		ContextMenuOpener=null;   // hidden without a keyboard close - drop the stale opener
+		CloseRecnetFileContextMenu(false);   // the click itself decides where the focus goes
 	} );
 
 	
@@ -404,15 +407,16 @@ function ShowRecnetFileContextMenu()
 }
 
 // ORCA: the keyboard close paths - Escape and Tab - both hand the focus back to the file
-// the menu was opened from, since the menu itself is about to disappear from under it
-function CloseRecnetFileContextMenu()
+// the menu was opened from, since the menu itself is about to disappear from under it.
+// The paths that pass false have somewhere better for the focus to be, or nowhere at all.
+function CloseRecnetFileContextMenu( bRestoreFocus )
 {
 	$("#recnet_context_menu").hide();
 
-	if (ContextMenuOpener) {
+	if (ContextMenuOpener && bRestoreFocus !== false)
 		$(ContextMenuOpener).focus();
-		ContextMenuOpener=null;
-	}
+
+	ContextMenuOpener=null;
 }
 
 // ORCA: keyboard route to the same menu - anchor it to the item instead of the pointer
@@ -499,9 +503,8 @@ function OnOpenRecentFile( strPath )
 function OnDeleteRecentFile( )
 {
 	//Clear in UI
-	$("#recnet_context_menu").hide();
-	ContextMenuOpener=null;   // the opener item is about to be removed
-	
+	CloseRecnetFileContextMenu(false);   // the opener item is about to be removed
+
 	let AllFile=$(".FileItem");
 	let nFile=AllFile.length;
 	for(let p=0;p<nFile;p++)
@@ -556,10 +559,9 @@ function OnExploreRecentFile( )
 	tSend['data']={};
 	tSend['data']['path']=decodeURI(RightBtnFilePath);
 	
-	SendWXMessage( JSON.stringify(tSend) );	
-	
-	$("#recnet_context_menu").hide();
-	ContextMenuOpener=null;
+	SendWXMessage( JSON.stringify(tSend) );
+
+	CloseRecnetFileContextMenu();
 }
 
 // --- Cloud providers ---
