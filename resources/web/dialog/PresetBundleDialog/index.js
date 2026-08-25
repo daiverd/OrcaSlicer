@@ -11,8 +11,7 @@ let topList = null;
 let bottomList = null;
 
 let ctxMenu = null;
-let contextRow = null;
-let menuOpener = null;   // row the menu was opened from, when opened by keyboard
+let contextRow = null;   // row the open menu belongs to, whichever gesture opened it
 let ctxMenuSubscribed = null;
 
 let ctxMenuDelete = null;
@@ -108,7 +107,6 @@ function OnInit() {
       e.preventDefault();
       const box = row.getBoundingClientRect();
       openRowMenu(row, box.left, box.bottom);
-      menuOpener = row;
       ctxMenu?.querySelector("button:not([hidden])")?.focus();
       return;
     }
@@ -130,8 +128,12 @@ function OnInit() {
       action: String(btn.dataset.action || ""),
       bundle_id: String(contextRow.dataset.id || "")
     };
+    // same hand-back as Escape: every action here is answered asynchronously on the wx side
+    // (a folder window or a native confirm box), so the row is still there and still the right target
+    const invoker = contextRow;
     SendWXMessage(JSON.stringify(tSend));
     hideMenu();
+    invoker.focus();
   });
 
   closeBtn?.addEventListener("click", () => {
@@ -155,9 +157,11 @@ function OnInit() {
   });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    const opener = (ctxMenu && !ctxMenu.hidden) ? menuOpener : null;
+    // dismissing a menu hands focus back to the row it was opened from; hideMenu drops the
+    // reference, so take it first
+    const invoker = (ctxMenu && !ctxMenu.hidden) ? contextRow : null;
     hideMenu();
-    opener?.focus();
+    invoker?.focus();
   });
 }
 // ========= wx bridge requests =========
@@ -374,7 +378,6 @@ function hideMenu() {
   ctxMenu.hidden = true;
   ctxMenuSubscribed.hidden = true;
   contextRow = null;
-  menuOpener = null;
 }
 // ========= Utilities =========
 function safeJsonParse(s) {
