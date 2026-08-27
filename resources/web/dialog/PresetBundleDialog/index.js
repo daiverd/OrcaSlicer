@@ -65,9 +65,7 @@ function OnInit() {
       const row = cloudLink.closest(".row");
       if (!row) return;
 
-      selectTopRow(row);
-      selectedBundleId = String(row.dataset.id || "");
-      renderBottomForBundle(selectedBundleId);
+      selectBundleRow(row);
       sendOpenBundleOnCloud(selectedBundleId);
       return;
     }
@@ -80,9 +78,7 @@ function OnInit() {
       const row = updateBtn.closest(".row");                                                                                                                                                                                                                                                                                                                     
       if (!row) return;                                                                                                                                                                                                                                                                                                                                          
                                                                                                                                                                                                                                                                                                                                                                  
-      selectTopRow(row);                                                                                                                                                                                                                                                                                                                                         
-      selectedBundleId = String(row.dataset.id || "");                                                                                                                                                                                                                                                                                                           
-      renderBottomForBundle(selectedBundleId);                                                                                                                                                                                                                                                                                                                   
+      selectBundleRow(row);
       sendUpdateBundleCommand(selectedBundleId);                                                                                                                                                                                                                                                                                                                 
       return;                                                                                                                                                                                                                                                                                                                                                    
     }                                                                                                                                                                                                                                                                                                                                                            
@@ -90,9 +86,7 @@ function OnInit() {
     const row = e.target.closest(".row");                                                                                                                                                                                                                                                                                                                        
     if (!row) return;                                                                                                                                                                                                                                                                                                                                            
                                                                                                                                                                                                                                                                                                                                                                  
-    selectTopRow(row);                                                                                                                                                                                                                                                                                                                                           
-    selectedBundleId = String(row.dataset.id || "");                                                                                                                                                                                                                                                                                                             
-    renderBottomForBundle(selectedBundleId);                                                                                                                                                                                                                                                                                                                     
+    selectBundleRow(row);
   });
 
   // for top list rows if right click open context menu
@@ -104,18 +98,26 @@ function OnInit() {
     openRowMenu(row, e.clientX, e.clientY);
   });
 
-  // same menu from the keyboard: Context Menu key or Shift+F10 on the focused row
+  // keyboard twin of the two mouse gestures on a row: Enter/Space selects it, the Context Menu
+  // key or Shift+F10 opens the menu the right button opens.
   topList.addEventListener("keydown", (e) => {
-    if (e.key !== "ContextMenu" && !(e.shiftKey && e.key === "F10")) return;
-
     const row = e.target.closest(".row");
     if (!row) return;
 
+    if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+      e.preventDefault();
+      const box = row.getBoundingClientRect();
+      openRowMenu(row, box.left, box.bottom);
+      menuOpener = row;
+      ctxMenu?.querySelector("button:not([hidden])")?.focus();
+      return;
+    }
+
+    // only the row's own keys - Enter on the Update button or the name link is theirs to handle
+    if (e.target !== row || (e.key !== "Enter" && e.key !== " ")) return;
+
     e.preventDefault();
-    const box = row.getBoundingClientRect();
-    openRowMenu(row, box.left, box.bottom);
-    menuOpener = row;
-    ctxMenu?.querySelector("button:not([hidden])")?.focus();
+    selectBundleRow(row);
   });
 
   ctxMenu?.addEventListener("click", (e) => {
@@ -218,9 +220,13 @@ function unpackPayload(payload) {
 // ========= Render: top =========
 function renderTop() {                                                                                                                                                                                                                                                                                                                                         
     const bundles = Array.from(bundlesById.values());                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                 
+
+    // why: the row is a tab stop of its own - selecting it is what fills the pane below, and the
+    //      row menu keys need a focused row, neither of which its Update button or name link do.
+    //      It carries no ARIA widget role on purpose: option/button would turn those real controls
+    //      into presentational children and hide them from assistive tech.
     topList.innerHTML = bundles.map(b => `                                                                                                                                                                                                                                                                                                                       
-      <div class="row" data-id="${escapeAttr(b.id)}" data-bundle-type="${escapeAttr(String(b.type || "").toLowerCase())}" tabindex="0" role="option">
+      <div class="row" data-id="${escapeAttr(b.id)}" data-bundle-type="${escapeAttr(String(b.type || "").toLowerCase())}" tabindex="0">
         <div class="cell bundle-name-cell" title="${escapeAttr(b.name)}">                                                                                                                                                                                                                                                                                        
           ${b.unauthorized
             ? `<span class="bundle-status-icon bundle-status-icon-unauthorized" title="${escapeAttr(UNAUTHORIZED_TOOLTIP)}" aria-label="${escapeAttr(UNAUTHORIZED_TOOLTIP)}">!</span>`
@@ -300,12 +306,20 @@ function clearSelection() {
 
 function selectTopRow(rowEl) {
   // only clear selection in top list, not bottom
+  // why: aria-current, not aria-selected - the latter needs a listbox/grid the list is not
   topList.querySelectorAll(".row.selected").forEach(r => {
     r.classList.remove("selected");
-    r.setAttribute("aria-selected", "false");
+    r.removeAttribute("aria-current");
   });
   rowEl.classList.add("selected");
-  rowEl.setAttribute("aria-selected", "true");
+  rowEl.setAttribute("aria-current", "true");
+}
+
+// Select a top row and refresh the pane below it - what every click and Enter on a row does.
+function selectBundleRow(rowEl) {
+  selectTopRow(rowEl);
+  selectedBundleId = String(rowEl.dataset.id || "");
+  renderBottomForBundle(selectedBundleId);
 }
 
 function autoSelectFirstBundle() {
@@ -324,9 +338,7 @@ function autoSelectFirstBundle() {
     return;
   }
 
-  selectTopRow(first);
-  selectedBundleId = first.dataset.id;
-  renderBottomForBundle(selectedBundleId);
+  selectBundleRow(first);
 }
 
 function openRowMenu(row, x, y) {

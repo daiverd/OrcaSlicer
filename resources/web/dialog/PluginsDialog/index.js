@@ -440,12 +440,13 @@ function RenderPlugins() {
   if (!pluginList)
     return;
 
-  // why: the list is rebuilt from scratch, so a focused row would drop focus to the body -
-  //      remember which one had it and restore it on the freshly built row.
-  const focusedRowKey = document.activeElement?.classList?.contains("plugin-row")
-    ? String(document.activeElement.dataset.pluginKey || "")
+  // why: the list is rebuilt from scratch, so the control that asked for the rebuild - the row's
+  //      expand button - would drop focus to the body. Remember whose it was and restore it on
+  //      the freshly built row.
+  const focusedExpandKey = document.activeElement?.classList?.contains("plugin-expand-btn")
+    ? String(document.activeElement.closest(".plugin-block")?.dataset.pluginKey || "")
     : "";
-  let rowToFocus = null;
+  let expandButtonToFocus = null;
 
   pluginList.innerHTML = "";
 
@@ -487,20 +488,23 @@ function RenderPlugins() {
     const row = document.createElement("div");
     row.className = "row plugin-row plugin-cols";
     row.dataset.pluginKey = pluginKey;
-    row.tabIndex = 0;
-    row.setAttribute("role", "option");
-    row.setAttribute("aria-selected", pluginKey === selectedPluginId ? "true" : "false");
 
-    if (pluginKey === selectedPluginId)
+    // why: the row is not a tab stop - its checkbox, expand button and name link are, and each of
+    //      them also selects the plugin. A focusable row would add one tab stop per plugin, and no
+    //      ARIA role fits a row that holds real controls (option/button hide their descendants).
+    if (pluginKey === selectedPluginId) {
       row.classList.add("selected");
-    if (pluginKey === focusedRowKey)
-      rowToFocus = row;
+      row.setAttribute("aria-current", "true");
+    }
 
     row.appendChild(CheckCell(row, plugin));
     row.appendChild(LabelCell(plugin, isExpanded, capabilities.length, match?.nameRanges));
     row.appendChild(VersionCell(plugin));
     row.appendChild(SourceCell(plugin));
     row.appendChild(StatusCell(plugin));
+
+    if (pluginKey === focusedExpandKey)
+      expandButtonToFocus = row.querySelector(".plugin-expand-btn");
 
     block.appendChild(row);
     if (isExpanded)
@@ -520,8 +524,8 @@ function RenderPlugins() {
     pluginList.appendChild(empty);
   }
 
-  if (rowToFocus)
-    rowToFocus.focus();
+  if (expandButtonToFocus)
+    expandButtonToFocus.focus();
 
   // why: recompute the scrollbar gutter on every render - search and sort re-render via RenderPlugins
   SyncPluginListHeaderGutter();
