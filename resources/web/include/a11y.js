@@ -1,5 +1,7 @@
 // Shared keyboard-accessibility behavior for the packaged web pages.
-// Self-contained: include after the page's other scripts, no init call needed.
+// Self-contained: one <script> include per page, no init call needed. All
+// listeners are document-level and delegated, so include order does not matter;
+// page handlers on the elements themselves always run first.
 
 // Enter/Space activates any element that declares an ARIA widget role but is
 // not a native control (the `<div onclick>` pattern used across these pages).
@@ -11,6 +13,8 @@ document.addEventListener('keydown', function (e) {
 	if (!enter && e.key !== ' ')
 		return;
 	var t = e.target;
+	if (!t || !t.closest)
+		return;   // key arrived with no focused element (target is the document)
 	// native controls handle these keys themselves - never hijack a key aimed at one,
 	// including a button or link sitting inside a widget row (a plugin row, a bundle row).
 	if (t.closest('input, textarea, select, button, a[href]') || t.isContentEditable)
@@ -26,31 +30,43 @@ document.addEventListener('keydown', function (e) {
 
 // Keep the webview's browser-chrome shortcuts out of these pages - they are
 // application UI, not websites. Deny by default: cancel every function key and
-// unclaimed modifier chord instead of enumerating the browser's bindings
-// (reload, find bar, print, zoom, view source, pane cycling, history
-// navigation, ...). Successor to the old blanket key canceller, which also
-// swallowed the Tab/Enter/Space/arrow keys needed for keyboard use - so plain
-// keys pass through untouched. Pages that repurpose one of these keys (the
-// homepage forwards Ctrl chords and F6 to the app's shortcut bridge) keep
-// their own listeners, which a cancelled default does not stop.
+// unclaimed Ctrl/Meta chord instead of enumerating the browser's bindings
+// (reload, find bar, print, zoom, view source, pane cycling, ...). Successor
+// to the old blanket key canceller, which also swallowed the Tab/Enter/Space/
+// arrow keys needed for keyboard use - so plain keys pass through untouched.
+// Pages that repurpose one of these chords (the homepage forwards Ctrl chords
+// to the app's shortcut bridge) keep their own listeners, which a cancelled
+// default does not stop.
 document.addEventListener('keydown', function (e) {
-	if (e.defaultPrevented)
+	if (e.defaultPrevented || !e.target || !e.target.closest)
 		return;
-	var editable = e.target.closest('input, textarea') || e.target.isContentEditable;
 	if (/^F\d\d?$/.test(e.key)) {
-		// Shift+F10 in a text field opens the edit menu (cut/copy/paste) -
-		// that one is page content, not browser chrome
-		if (!(e.shiftKey && e.key === 'F10' && editable))
+		// Alt+F-key combos are the window system's (Alt+F4 closes the app),
+		// not the browser's - cancelling them here would eat the close key.
+		// F10 is the window system's too: it moves focus to the host frame's
+		// menu bar, a keyboard affordance of its own. Shift+F10 opens the
+		// context menu, which the contextmenu listener below already handles.
+		if (!e.altKey && e.key !== 'F10')
 			e.preventDefault();
 		return;
 	}
-	if (!e.ctrlKey && !e.metaKey && !e.altKey)
+	if (e.altKey)
+		return;   // Alt chords are the window system's (menu-bar activation,
+		          // Alt+F4, Alt-mnemonics) or AltGr composition - never eat
+		          // them, including the bare Alt tap itself. The history keys
+		          // Alt+Left/Right do nothing in these single-page views.
+	if (e.metaKey && 'qwmh,'.indexOf(e.key.toLowerCase()) !== -1)
+		return;   // the macOS app-level Cmd set (quit, close, minimize, hide,
+		          // preferences) is the window system's, like the Alt set above;
+		          // whether WKWebView hands them to content first is untested,
+		          // so never eat them
+	if (!e.ctrlKey && !e.metaKey)
 		return;   // plain and Shift+ keys belong to the page
-	if (e.key.length > 1 && !e.altKey)
-		return;   // Ctrl+named-key: caret movement in fields; the browser binds none
-	if (e.ctrlKey && e.altKey && e.key.length === 1)
-		return;   // AltGr-composed characters on European layouts
-	if (!e.altKey && 'acvxyz'.indexOf(e.key.toLowerCase()) !== -1)
+	if (e.key.length > 1)
+		return;   // Ctrl+named-key: caret movement in fields; the browser's own
+		          // (Ctrl+Tab, Ctrl+PageUp/Down) switch tabs, which a single-
+		          // page webview does not have
+	if ('acvxyz'.indexOf(e.key.toLowerCase()) !== -1)
 		return;   // select-all / clipboard / undo-redo editing chords
 	e.preventDefault();
 });
@@ -58,9 +74,11 @@ document.addEventListener('keydown', function (e) {
 // The default context menu is browser chrome too, and the keyboard reaches it
 // (Shift+F10, the ContextMenu key) as well as the mouse - suppress both routes
 // together. Pages with a menu of their own preventDefault on their own element
-// first; text fields keep the edit menu, matching the Shift+F10 carve-out.
+// first; text fields keep the edit menu.
 document.addEventListener('contextmenu', function (e) {
-	if (e.defaultPrevented || e.target.closest('input, textarea') || e.target.isContentEditable)
+	if (e.defaultPrevented || !e.target || !e.target.closest)
+		return;
+	if (e.target.closest('input, textarea') || e.target.isContentEditable)
 		return;
 	e.preventDefault();
 });
