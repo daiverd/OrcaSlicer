@@ -325,10 +325,20 @@ function CreatePrinterBlock(OneModel)
 			'</div>';
 }
 
+function SetSidebarOpen(nOpen) {
+	let sidebar = document.getElementById('SidebarContainer');
+	sidebar.setAttribute('open', nOpen ? '1' : '0');
+	sidebar.inert = !nOpen;   // keep the offscreen sidebar out of the Tab order
+	if (nOpen)
+		sidebar.querySelector('.SidebarItem')?.focus();
+	else if (sidebar.contains(document.activeElement))
+		document.querySelector('.SidebarBtn')?.focus();
+}
+
 function scrollToVendor(vendor) {
 	const el = $(".OneVendorBlock[vendor='"+vendor+"']")[0];
 	if (el){
-		document.getElementById('SidebarContainer').setAttribute('open', '0');
+		SetSidebarOpen(0);
 		document.getElementById('Content').scrollTo({top: el.offsetTop, behavior: "smooth"});
 	}
 }
@@ -633,7 +643,10 @@ function LayoutMode(value) {
 	if (target) scrollToVendor(target);
 }
 
-document.addEventListener('DOMContentLoaded', () => LayoutMode("large-cover"));
+document.addEventListener('DOMContentLoaded', () => {
+	LayoutMode("large-cover");
+	SetSidebarOpen(0);
+});
 
 // KEY EVENTS
 function initKeyEvents(closeOnESC) {
@@ -644,7 +657,7 @@ function initKeyEvents(closeOnESC) {
 
 		if (e.keyCode == 27){
 			if(sidebar.getAttribute('open') == "1") { // prefer to close sidebar first if its open
-				sidebar.setAttribute('open', '0');
+				SetSidebarOpen(0);
 			}
 			else if (closeOnESC){
 				ClosePage();
@@ -652,17 +665,14 @@ function initKeyEvents(closeOnESC) {
 		}
 
 		// ORCA focus search bar on key input
-		// SearchBox not in focus && writable character && non modifier
-		if (document.activeElement != SearchBox && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+		// writable character, no modifier, not already typing in a field,
+		// and not Space on a focused control (Space activates it instead)
+		let a = document.activeElement || document.body;
+		if (a != SearchBox && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
+			&& !a.matches('input, textarea, select')
+			&& !(e.key === ' ' && a.matches('button, a, [role], [tabindex]'))) {
 			SearchBox.focus();
+			SetSidebarOpen(0); // typing implies leaving the sidebar
 		}
-
-		// Close sidebar on any key input
-		sidebar.setAttribute('open', '0');
-
-		//if (window.event) {
-		//	try { e.keyCode = 0; } catch (e) { }
-		//	e.returnValue = true;
-		//}
 	};
 }

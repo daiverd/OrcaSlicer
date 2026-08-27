@@ -31,9 +31,9 @@
 			<!-- <div class="SidebarItem"></div> -->
 		</div>
 	</div>
-	<div class="back" tabindex="0" role="button" aria-label="Close sidebar" onclick="document.getElementById('SidebarContainer').setAttribute('open', '0')"></div>
+	<div class="back" aria-hidden="true" onclick="SetSidebarOpen(0)"></div>
 </div>
-<div class="SidebarBtn ButtonStyleRegular" tabindex="0" role="button" aria-label="Open sidebar" onclick="document.getElementById('SidebarContainer').setAttribute('open', '1')">
+<div class="SidebarBtn ButtonStyleRegular" tabindex="0" role="button" aria-label="Open sidebar" onclick="SetSidebarOpen(1)">
 	<div class="icon16"></div>
 </div>
 
