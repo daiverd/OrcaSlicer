@@ -203,6 +203,11 @@ private:
 
     wxDataViewItem m_last_selected_item {nullptr};
 
+    // True between wxEVT_DATAVIEW_ITEM_EDITING_STARTED and wxEVT_DATAVIEW_ITEM_EDITING_DONE,
+    // i.e. while an in-place editor is open, so that TAB is left to the editor (which commits
+    // the edit) instead of moving the focus out of the list.
+    bool        m_editing_in_progress = false;
+
 #ifdef __WXMSW__
     // Workaround for entering the column editing mode on Windows. Simulate keyboard enter when another column of the active line is selected.
     int 	    m_last_selected_column = -1;

@@ -321,6 +321,30 @@ ObjectList::ObjectList(wxWindow* parent) :
     Bind(wxEVT_CHAR, [this](wxKeyEvent& event) { key_event(event); }); // doesn't work on OSX
 #endif
 
+    // Let TAB leave the object list instead of walking the row's cells.
+    //
+    // wxDataViewMainWindow (the internal window that actually holds the focus) enables cell
+    // focus as soon as any column has an editable renderer - which is the case here, see
+    // create_objects_ctrl(). Its wxEVT_CHAR_HOOK handler then turns TAB / Shift+TAB into
+    // cell-to-cell movement across the row's mostly invisible icon columns and returns
+    // without Skip(), so TAB never becomes a wxEVT_CHAR and never reaches key_event() - the
+    // list is a keyboard trap. This must be bound on GetMainWindow(), not on the
+    // wxDataViewCtrl: wxEVT_CHAR_HOOK goes to the focused window first and only reaches its
+    // parents if that window skips it, and wxEvtHandler::TryHereOnly() searches the
+    // per-instance Bind() table before the static per-class table, so a dynamic binding here
+    // is the only way to get in front of wxDataViewMainWindow's own handler.
+    //
+    // The trade-off is that the list becomes a single TAB stop, navigated internally with the
+    // arrow keys and Enter, giving up per-cell TAB navigation.
+    GetMainWindow()->Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& evt) {
+        if (evt.GetKeyCode() == WXK_TAB && !evt.HasModifiers() && !m_editing_in_progress) {
+            Navigate(evt.ShiftDown() ? wxNavigationKeyEvent::IsBackward
+                                     : wxNavigationKeyEvent::IsForward);
+            return; // consume, so wxDataViewMainWindow::OnCharHook() never sees it
+        }
+        evt.Skip();
+    });
+
 #ifdef __WXMSW__
     GetMainWindow()->Bind(wxEVT_MOTION, [this](wxMouseEvent& event) {
         // BBS
@@ -1839,6 +1863,9 @@ void ObjectList::decrease_instances()
 #ifndef __WXOSX__
 void ObjectList::key_event(wxKeyEvent& event)
 {
+    // TAB is not handled here: wxDataViewMainWindow consumes it at the wxEVT_CHAR_HOOK stage,
+    // so it never becomes a wxEVT_CHAR. See the wxEVT_CHAR_HOOK binding in the constructor,
+    // which is where TAB is turned into a Navigate() call.
     const std::optional<Shortcut> shortcut = wxGetApp().shortcuts().lookup(ShortcutContext::ObjectList, KeyChord::from_event(event));
     if (shortcut.has_value() && dispatch_shortcut(*shortcut))
         return;
@@ -6793,6 +6820,10 @@ void GUI::ObjectList::OnStartEditing(wxDataViewEvent &event)
 // Here the last active column is forgotten, so when leaving the editing mode, the next mouse click will not enter the editing mode of the newly selected column.
 void ObjectList::OnEditingStarted(wxDataViewEvent &event)
 {
+    // An in-place editor is open now, so TAB has to reach it (it commits the edit) instead of
+    // moving the focus out of the list. See the wxEVT_CHAR_HOOK binding in the constructor.
+    m_editing_in_progress = true;
+
 #ifdef __WXMSW__
 	m_last_selected_column = -1;
 #else
@@ -6869,6 +6900,9 @@ void ObjectList::OnEditingStarted(wxDataViewEvent &event)
 
 void ObjectList::OnEditingDone(wxDataViewEvent &event)
 {
+    // Cleared before the early return below, so it is cleared for every edited column.
+    m_editing_in_progress = false;
+
     if (event.GetColumn() != colName)
         return;
 
