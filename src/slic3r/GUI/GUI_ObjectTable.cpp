@@ -2967,6 +2967,12 @@ void ObjectTablePanel::load_data()
     m_object_grid->EnableDragColSize(false);
     m_object_grid->EnableDragGridSize(false);
     m_object_grid->EnableDragRowSize(false);
+    // The grid is created with wxWANTS_CHARS, and wxGrid's own key handling consumes
+    // Tab for cell-to-cell movement; by default (Tab_Stop) Tab simply does nothing at
+    // the first/last column, trapping keyboard focus inside the grid since the parent
+    // dialog's CHAR_HOOK only intercepts Escape. Tab_Leave lets Tab/Shift+Tab move focus
+    // to the next/previous control once the grid boundary is reached.
+    m_object_grid->SetTabBehaviour(wxGrid::Tab_Leave);
 
     /*set the first row as label*/
     //format

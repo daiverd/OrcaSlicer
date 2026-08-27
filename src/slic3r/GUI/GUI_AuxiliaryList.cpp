@@ -311,4 +311,8 @@ void AuxiliaryList::handle_key_event(wxKeyEvent& evt)
 {
 	if (evt.GetKeyCode() == WXK_DELETE || evt.GetKeyCode() == WXK_BACK)
 		m_auxiliary_model->Delete(this->GetSelection());
+	else
+		// Let every other key (Tab included) pass through instead of being
+		// silently swallowed, so keyboard navigation keeps working.
+		evt.Skip();
 }
