@@ -61,6 +61,11 @@ public:
     TabButton*                      pageButton;
 
 private:
+    // ORCA: shared by the click handler and the arrow-key handler below - both need to
+    // update the strip's own selection state (handing over the roving tabindex/focus
+    // immediately) and then notify the parent Tabbook so it flips the associated page.
+    void SelectAndNotify(size_t idx);
+
     wxFlexGridSizer*                m_buttons_sizer;
     wxBoxSizer*                     m_sizer;
     ScalableBitmap                  m_arrow_img;
