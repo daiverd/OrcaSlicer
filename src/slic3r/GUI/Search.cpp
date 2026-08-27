@@ -865,7 +865,17 @@ void SearchObjectDialog::Dismiss()
 void SearchObjectDialog::Die()
 {
     m_is_dismissing = true;
-    m_object_list->SetFocus();
+    // ORCA: only take the focus back if it is still inside this popup (or gone
+    // entirely). Popup() gives the focus to the sidebar's search field, which is
+    // not a child of this popup, so merely showing the popup costs it activation
+    // and auto-dismisses it right back into here. Reclaiming the focus
+    // unconditionally then turned every keyboard visit to the search field into a
+    // bounce back into the object list, so Shift+Tab out of the object list could
+    // never get past the search bar. Clicking a result still lands here with the
+    // focus inside the popup, so that path is unaffected.
+    wxWindow* focus_window = wxWindow::FindFocus();
+    if (!focus_window || !focus_left_popup(this, focus_window))
+        m_object_list->SetFocus();
     PopupWindow::Dismiss();
     wxCommandEvent event(wxCUSTOMEVT_EXIT_SEARCH);
     wxPostEvent(m_object_list, event);

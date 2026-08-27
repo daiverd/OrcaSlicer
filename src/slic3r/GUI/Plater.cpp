@@ -3602,7 +3602,9 @@ Sidebar::Sidebar(Plater *parent)
     });
 
     auto search_sizer = new wxBoxSizer(wxHORIZONTAL);
-    search_sizer->Add(new wxWindow(p->m_search_bar, wxID_ANY, wxDefaultPosition, wxSize(0, 0)), 0, wxEXPAND|wxLEFT|wxRIGHT, FromDIP(1));
+    // ORCA: plain left padding. This used to be a 0x0 wxWindow, which wx counts as a
+    // focusable child, so TAB traversal stopped on an invisible, unlabelled window.
+    search_sizer->AddSpacer(FromDIP(1) * 2);
     search_sizer->Add(p->m_search_item, 1, wxEXPAND | wxALL, FromDIP(2));
     p->m_search_bar->SetSizer(search_sizer);
     p->m_search_bar->Layout();
