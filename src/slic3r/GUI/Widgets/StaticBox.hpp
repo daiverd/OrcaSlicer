@@ -12,8 +12,13 @@
 #include <wx/peninfobase.h>
 #include <wx/event.h>
 #include <wx/window.h>
+#include <wx/containr.h>
 
-class StaticBox : public wxWindow
+// ORCA: wxWindow alone has no TAB-traversal container logic (that's
+// wxPanel's job via wxNavigationEnabled<wxWindow>). Every StaticBox-based
+// grouping panel app-wide was previously a Tab trap for anything past its
+// own direct children - Tab could never escalate to a sibling StaticBox.
+class StaticBox : public wxNavigationEnabled<wxWindow>
 {
 public:
     StaticBox();

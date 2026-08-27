@@ -11,7 +11,9 @@
 #include <wx/textctrl.h>
 #include "StaticBox.hpp"
 
-class TextInput : public wxNavigationEnabled<StaticBox>
+// ORCA: StaticBox is now wxNavigationEnabled itself; the extra wrapper here
+// used to be this class's only source of TAB-traversal container behavior.
+class TextInput : public StaticBox
 {
 
     wxSize labelSize;

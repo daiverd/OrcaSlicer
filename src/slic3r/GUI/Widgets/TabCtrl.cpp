@@ -104,6 +104,14 @@ int TabCtrl::AppendItem(const wxString& item, int image, int selImage, void* cli
 {
     Button* btn = new Button();
     btn->Create(this, item, "", wxBORDER_NONE);
+    // ORCA: TabCtrl itself is the single Tab stop and owns arrow-key
+    // navigation (WM_GETDLGCODE below, keyDown()); buttonClicked() always
+    // hands focus back to `this` after a mouse click. Now that StaticBox is
+    // a real wxNavigationEnabled container, a focusable child here would let
+    // Tab traversal (and real OS focus) land on individual tab buttons
+    // instead, which stops TabCtrl's own key handler from ever seeing the
+    // arrow keys. Keep tab buttons click-only, never a Tab stop.
+    btn->SetCanFocus(false);
     btn->SetFont(GetFont());
     btn->SetTextColor(
         StateColor(std::make_pair(0x6B6B6C, (int) StateColor::NotChecked), std::make_pair(wxColour("#262E30"), (int) StateColor::Normal)));
