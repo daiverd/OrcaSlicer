@@ -130,6 +130,11 @@ var LangText = {
     a11y_clear_search: "Clear search",
     a11y_filter_by_state: "Filter by state",
     a11y_command: "Command",
+    a11y_home_title: "Home",
+    a11y_model_title: "Model",
+    a11y_recent_file_menu: "Recent file actions",
+    a11y_select_all_shown: "Select all shown filaments",
+    a11y_deselect_all_shown: "Clear all shown filaments",
   },
   ca_ES: {
     t1: "Benvingut a Orca Slicer",
@@ -1791,6 +1796,10 @@ function GetTransText(tid, strDefault) {
 function TranslatePage() {
   let strLang = GetCurrentLang();
 
+  // The language a screen reader picks its pronunciation rules from. The table keys are
+  // the app's locale names, BCP-47 wants the hyphenated form - en, zh-CN, pt-BR.
+  document.documentElement.lang = strLang.replace("_", "-");
+
   let AllNode = $(".trans");
   let nTotal = AllNode.length;
   for (let n = 0; n < nTotal; n++) {
@@ -1811,6 +1820,13 @@ function TranslatePage() {
     if (LangText[strLang].hasOwnProperty(tid)) {
       $(OneNode).attr("aria-label", LangText[strLang][tid]);
     }
+  }
+
+  // The document title is the name a screen reader announces the page by, so it has to be
+  // translated too. The tag keeps the English text, which doubles as the fallback.
+  let TitleNode = document.querySelector("title[tid]");
+  if (TitleNode !== null) {
+    document.title = GetTransText(TitleNode.getAttribute("tid"), TitleNode.textContent);
   }
 }
 
