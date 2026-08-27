@@ -268,6 +268,11 @@ function ShowModelInfo( pModel )
 			$('#ModelLicenceImg').hide();
 			break;
 	}
+
+	if( sLicence.indexOf('CC')===0 )
+		$('#ModelLicenceImg img').attr('alt','License: '+sLicence);
+	else
+		$('#ModelLicenceImg img').attr('alt','License: CC '+sLicence);
 	
 	$('#Model_Desc').html( html_decode(sModelDesc) );
 			
@@ -288,7 +293,7 @@ function ShowModelInfo( pModel )
 			//let FTmpPath=decodeURIComponent(ModelPreviewList[pn]);
 			let FTmpPath=ModelPreviewList[pn]['filepath'];
 			
-			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" /></div>';
+			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" alt="'+sModelName.replace(/"/g,'&quot;')+' preview '+(pn+1)+'" /></div>';
 		}
 			
 	    $('#ModelPreviewList').html(htmlPreview);
@@ -448,11 +453,11 @@ function ConstructFileHtml( ID, pItem )
 		if( strClass!='ImageIcon' )
 		{
 		strHtml+='<div class="FileItem">'+
-				 '	<div class="'+strClass+'"><img src="'+ImgPath+'" /></div>'+
+				 '	<div class="'+strClass+'"><img src="'+ImgPath+'" alt="" /></div>'+
 				 '	<div class="FileText">'+
 			     '		<div class="FileName">'+tName+'</div>'+
 				 '	</div>'+
-				 '	<div class="FileMenu" tabindex="0" role="button" aria-label="'+GetTransText('a11y_open_file','Open file')+'" onClick="OnClickOpenFile(\''+tPath+'\')"><img src="img/s.svg" /></div>'+
+				 '	<div class="FileMenu" tabindex="0" role="button" aria-label="'+GetTransText('a11y_open_file','Open file')+'" onClick="OnClickOpenFile(\''+tPath+'\')"><img src="img/s.svg" alt="" /></div>'+
 				 '</div>';
 		}
 		else
@@ -461,11 +466,11 @@ function ConstructFileHtml( ID, pItem )
 			let TmpImgID="AF"+ImgID;
 			
 		strHtml+='<div class="FileItem">'+
-				 '	<div class="'+strClass+'"><img id="'+TmpImgID+'" src="'+ImgPath+'" /></div>'+
+				 '	<div class="'+strClass+'"><img id="'+TmpImgID+'" src="'+ImgPath+'" alt="" /></div>'+
 				 '	<div class="FileText">'+
 			     '		<div class="FileName">'+tName+'</div>'+
 				 '	</div>'+
-				 '	<div class="FileMenu" tabindex="0" role="button" aria-label="'+GetTransText('a11y_open_image','Open image')+'" onClick="OnClickOpenImage(\''+TmpImgID+'\')"><img src="img/s.svg" /></div>'+
+				 '	<div class="FileMenu" tabindex="0" role="button" aria-label="'+GetTransText('a11y_open_image','Open image')+'" onClick="OnClickOpenImage(\''+TmpImgID+'\')"><img src="img/s.svg" alt="" /></div>'+
 				 '</div>';
 		}
 	}
@@ -505,7 +510,7 @@ function ShowProfilelInfo( pProfile )
 		{	
 			let FTmpPath=ProfilePreviewList[pn]['filepath'];
 			
-			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" /></div>';
+			htmlPreview+='<div class="swiper-slide"><img class="Model_PrevImg" src="'+FTmpPath+'" alt="'+sProfileName.replace(/"/g,'&quot;')+' preview '+(pn+1)+'" /></div>';
 		}
 			
 		$('#ProfilePreviewList').html(htmlPreview);

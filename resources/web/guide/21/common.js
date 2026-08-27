@@ -315,7 +315,7 @@ function CreatePrinterBlock(OneModel)
 
 	return	`<div class="PrinterBlock" tabindex="0" role="button" aria-description="${GetTransText('a11y_nozzle','Nozzle: {0}').replace('{0}',nozzles)}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
 			'	<div class="PImg">'+
-			'		<img class="ModelThumbnail" src="' + OneModel['cover'] + '" />'+
+			'		<img class="ModelThumbnail" src="' + OneModel['cover'] + '" alt="" />'+
 			'	</div>'+
 			'	<div class="PrinterInfoMark" aria-hidden="true">?</div>'+
 			'	<div class="PrinterInfo" aria-hidden="true">'+

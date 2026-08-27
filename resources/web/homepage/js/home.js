@@ -343,7 +343,7 @@ function ShowRecentFileList( pList )
 
 		let TmpHtml='<div class="FileItem" tabindex="0" role="button" fpath="'+sPath+'"  >'+
 				'<a class="FileTip" title="'+sPath+'"></a>'+
-				'<div class="FileImg" ><img src="'+sImg+'" onerror="this.onerror=null;this.src=\'img/d.png\';"  alt="No Image"  />'+sLogoBadge+'</div>'+
+				'<div class="FileImg" ><img src="'+sImg+'" onerror="this.onerror=null;this.src=\'img/d.png\';"  alt=""  />'+sLogoBadge+'</div>'+
 				'<div class="FileNamePack">'+sBadge+'<div class="FileName TextS1">'+sName+'</div></div>'+
 				'<div class="FileDate">'+sTime+'</div>'+
 			    '</div>';
@@ -628,8 +628,8 @@ function ShowStaffPick( ModelList )
 		let DesignerAvatar=OnePickModel['design']['designCreator']['avatar']+'?image_process=resize,w_32/format,webp';
 		
 		strPickHtml+='<div class="HotModelPiece swiper-slide" tabindex="0" role="button" onClick="OpenOneStaffPickModel('+ModelID+')" >'+
-			    '<div class="HotModel_Designer_Info"><img src="'+DesignerAvatar+'" /><span class="TextS2">'+DesignerName+'</span></div>'+
-				'	<div class="HotModel_PrevBlock"><img class="HotModel_PrevImg" src="'+ModelCover+'" /></div>'+
+			    '<div class="HotModel_Designer_Info"><img src="'+DesignerAvatar+'" alt="" /><span class="TextS2">'+DesignerName+'</span></div>'+
+				'	<div class="HotModel_PrevBlock"><img class="HotModel_PrevImg" src="'+ModelCover+'" alt="" /></div>'+
 				'	<div  class="HotModel_NameText TextS1" title="'+ModelName+'">'+ModelName+'</div>'+
 				'</div>';
 	}

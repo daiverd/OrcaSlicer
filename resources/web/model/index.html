@@ -26,7 +26,7 @@
 <body onLoad="OnInit()">
 
 <div id="EmptyArea">
-	<div><img src="img/null.png"></div>
+	<div><img src="img/null.png" alt=""></div>
 	<div class="Text_Title Text_Bold trans" tid='orca2'>No model information</div>
 	<button type="button" id="AddModelInfoBtn" class="ButtonStyleConfirm ButtonTypeWindow trans" tid='orca1' onClick="OnClickEditProjectInfo()">Edit Project Info</button>
 </div>
@@ -37,16 +37,16 @@
   <div id="Info_Inside_Board" class="ZScrol" >
   <div id="LeftProcessBlock" class="Block_BKGA">
     <div id="Info_ProcessBar" class="LeftProcessBar ProcessBarSelected" tabindex="0" role="button" aria-pressed="true" onclick="OnMenuClick('Model_Basic');">
-	  <img class="LeftTipIcon" src="img/info_h.svg" /><span class="trans" tid='t95'>Model Information</span>
+	  <img class="LeftTipIcon" src="img/info_h.svg" alt="" /><span class="trans" tid='t95'>Model Information</span>
 	</div>
     <div id="File_ProcessBar" class="LeftProcessBar" tabindex="0" role="button" aria-pressed="false" onclick="OnMenuClick('Model_Accessories');">
-	  <img class="LeftTipIcon" src="img/file_h.svg" /><span class="trans" tid='t96'>Accessories</span>
+	  <img class="LeftTipIcon" src="img/file_h.svg" alt="" /><span class="trans" tid='t96'>Accessories</span>
 	</div>
     <div id="Profile_ProcessBar" class="LeftProcessBar" tabindex="0" role="button" aria-pressed="false" onclick="OnMenuClick('Model_Profile');">
-	  <img class="LeftTipIcon ProfileIcon" src="img/profile_h.svg" /><span class="trans" tid='t97'>Profile Information</span>
+	  <img class="LeftTipIcon ProfileIcon" src="img/profile_h.svg" alt="" /><span class="trans" tid='t97'>Profile Information</span>
 	</div>
     <div id="Edit_ProcessBar" class="LeftProcessBar" tabindex="0" role="button" onclick="OnClickEditProjectInfo();">
-		<img class="LeftTipIcon" src="img/edit.svg" /><span class="trans" tid='orca1'>Edit Project Info</span>
+		<img class="LeftTipIcon" src="img/edit.svg" alt="" /><span class="trans" tid='orca1'>Edit Project Info</span>
 	</div>
   </div>	  
 	  
@@ -59,7 +59,7 @@
 		   <div class="Text_Title" id="ModelNameBar" ><div  class="trans" tid='t98' >Model name</div><div>:</div><div title="xxxxxxxxxx" id="ModelName" style="margin-left: 8px;">xxxxxxxxxx</div></div>
 		   <div><span id="ModelAuthorType" class="trans" tid='t92'>Model Author</span><span>:</span><span id="ModelAuthorName" style="margin-left: 8px;" class="Text_Value">xxxxxxx</span></div>
 		</div>
-	    <div id="ModelLicenceImg"><img src="img/by-nc-nd.png"></div>
+	    <div id="ModelLicenceImg"><img src="img/by-nc-nd.png" alt=""></div>
 		</div>
 		
 		<div id="Model_Preview_Image" class="swiper">
