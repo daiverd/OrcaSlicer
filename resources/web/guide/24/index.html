@@ -50,24 +50,24 @@
 	</div>
 </div>
 
-<div id="Content"  class="thin-scroll">
+<main id="Content"  class="thin-scroll">
 
 <!-- EXAMPLE GENERATED CODE BLOCK
-<div class="OneVendorBlock" Vendor="VendorName" role="group" aria-label="VendorName">
+<div class="OneVendorBlock" Vendor="VendorName" role="group" aria-labelledby="VendorTitle_VendorName">
 	<div class="BlockBanner">
-		<h2>VendorName</h2>
+		<h2 id="VendorTitle_VendorName">VendorName</h2>
 			<label class="BannerBtns">
 				<div class="modelCount"></div>
 				<input type="checkbox" class="VendorCheckbox" aria-label="Select all VendorName printers" onChange="ChooseVendor('VendorName')" />
 			</label>
 	</div>
 	<div class="PrinterArea">
-		<div class="PrinterBlock" role="checkbox" aria-checked="false" aria-label="ModelName" aria-describedby="PrinterInfo1" onClick="ChooseModel('VendorName','ModelName')" >
+		<div class="PrinterBlock" tabindex="0" role="checkbox" aria-checked="false" aria-label="ModelName" aria-describedby="PrinterInfo1" onClick="ChooseModel('VendorName','ModelName')" >
 			<div class="PImg" >
-			<img class="ModelThumbnail" src="CoverPath" />
+			<img class="ModelThumbnail" src="CoverPath" alt="" />
 			</div>
-			<div class="PrinterInfoMark">?</div>
-			<div class="PrinterInfo" id="PrinterInfo1">
+			<div class="PrinterInfoMark" aria-hidden="true">?</div>
+			<div class="PrinterInfo" id="PrinterInfo1" aria-hidden="true">
 				<div class="title trans">Nozzle</div>
 				<div class="value">nozzleInfo</div>
 			</div>
@@ -80,7 +80,7 @@
 </div>
 -->
 	
-</div>
+</main>
 <div id="AcceptArea">
 	<button type="button" class="ButtonStyleRegular ButtonTypeChoice trans"           id="CreateBtn"  onclick="CreateNewPrinter()">Create</button>
 	<button type="button" class="ButtonStyleRegular ButtonTypeChoice" id="CheckNewPrintersBtn" onclick="CheckForNewPrinters()">Check for new printers</button>

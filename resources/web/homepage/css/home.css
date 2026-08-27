@@ -631,6 +631,7 @@ body
 {
 	line-height: 30px;
 	font-weight: 700;
+	font-size: inherit;	/*----ORCA the label is an <h2> - drop the browser's heading size----*/
 }
 
 #HotspotWEB

@@ -219,3 +219,15 @@ OPTIONS
 .thin-scroll::-webkit-scrollbar-thumb:hover {
 	background: var(--button-bg-hover);
 }
+
+/*/// SCREEN READER ONLY ///*/
+/* a heading or label with no visible counterpart - out of the layout, still read */
+.A11yOnly {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}

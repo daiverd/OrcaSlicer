@@ -21,9 +21,9 @@
 </head>
 <body onLoad="OnInit()">
 <div id="Title">
-	<div class="trans" tid="t14">Filament Selection</div>
+	<h1 class="trans" tid="t14">Filament Selection</h1>
 </div>
-<div id="Content" class="ZScrol">
+<main id="Content" class="ZScrol">
 <!-- ORCA column browser -->
 <div class="cbr-browser-container">
 	<div class="cbr-column">
@@ -31,7 +31,7 @@
 			<div class="search-icon"></div>
 			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="0" aria-labelledby="MachineSearchLabel"/>
 			<span class="cbr-search-placeholder trans" id="MachineSearchLabel" tid="t15">printer</span>
-			<div class="clear-icon"></div>
+			<div class="clear-icon" aria-hidden="true"></div>
 		</div>
 		<div class="cbr-content thin-scroll" id="MachineList">
 			<div class="CValues">
@@ -46,7 +46,7 @@
 			<div class="search-icon"></div>
 			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="0" aria-labelledby="FilatypeSearchLabel"/>
 			<span class="cbr-search-placeholder trans" id="FilatypeSearchLabel" tid="t16">filament type</span>
-			<div class="clear-icon"></div>
+			<div class="clear-icon" aria-hidden="true"></div>
 		</div>
 		<div class="cbr-content thin-scroll" id="FilatypeList">
 			<div class="CValues">
@@ -61,7 +61,7 @@
 			<div class="search-icon"></div>
 			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="0" aria-labelledby="VendorSearchLabel"/>
 			<span class="cbr-search-placeholder trans" id="VendorSearchLabel" tid="t17">vendor</span>
-			<div class="clear-icon"></div>
+			<div class="clear-icon" aria-hidden="true"></div>
 		</div>
 		<div class="cbr-content thin-scroll" id="VendorList">
 			<div class="CValues">
@@ -77,7 +77,7 @@
 				<div class="filter-icon"></div>
 				<input type="text" class="cbr-filter-bar" placeholder=" " tabindex="0" aria-labelledby="FilterLabel"/>
 				<span class="cbr-filter-placeholder trans" id="FilterLabel">Filter items</span>
-				<div class="clear-icon"></div>
+				<div class="clear-icon" aria-hidden="true"></div>
 			</div>
 			<div class="ComboBox NoLabel">
 				<div class="arrow-icon"></div>
@@ -102,7 +102,7 @@
 	</div>
 </div>
 
-</div>
+</main>
 <div id="AcceptArea">
 	<button type="button" class="ButtonStyleRegular ButtonTypeChoice trans" tid="t8" id="PreBtn"  onclick="ReturnPreviewPage()">Back</button>
 	<button type="button" class="ButtonStyleRegular ButtonTypeChoice trans" tid="t25" id="AcceptBtn"  onclick="FinishGuide()">finish</button>

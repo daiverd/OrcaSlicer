@@ -183,8 +183,8 @@ function GotoMenu( strMenu )
 
 			$(OneBtn).addClass("BtnItemSelected").attr("aria-pressed", "true");
 
-			$("div[board]").hide();
-			$("div[board=\'"+strMenu+"\']").show();
+			$("[board]").hide();   // the boards are not all <div> - #ContentBoard is the <main>
+			$("[board=\'"+strMenu+"\']").show();
 		}
 	}
 }

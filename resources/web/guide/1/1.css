@@ -20,6 +20,7 @@ body
 	height:20mm;
 	line-height: 20mm;
 	font-size: 6mm;
+	font-weight: normal; /* #Title carries the text itself here, unlike the nested-div pages that common.css's "#Title h1" rule covers */
 	color: #009688;
 }
 

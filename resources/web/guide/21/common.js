@@ -283,10 +283,11 @@ function CreateVendorBlock(vendorName)
 		alt = "Orca colosseum";
 
 	let altAttr = EscAttr(alt);
+	let titleId = 'VendorTitle_' + vendorName.replace(/[^\w-]/g, '_');
 
-	return 	`<div class="OneVendorBlock" Vendor="${vendorName}" role="group" aria-label="${altAttr}">` +
+	return 	`<div class="OneVendorBlock" Vendor="${vendorName}" role="group" aria-labelledby="${titleId}">` +
 			'	<div class="BlockBanner">' +
-			'		<h2>' + alt + '</h2>' +
+			`		<h2 id="${titleId}">` + alt + '</h2>' +
 			'		<label class="BannerBtns">'+
 			'			<div class="modelCount"></div>' +
 			// the row is the box's label, so the name belongs on the box - the label's own
