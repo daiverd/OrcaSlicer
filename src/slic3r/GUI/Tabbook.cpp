@@ -34,9 +34,12 @@ static const int BUTTON_DEF_HEIGHT = 46;
 static const int BUTTON_DEF_WIDTH  = 220;
 
 
-TabButtonsListCtrl::TabButtonsListCtrl(wxWindow *parent, wxBoxSizer *side_tools) :
-    wxControl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL)
+TabButtonsListCtrl::TabButtonsListCtrl(wxWindow *parent, wxBoxSizer *side_tools)
 {
+    // ORCA: wxNavigationEnabled<> has only a default constructor, so the window has to
+    // be created in two phases rather than through a base-class initializer.
+    wxControl::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL);
+
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
 #endif //__WINDOWS__
@@ -140,6 +143,14 @@ bool TabButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect
 
     int em = em_unit(this);
     btn->SetMinSize({BUTTON_DEF_WIDTH * em / 10, BUTTON_DEF_HEIGHT * em / 10});
+    // ORCA: roving tabindex, same as the main tab strip - the strip is a single Tab stop
+    // that follows the selected tab, and a focused tab keeps the stop for as long as it
+    // has focus. Asked on demand rather than handed over as the selection changes, so
+    // nothing has to be kept in sync and no platform loses the ability to focus a tab.
+    btn->SetKeyboardTabStop([this, btn] {
+        return btn->HasFocus() || (m_selection >= 0 && m_selection < static_cast<int>(m_pageButtons.size()) &&
+                                   m_pageButtons[m_selection] == btn);
+    });
 
     btn->SetBackgroundColor(TAB_BUTTON_BG);
     btn->SetTextColor(*wxBLACK);

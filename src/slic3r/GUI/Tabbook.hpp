@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <wx/bookctrl.h>
+#include <wx/containr.h>
 #include <wx/event.h>
 #include <wx/gdicmn.h>
 #include <wx/debug.h>
@@ -29,7 +30,16 @@ class TabButton;
 // custom message the ButtonsListCtrl sends to its parent (Notebook) to notify a selection change:
 wxDECLARE_EVENT(wxCUSTOMEVT_TABBOOK_SEL_CHANGED, wxCommandEvent);
 
-class TabButtonsListCtrl : public wxControl
+// ORCA: plain wxControl has no TAB-traversal container logic - that only exists in the
+// wxNavigationEnabled<W> mixin, which wxPanel gets for free. Without it this tab strip
+// was a Tab trap: the strip carries wxTAB_TRAVERSAL, so it is where wxMSW's message
+// pre-processing turns a Tab press into a wxNavigationKeyEvent and fires it on the
+// strip's own event handler chain. wxNavigationKeyEvent is a plain wxEvent, so it does
+// not propagate to a grandparent, and the only thing that ever handles it is the
+// binding wxNavigationEnabled installs. With nothing bound here the event was dropped
+// and ::IsDialogMessage() then ate the key, so focus never left the strip. Same defect
+// as ButtonsListCtrl (Notebook) and StaticBox had.
+class TabButtonsListCtrl : public wxNavigationEnabled<wxControl>
 {
 public:
     // BBS
