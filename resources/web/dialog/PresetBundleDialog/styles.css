@@ -369,3 +369,14 @@ body {
 #AcceptArea {
   flex: 0 0 auto;
 }
+
+/* Element-specificity reset (:where()) so converted buttons (and the pre-existing
+   #refresh_btn, which border-box made 26px narrower than its div-styled siblings) stay
+   metric-identical and the .ButtonStyle/.ButtonType classes still win every property. */
+:where(#AcceptArea, .top-toolbar) button {
+  box-sizing: content-box;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+}

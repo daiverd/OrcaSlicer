@@ -116,7 +116,7 @@ function UpdateCustomFilaments( CFList )
 		let F_attr=F_name.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');	//user named, keep it out of the attributes
 		
 		let strAdd='<div class="CFilament_Item">'+
-			       '<a  class="CFilament_Name" title="'+F_attr+'">'+F_name+'</a><img onClick="CFEdit(\''+F_id+'\')" tabindex="0" role="button" aria-label="'+GetTransText('a11y_edit_item','Edit {0}').replace('{0}',F_attr)+'" class="CFilament_EditBtn" src="../../image/edit.svg" />'+
+			       '<a  class="CFilament_Name" title="'+F_attr+'">'+F_name+'</a><button type="button" onClick="CFEdit(\''+F_id+'\')" aria-label="'+GetTransText('a11y_edit_item','Edit {0}').replace('{0}',F_attr)+'" class="CFilament_EditBtn"><img src="../../image/edit.svg" alt="" /></button>'+
 		           '</div>';
 		
 		strHtml+=strAdd;

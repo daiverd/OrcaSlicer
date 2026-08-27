@@ -12,6 +12,10 @@ button
 {
 	box-sizing: content-box;
 	background: none;
+	font: inherit;
+	color: inherit;
+	text-align: inherit;
+	white-space: normal; /* WebKit buttons default to pre - keep div-style wrapping */
 }
 
 html
@@ -169,6 +173,8 @@ body
 {
 	border-left: 2px solid #DDDDDD;
 	height: 40px;
+	width: 100%;			/*----ORCA a <button> shrinks to fit, the replaced div filled LeftProcessBlock----*/
+	box-sizing: border-box;	/*----ORCA so the 2px marker stays inside that width----*/
 	display: flex;
 	align-items: center;
 	cursor: pointer;

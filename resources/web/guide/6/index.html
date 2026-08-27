@@ -20,7 +20,7 @@
 	<div id="DownArea">
 	<div id="DownText">
 	    <div id="DownStepText" class="trans" tid="t71">Downloading</div>
-		<div id="RetryBtn" onClick="RetryDownload()" tabindex="0" role="button" aria-label="Retry" label-tid="a11y_retry"></div>
+		<button type="button" id="RetryBtn" onClick="RetryDownload()" aria-label="Retry" label-tid="a11y_retry"></button>
     </div>
 	<div>
 		<div id="PercentTip"></div>
@@ -32,7 +32,7 @@
 	
 	<div id="InstallFailedTip">
 	    <div><a class="trans" tid="t79">Failed to install plug-in. </a><a class="trans" tid="t80">Try the following steps:</a></div>
-	    <div><a class="trans" tid="t81">1, Click </a><a id="OpenPluginFolderBtn" class="trans LinkBtn" tid="t77" tabindex="0" role="button" onClick="OpenPluginFolder()">here</a><a class="trans" tid="t82"> to open the plug-in directory</a> </div>
+	    <div><a class="trans" tid="t81">1, Click </a><button type="button" class="trans LinkBtn" tid="t77" onClick="OpenPluginFolder()">here</button><a class="trans" tid="t82"> to open the plug-in directory</a> </div>
 		<div class="trans" tid="t83">2, Close all open Orca Slicer</div>
 		<div class="trans" tid="t84">3, Delete all files under the plug-in directory</div>
 		<div class="trans" tid="t85">4, Reopen Orca Slicer and install the plug-in again</div>

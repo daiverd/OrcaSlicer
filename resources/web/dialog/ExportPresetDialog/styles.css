@@ -122,6 +122,9 @@
     right: 11px;
     cursor: pointer;
     display: none;
+    /* native <button> defaults, undone so the icon stays the bare 16px box it was as a div */
+    padding: 0;
+    background: none;
 }
 
 .clear-icon::before {
@@ -176,4 +179,12 @@
     border-top: 1px solid var(--cbr-border-color);
 }
 
-
+/* Element-specificity reset (:where()) so converted footer buttons stay metric-identical to
+   the divs they replaced and the .ButtonStyle/.ButtonType classes still win every property. */
+:where(#AcceptArea) button {
+    box-sizing: content-box;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+}

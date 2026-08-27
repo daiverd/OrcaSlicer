@@ -389,6 +389,7 @@ img.ModelThumbnail {
 }
 
 #Sidebar .SidebarItem {
+	display: block; /* ORCA a <button> is inline-block - stack the rows like the divs did */
 	width: 100%;
 	padding: 2px 10px 2px 20px;
 	color:var(--fg-color-text);

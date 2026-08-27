@@ -457,7 +457,7 @@ function ConstructFileHtml( ID, pItem )
 				 '	<div class="FileText">'+
 			     '		<div class="FileName">'+tName+'</div>'+
 				 '	</div>'+
-				 '	<div class="FileMenu" tabindex="0" role="button" aria-label="'+GetTransText('a11y_open_file','Open file')+'" onClick="OnClickOpenFile(\''+tPath+'\')"><img src="img/s.svg" alt="" /></div>'+
+				 '	<button type="button" class="FileMenu" aria-label="'+GetTransText('a11y_open_file','Open file')+'" onClick="OnClickOpenFile(\''+tPath+'\')"><img src="img/s.svg" alt="" /></button>'+
 				 '</div>';
 		}
 		else
@@ -470,7 +470,7 @@ function ConstructFileHtml( ID, pItem )
 				 '	<div class="FileText">'+
 			     '		<div class="FileName">'+tName+'</div>'+
 				 '	</div>'+
-				 '	<div class="FileMenu" tabindex="0" role="button" aria-label="'+GetTransText('a11y_open_image','Open image')+'" onClick="OnClickOpenImage(\''+TmpImgID+'\')"><img src="img/s.svg" alt="" /></div>'+
+				 '	<button type="button" class="FileMenu" aria-label="'+GetTransText('a11y_open_image','Open image')+'" onClick="OnClickOpenImage(\''+TmpImgID+'\')"><img src="img/s.svg" alt="" /></button>'+
 				 '</div>';
 		}
 	}

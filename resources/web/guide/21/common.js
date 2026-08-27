@@ -371,7 +371,7 @@ function UpdateSidebarVendors()
 	let SidebarHTML = "";
 	$(`.OneVendorBlock`).each((i, el)=>{
 		UpdateVendorCheckbox(el.getAttribute("vendor"));
-		SidebarHTML +=`<div class="SidebarItem" tabindex="0" role="button" onclick="scrollToVendor(this.textContent)">${el.getAttribute('vendor')}</div>`;
+		SidebarHTML +=`<button type="button" class="SidebarItem" onclick="scrollToVendor(this.textContent)">${el.getAttribute('vendor')}</button>`;
 	});
 	$('#SidebarVendors').html(SidebarHTML)
 }

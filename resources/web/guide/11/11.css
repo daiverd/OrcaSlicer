@@ -30,6 +30,9 @@
 
 .RegionItem
 {
+	display: block; /* buttons default to inline-block, unlike the divs they replaced */
+	width: 100%;
+	box-sizing: border-box; /* keep padding-left inside the 100% width, matching the old auto-width div */
 	line-height: 40px;
 	height: 40px;
 	padding-left: 10px;

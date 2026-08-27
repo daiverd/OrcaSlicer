@@ -13,6 +13,10 @@ button
 {
 	box-sizing: content-box;
 	background: none;
+	font: inherit;
+	color: inherit;
+	text-align: inherit;
+	white-space: normal; /* WebKit buttons default to pre - keep div-style wrapping */
 }
 
 html, body {
@@ -289,6 +293,8 @@ body
 
 #BambuCloudHeader
 {
+	width: 100%;			/*----ORCA a <button> shrinks to fit, the replaced div filled the section----*/
+	box-sizing: border-box;	/*----ORCA so the side padding stays inside the 262px section----*/
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -484,7 +490,10 @@ body
     padding-left:40px;	
 	height:50px;
 	line-height: 50px;
+	width: 100%;			/*----ORCA a <button> shrinks to fit, the replaced div filled BtnArea----*/
+	box-sizing: border-box;	/*----ORCA so the 40px indent stays inside that width----*/
 	display: flex;
+	align-items: stretch;	/*----ORCA a <button> aligns its children to the top, a div stretches them----*/
 	justify-content:flex-start;
 	cursor: pointer;
 }
