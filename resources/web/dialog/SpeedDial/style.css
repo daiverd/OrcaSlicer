@@ -453,7 +453,8 @@ body {
 }
 
 .row:hover .pin:not(.on),
-.row.sel .pin:not(.on) {
+.row.sel .pin:not(.on),
+.pin:not(.on):focus-visible {
     opacity: .5;
 }
 

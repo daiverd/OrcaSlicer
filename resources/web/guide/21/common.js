@@ -309,14 +309,18 @@ function CreatePrinterBlock(OneModel)
 	else if (vendor == "RolohaunDesign" && modelName.startsWith("Rolohaun"))
 		modelName = modelName.slice(("Rolohaun").length);
 
-	return	`<div class="PrinterBlock" tabindex="0" role="button" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
+	// the "?" mark and its card are a hover affordance; screen readers get the same nozzles as
+	// the block's description instead, so the button still reads out as just the model name
+	let nozzles = OneModel['nozzle_diameter'].replaceAll(";", " · ");
+
+	return	`<div class="PrinterBlock" tabindex="0" role="button" aria-description="${GetTransText('a11y_nozzle','Nozzle: {0}').replace('{0}',nozzles)}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
 			'	<div class="PImg">'+
 			'		<img class="ModelThumbnail" src="' + OneModel['cover'] + '" />'+
 			'	</div>'+
-			'	<div class="PrinterInfoMark">?</div>'+
-			'	<div class="PrinterInfo">'+
+			'	<div class="PrinterInfoMark" aria-hidden="true">?</div>'+
+			'	<div class="PrinterInfo" aria-hidden="true">'+
 			'		<div class="title trans">Nozzle</div>'+
-			'		<div class="value">' + OneModel['nozzle_diameter'].replaceAll(";", " · ") + '</div>'+
+			'		<div class="value">' + nozzles + '</div>'+
 			'	</div>'+
 			'	<div style="display: flex;">'+
 			'		<div class="ModelCheckBox" vendor="' +vendor+ '" model="'+OneModel['model']+'"></div>'+

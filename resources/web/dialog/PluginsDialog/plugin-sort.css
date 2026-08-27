@@ -17,8 +17,9 @@
   display: none;
 }
 
-/* faint up-triangle hint on hover, only while the column is not the active sort */
-.hdr .sort-th:hover .sort-tri {
+/* faint up-triangle hint on hover (or keyboard focus), only while the column is not the active sort */
+.hdr .sort-th:hover .sort-tri,
+.hdr .sort-th:focus-visible .sort-tri {
   display: block;
   border-bottom: 5px solid var(--muted);
 }

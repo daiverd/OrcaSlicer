@@ -295,6 +295,13 @@ body.pane-resizing {
   background: transparent;
 }
 
+/* keyboard focus ring for the row - declared after the selected-row reset above, which
+   would otherwise clear the outline on the focused row */
+.plugin-block > .plugin-row:focus-visible {
+  outline: 2px solid var(--row-selected-outline);
+  outline-offset: -2px;
+}
+
 .hdr > *,
 .row > *,
 .capability-row > * {

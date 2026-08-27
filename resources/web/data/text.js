@@ -123,6 +123,7 @@ var LangText = {
     a11y_view_compact_cover: "Compact cover view",
     a11y_view_large_cover: "Large cover view",
     a11y_select_all_printers: "Select all {0} printers",
+    a11y_nozzle: "Nozzle: {0}",
     a11y_edit_item: "Edit {0}",
     a11y_retry: "Retry",
     a11y_open_file: "Open file",

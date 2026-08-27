@@ -11,13 +11,13 @@ document.addEventListener('keydown', function (e) {
 	if (!enter && e.key !== ' ')
 		return;
 	var t = e.target;
-	if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+	// native controls handle these keys themselves - never hijack a key aimed at one,
+	// including a button or link sitting inside a widget row (a plugin row, a bundle row).
+	if (t.closest('input, textarea, select, button, a[href]') || t.isContentEditable)
 		return;
 	var el = t.closest('[role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="link"]');
 	if (!el)
 		return;
-	if (el.tagName === 'BUTTON' || (el.tagName === 'A' && el.href))
-		return;   // native controls activate themselves
 	if (el.getAttribute('role') === 'link' && !enter)
 		return;   // links activate on Enter only
 	e.preventDefault();

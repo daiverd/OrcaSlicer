@@ -627,7 +627,7 @@ function ShowStaffPick( ModelList )
 		let DesignerName=OnePickModel['design']['designCreator']['name'];
 		let DesignerAvatar=OnePickModel['design']['designCreator']['avatar']+'?image_process=resize,w_32/format,webp';
 		
-		strPickHtml+='<div class="HotModelPiece swiper-slide"  onClick="OpenOneStaffPickModel('+ModelID+')" >'+
+		strPickHtml+='<div class="HotModelPiece swiper-slide" tabindex="0" role="button" onClick="OpenOneStaffPickModel('+ModelID+')" >'+
 			    '<div class="HotModel_Designer_Info"><img src="'+DesignerAvatar+'" /><span class="TextS2">'+DesignerName+'</span></div>'+
 				'	<div class="HotModel_PrevBlock"><img class="HotModel_PrevImg" src="'+ModelCover+'" /></div>'+
 				'	<div  class="HotModel_NameText TextS1" title="'+ModelName+'">'+ModelName+'</div>'+

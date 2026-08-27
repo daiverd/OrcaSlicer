@@ -779,7 +779,7 @@ function markedText(className, text, match) {
 
 // A bookmark glyph: outlined when unpinned, filled when saved to favourites.
 function pinSvg(on) {
-    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="' + (on ? "currentColor" : "none") +
+    return '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="' + (on ? "currentColor" : "none") +
         '" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">' +
         '<path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h9A1.5 1.5 0 0 1 18 3.5V21l-6-4.2L6 21z"/></svg>';
 }
@@ -791,6 +791,9 @@ function setPinState(pin, on) {
     pin.innerHTML = pinSvg(on);
     pin.title = on ? T("sd_unpin_fav", "Unpin from favourites (%s)", shortcutCtrl() + "B") :
         T("sd_pin_fav", "Pin to favourites (%s)", shortcutCtrl() + "B");
+    // why: the glyph is decorative - the button's own name and pressed state carry the meaning.
+    pin.setAttribute("aria-label", pin.title);
+    pin.setAttribute("aria-pressed", on ? "true" : "false");
 }
 
 // ---- render ------------------------------------------------------------------
@@ -852,7 +855,14 @@ function renderFav() {
 // ---- favourite context menu (right-click a tile) -----------------------------
 var favMenuEl = null;
 
-function hideFavMenu() { if (favMenuEl) favMenuEl.hidden = true; }
+function hideFavMenu() {
+    if (!favMenuEl || favMenuEl.hidden) return;
+    // why: the menu can hold focus (opened by keyboard, or an item just clicked) - hand it back
+    //      to the search field, otherwise typing lands on nothing.
+    var held = favMenuEl.contains(document.activeElement);
+    favMenuEl.hidden = true;
+    if (held) focusInput();
+}
 
 function addFavMenuItem(label, enabled, fn) {
     var item = document.createElement("button");
@@ -880,6 +890,18 @@ function showFavMenu(x, y, id) {
     favMenuEl.hidden = false;
     favMenuEl.style.left = Math.max(0, Math.min(x, window.innerWidth - favMenuEl.offsetWidth - 4)) + "px";
     favMenuEl.style.top = Math.max(0, Math.min(y, window.innerHeight - favMenuEl.offsetHeight - 4)) + "px";
+}
+
+// Keyboard twin of tile.oncontextmenu: open the menu under the selected tile and move focus
+// into it, so its items are reachable without a pointer.
+function openFavMenuForSelection(favs) {
+    var tile = favEl && favEl.querySelector(".fav-tile.sel");
+    var id = favs[sel.i];
+    if (!tile || !id) return;
+    var r = tile.getBoundingClientRect();
+    showFavMenu(r.left, r.bottom, id);
+    var first = favMenuEl.querySelector(".ctx-item:not(:disabled)");
+    if (first) first.focus();
 }
 
 // Swap a favourite with its visible neighbour (dir -1/+1) and persist the new order. Swapping
@@ -1427,7 +1449,16 @@ function OnInit() {
     document.addEventListener("scroll", hideFavMenu, true);
 
     document.addEventListener("keydown", function (e) {
-        if (favMenuEl && !favMenuEl.hidden && e.key === "Escape") { e.preventDefault(); hideFavMenu(); return; }
+        // why: an open fav menu owns the keyboard - Tab/Enter belong to its items, Escape closes it.
+        if (favMenuEl && !favMenuEl.hidden) {
+            if (e.key === "Escape") { e.preventDefault(); hideFavMenu(); }
+            return;
+        }
+        // why: Enter is "run the selection", except where Tab parked focus on a button (pin, fav
+        //      tile, clear) - there it must activate that button instead. :focus-visible keeps a
+        //      mouse click (which also focuses the button on Windows) from hijacking Enter.
+        if (e.key === "Enter" && e.target && e.target.tagName === "BUTTON" && e.target.matches(":focus-visible"))
+            return;
         // F1 opens the selected setting's wiki page. Settings without one flash a hint instead.
         if (e.key === "F1") {
             e.preventDefault();
@@ -1494,6 +1525,9 @@ function OnInit() {
             if (phase !== "commands") { exitPhase(); }
             else if (query) { query = ""; qEl.value = ""; sel = { zone: "list", i: 0 }; syncClearButton(); render({ resize: true, resetScroll: true }); qEl.focus(); }
             else SendMessage({ command: "close_page" });
+        } else if ((e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) && sel.zone === "fav") {
+            e.preventDefault();
+            openFavMenuForSelection(favs);
         }
     });
 

@@ -125,6 +125,13 @@
 	animation: infoCard 0s forwards var(--card-animation-delay);
 }
 
+/* keyboard path: the block is the focusable element, so show the card right away - there is
+   no pointer to drift over it, hence no hover-intent delay */
+.PrinterBlock:focus-visible .PrinterInfo {
+	opacity: 1;
+	box-shadow: 0 5px 10px rgba(0,0,0,.2);
+}
+
 @keyframes infoCard {100% {
 	opacity: 1;
 	box-shadow: 0 5px 10px rgba(0,0,0,.2);
@@ -140,7 +147,8 @@
 	text-align: center;
 }
 
-.PrinterBlock:hover .PrinterInfoMark {
+.PrinterBlock:hover .PrinterInfoMark,
+.PrinterBlock:focus-within .PrinterInfoMark {
 	opacity: 1;
 }
 

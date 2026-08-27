@@ -440,6 +440,13 @@ function RenderPlugins() {
   if (!pluginList)
     return;
 
+  // why: the list is rebuilt from scratch, so a focused row would drop focus to the body -
+  //      remember which one had it and restore it on the freshly built row.
+  const focusedRowKey = document.activeElement?.classList?.contains("plugin-row")
+    ? String(document.activeElement.dataset.pluginKey || "")
+    : "";
+  let rowToFocus = null;
+
   pluginList.innerHTML = "";
 
   if (pluginsById.size === 0) {
@@ -480,9 +487,14 @@ function RenderPlugins() {
     const row = document.createElement("div");
     row.className = "row plugin-row plugin-cols";
     row.dataset.pluginKey = pluginKey;
+    row.tabIndex = 0;
+    row.setAttribute("role", "option");
+    row.setAttribute("aria-selected", pluginKey === selectedPluginId ? "true" : "false");
 
     if (pluginKey === selectedPluginId)
       row.classList.add("selected");
+    if (pluginKey === focusedRowKey)
+      rowToFocus = row;
 
     row.appendChild(CheckCell(row, plugin));
     row.appendChild(LabelCell(plugin, isExpanded, capabilities.length, match?.nameRanges));
@@ -507,6 +519,9 @@ function RenderPlugins() {
     empty.appendChild(document.createTextNode('"'));
     pluginList.appendChild(empty);
   }
+
+  if (rowToFocus)
+    rowToFocus.focus();
 
   // why: recompute the scrollbar gutter on every render - search and sort re-render via RenderPlugins
   SyncPluginListHeaderGutter();
