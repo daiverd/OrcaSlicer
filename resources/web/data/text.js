@@ -127,6 +127,9 @@ var LangText = {
     a11y_retry: "Retry",
     a11y_open_file: "Open file",
     a11y_open_image: "Open image",
+    a11y_clear_search: "Clear search",
+    a11y_filter_by_state: "Filter by state",
+    a11y_command: "Command",
   },
   ca_ES: {
     t1: "Benvingut a Orca Slicer",

@@ -285,6 +285,7 @@
           <div class="arrow-icon"></div>
           <select
             id="extruders"
+            aria-label="Extruder"
             onchange="handleExtruderSelect(document.getElementById('extruders').value)"
           >
             <option value="left" id="extruder_label_0">Left Nozzle</option>
@@ -565,6 +566,7 @@
             input.className = "table-input"
             input.type = "number";
             input.value = readonly ? 0 : displayVal;
+            input.setAttribute("aria-label", "Flush from filament " + (i + 1) + " to filament " + (j + 1));
             if (readonly) {
               input.readOnly = true;
             }

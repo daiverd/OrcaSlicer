@@ -32,8 +32,8 @@
 	<div class="cbr-column">
 		<div class="cbr-column-title-container">
 			<div class="search-icon"></div>
-			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="1"/>
-			<span class="cbr-search-placeholder trans" tid="t15">printer</span>
+			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="0" aria-labelledby="MachineSearchLabel"/>
+			<span class="cbr-search-placeholder trans" id="MachineSearchLabel" tid="t15">printer</span>
 			<div class="clear-icon"></div>
 		</div>
 		<div class="cbr-content thin-scroll" id="MachineList">
@@ -47,8 +47,8 @@
 	<div class="cbr-column">
 		<div class="cbr-column-title-container">
 			<div class="search-icon"></div>
-			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="2"/>
-			<span class="cbr-search-placeholder trans" tid="t16">filament type</span>
+			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="0" aria-labelledby="FilatypeSearchLabel"/>
+			<span class="cbr-search-placeholder trans" id="FilatypeSearchLabel" tid="t16">filament type</span>
 			<div class="clear-icon"></div>
 		</div>
 		<div class="cbr-content thin-scroll" id="FilatypeList">
@@ -62,8 +62,8 @@
 	<div class="cbr-column">
 		<div class="cbr-column-title-container">
 			<div class="search-icon"></div>
-			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="3"/>
-			<span class="cbr-search-placeholder trans" tid="t17">vendor</span>
+			<input type="text" class="cbr-search-bar" placeholder=" " tabindex="0" aria-labelledby="VendorSearchLabel"/>
+			<span class="cbr-search-placeholder trans" id="VendorSearchLabel" tid="t17">vendor</span>
 			<div class="clear-icon"></div>
 		</div>
 		<div class="cbr-content thin-scroll" id="VendorList">
@@ -78,13 +78,13 @@
 		<div class="cbr-column-title-container">
 			<div class="cbr-filter-box">
 				<div class="filter-icon"></div>
-				<input type="text" class="cbr-filter-bar" placeholder=" " tabindex="4"/>
-				<span class="cbr-filter-placeholder trans">Filter items</span>
+				<input type="text" class="cbr-filter-bar" placeholder=" " tabindex="0" aria-labelledby="FilterLabel"/>
+				<span class="cbr-filter-placeholder trans" id="FilterLabel">Filter items</span>
 				<div class="clear-icon"></div>
 			</div>
 			<div class="ComboBox NoLabel">
 				<div class="arrow-icon"></div>
-				<select id="filter-tags">
+				<select id="filter-tags" aria-label="Filter by state" label-tid="a11y_filter_by_state">
 					<option value="0" disabled selected hidden></option>
 					<option value="1">Checked</option>
 					<option value="2">Unchecked</option>

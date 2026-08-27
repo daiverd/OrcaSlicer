@@ -12,6 +12,7 @@ let bottomList = null;
 
 let ctxMenu = null;
 let contextRow = null;
+let menuOpener = null;   // row the menu was opened from, when opened by keyboard
 let ctxMenuSubscribed = null;
 
 let ctxMenuDelete = null;
@@ -99,27 +100,22 @@ function OnInit() {
     const row = e.target.closest(".row");
     if (!row) return; // top rows only
 
-    const bundleType = String(row.dataset.bundleType || "").toLowerCase();
-    if (bundleType !== "subscribed") return;
-
     e.preventDefault();
-    selectTopRow(row);
-    contextRow = row;
-    showSubscribedMenu(e.clientX, e.clientY);
+    openRowMenu(row, e.clientX, e.clientY);
   });
 
-  // for top list rows except subscribed if right click open regular context menu
-  topList.addEventListener("contextmenu", (e) => {
+  // same menu from the keyboard: Context Menu key or Shift+F10 on the focused row
+  topList.addEventListener("keydown", (e) => {
+    if (e.key !== "ContextMenu" && !(e.shiftKey && e.key === "F10")) return;
+
     const row = e.target.closest(".row");
-    if (!row) return; // top rows only
-    const bundleType = String(row.dataset.bundleType || "").toLowerCase();
-    if (bundleType === "subscribed") return;
+    if (!row) return;
 
     e.preventDefault();
-
-    selectTopRow(row);
-    contextRow = row;
-    showMenu(e.clientX, e.clientY);
+    const box = row.getBoundingClientRect();
+    openRowMenu(row, box.left, box.bottom);
+    menuOpener = row;
+    ctxMenu?.querySelector("button:not([hidden])")?.focus();
   });
 
   ctxMenu?.addEventListener("click", (e) => {
@@ -156,7 +152,10 @@ function OnInit() {
     if (!e.target.closest(".ctx")) hideMenu();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hideMenu();
+    if (e.key !== "Escape") return;
+    const opener = (ctxMenu && !ctxMenu.hidden) ? menuOpener : null;
+    hideMenu();
+    opener?.focus();
   });
 }
 // ========= wx bridge requests =========
@@ -330,6 +329,16 @@ function autoSelectFirstBundle() {
   renderBottomForBundle(selectedBundleId);
 }
 
+function openRowMenu(row, x, y) {
+  selectTopRow(row);
+  contextRow = row;
+
+  if (String(row.dataset.bundleType || "").toLowerCase() === "subscribed")
+    showSubscribedMenu(x, y);
+  else
+    showMenu(x, y);
+}
+
 function showSubscribedMenu(x, y) {
   if (!ctxMenu) return;
   ctxMenu.style.left = `${x}px`;
@@ -353,6 +362,7 @@ function hideMenu() {
   ctxMenu.hidden = true;
   ctxMenuSubscribed.hidden = true;
   contextRow = null;
+  menuOpener = null;
 }
 // ========= Utilities =========
 function safeJsonParse(s) {

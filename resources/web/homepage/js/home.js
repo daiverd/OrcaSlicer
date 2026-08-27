@@ -20,6 +20,7 @@ var RightBtnFilePath='';
 
 var MousePosX=0;
 var MousePosY=0;
+var ContextMenuOpener=null;   // file item the menu was opened from, when opened by keyboard
 var sImages = {};
  
 function Set_RecentFile_MouseRightBtn_Event()
@@ -46,6 +47,23 @@ function Set_RecentFile_MouseRightBtn_Event()
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			OnOpenRecentFile( encodeURI($(this).attr('fpath')) );
+		}
+		else if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+			event.preventDefault();
+			RightBtnFilePath=$(this).attr('fpath');
+			OpenRecnetFileContextMenuAt(this);
+		}
+	});
+
+	// ORCA: Escape closes the keyboard-opened menu and hands focus back to the file
+	$(document).off("keydown.recnetmenu").on("keydown.recnetmenu", function (event) {
+		if (event.key !== 'Escape' || !$("#recnet_context_menu").is(":visible"))
+			return;
+
+		$("#recnet_context_menu").hide();
+		if (ContextMenuOpener) {
+			$(ContextMenuOpener).focus();
+			ContextMenuOpener=null;
 		}
 	});
 
@@ -81,6 +99,7 @@ function Set_RecentFile_MouseRightBtn_Event()
 		}		
 		
 		$("#recnet_context_menu").hide();
+		ContextMenuOpener=null;   // hidden without a keyboard close - drop the stale opener
 	} );
 
 	
@@ -360,6 +379,19 @@ function ShowRecnetFileContextMenu()
 	$("#recnet_context_menu").offset({top: RealY, left:RealX});
 }
 
+// ORCA: keyboard route to the same menu - anchor it to the item instead of the pointer
+function OpenRecnetFileContextMenuAt( pItem )
+{
+	let Box=pItem.getBoundingClientRect();
+	MousePosX=Box.left+$(window).scrollLeft();
+	MousePosY=Box.bottom+$(window).scrollTop();
+
+	ShowRecnetFileContextMenu();
+
+	ContextMenuOpener=pItem;
+	$("#recnet_context_menu [role='menuitem']:first").focus();
+}
+
 /*-------RecentFile MX Message------*/
 function SendMsg_GetLoginInfo()
 {
@@ -432,6 +464,7 @@ function OnDeleteRecentFile( )
 {
 	//Clear in UI
 	$("#recnet_context_menu").hide();
+	ContextMenuOpener=null;   // the opener item is about to be removed
 	
 	let AllFile=$(".FileItem");
 	let nFile=AllFile.length;
@@ -490,6 +523,7 @@ function OnExploreRecentFile( )
 	SendWXMessage( JSON.stringify(tSend) );	
 	
 	$("#recnet_context_menu").hide();
+	ContextMenuOpener=null;
 }
 
 // --- Cloud providers ---
