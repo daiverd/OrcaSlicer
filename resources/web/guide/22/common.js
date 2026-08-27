@@ -406,15 +406,26 @@ function SelectAllFilament( nShow )
 	UpdateStats();
 }
 
+// ORCA: the element focus came from, so hiding the notice can hand it back
+let NoticeOpener = null;
+
 function ShowNotice( nShow )
 {
 	if(nShow==0) {
 		$("#NoticeMask").hide();
 		$("#NoticeBody").hide();
+
+		if(NoticeOpener && document.contains(NoticeOpener))
+			NoticeOpener.focus();
+		NoticeOpener = null;
 	}
 	else {
+		NoticeOpener = document.activeElement;
+
 		$("#NoticeMask").show();
 		$("#NoticeBody").show();
+
+		$("#NoticeBtns button:first").focus();
 	}
 }
 

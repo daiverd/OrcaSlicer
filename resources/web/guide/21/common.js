@@ -450,15 +450,26 @@ function OnExitFilter() {
 	return nTotal;
 }
 
+// ORCA: the element focus came from, so hiding the notice can hand it back
+let NoticeOpener = null;
+
 function ShowNotice( nShow )
 {
 	if(nShow==0) {
 		$("#NoticeMask").hide();
 		$("#NoticeBody").hide();
+
+		if(NoticeOpener && document.contains(NoticeOpener))
+			NoticeOpener.focus();
+		NoticeOpener = null;
 	}
 	else {
+		NoticeOpener = document.activeElement;
+
 		$("#NoticeMask").show();
 		$("#NoticeBody").show();
+
+		$("#NoticeBtns button:first").focus();
 	}
 }
 
@@ -656,7 +667,10 @@ function initKeyEvents(closeOnESC) {
 		let sidebar = document.getElementById('SidebarContainer');
 
 		if (e.keyCode == 27){
-			if(sidebar.getAttribute('open') == "1") { // prefer to close sidebar first if its open
+			if($("#NoticeBody").is(":visible")) { // the notice dialog is topmost, so it goes first
+				ShowNotice(0);
+			}
+			else if(sidebar.getAttribute('open') == "1") { // prefer to close sidebar first if its open
 				SetSidebarOpen(0);
 			}
 			else if (closeOnESC){
