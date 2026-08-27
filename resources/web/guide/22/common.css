@@ -112,6 +112,12 @@
 	background: var(--focus-bg-box);
 }
 
+/* the teal border and fill above are a state cue, not a focus indicator - ring it too */
+.cbr-column-title-container input:focus-visible {
+	outline: 2px solid var(--fg-color-text);
+	outline-offset: -3px;
+}
+
 .cbr-filter-box {
 	position: relative;
 	margin: 3px;

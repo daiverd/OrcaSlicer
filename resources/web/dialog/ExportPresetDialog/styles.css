@@ -64,6 +64,12 @@
     background: var(--cbr-input-focus-bg);
 }
 
+/* the border-color change above doubles as the hover cue - ring keyboard focus distinctly */
+.cbr-search-bar:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -3px;
+}
+
 .cbr-search-placeholder {
     position: absolute;
     left: 33px;

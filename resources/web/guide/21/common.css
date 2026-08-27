@@ -315,6 +315,13 @@ img.ModelThumbnail {
 	background: var(--button-bg-hover);
 }
 
+/* the field drops the platform focus ring for the teal border, which is a state cue and
+   not an indicator - put a ring back. .search clips to its own box, so it goes inside. */
+.searchTerm:focus-visible {
+	outline: 2px solid var(--fg-color-text);
+	outline-offset: -3px;
+}
+
 .search-placeholder {
 	color: var(--fg-color-disabled);
 	left: 33px;
