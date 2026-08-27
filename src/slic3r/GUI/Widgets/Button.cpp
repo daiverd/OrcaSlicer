@@ -682,7 +682,10 @@ bool Button::AcceptsFocus() const { return canFocus; }
 // A Button never has focusable children, so answer for ourselves.
 bool Button::AcceptsFocusRecursively() const { return AcceptsFocus(); }
 
-bool Button::AcceptsFocusFromKeyboard() const { return wxWindow::AcceptsFocusFromKeyboard(); }
+bool Button::AcceptsFocusFromKeyboard() const
+{
+    return KeyboardTabStopAllows() && wxWindow::AcceptsFocusFromKeyboard();
+}
 
 void Button::EnableTooltipEvenDisabled()
 {

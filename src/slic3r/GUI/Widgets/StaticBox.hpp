@@ -14,6 +14,8 @@
 #include <wx/window.h>
 #include <wx/containr.h>
 
+#include <functional>
+
 // ORCA: wxWindow alone has no TAB-traversal container logic (that's
 // wxPanel's job via wxNavigationEnabled<wxWindow>). Every StaticBox-based
 // grouping panel app-wide was previously a Tab trap for anything past its
@@ -47,6 +49,15 @@ public:
 
     void SetBorderStyle(wxPenStyle style);
 
+    // ORCA: roving tabindex hook, for the WAI-ARIA tabs pattern - a tab strip answers
+    // "am I the tab Tab should stop on?" and only that tab is offered to traversal.
+    // Asked on demand rather than toggled with SetCanFocus() as the selection changes:
+    // SetCanFocus(false) also clears the window's GTK can-focus flag, which turns a
+    // later SetFocus() into a no-op there, so arrow keys could not move focus within
+    // the strip on Linux. This withholds the window from keyboard traversal only, and
+    // leaves code, the mouse and the arrow keys able to focus it on every platform.
+    void SetKeyboardTabStop(std::function<bool()> is_tab_stop) { m_is_tab_stop = std::move(is_tab_stop); }
+
     void SetBackgroundColor(StateColor const &color);
 
     void SetBackgroundColorNormal(wxColor const &color);
@@ -67,6 +78,11 @@ protected:
     void render(wxDC& dc);
 
     virtual void doRender(wxDC& dc);
+
+    // ORCA: what SetKeyboardTabStop() above set, for a subclass whose
+    // AcceptsFocusFromKeyboard() override is the only route left to it.
+    bool KeyboardTabStopAllows() const { return !m_is_tab_stop || m_is_tab_stop(); }
+    std::function<bool()> m_is_tab_stop;
 
 protected:
     double radius;

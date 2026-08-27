@@ -9,6 +9,7 @@
 #include <vector>
 #include <wx/bookctrl.h>
 #include <wx/bitmap.h>
+#include <wx/containr.h>
 #include <wx/event.h>
 #include <wx/gdicmn.h>
 #include <wx/debug.h>
@@ -28,7 +29,15 @@ class Button;
 // custom message the ButtonsListCtrl sends to its parent (Notebook) to notify a selection change:
 wxDECLARE_EVENT(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED, wxCommandEvent);
 
-class ButtonsListCtrl : public wxControl
+// ORCA: plain wxControl has no TAB-traversal container logic - that only exists in the
+// wxNavigationEnabled<W> mixin, which wxPanel gets for free. Without it the main tab
+// strip was a total Tab trap: a tab Button's Tab key calls Navigate(), which invokes
+// DoNavigateIn() directly on this window and fires a wxNavigationKeyEvent on its own
+// event handler chain. wxNavigationKeyEvent is a plain wxEvent, so it does not
+// propagate to a grandparent, and the only thing that ever handles it is the binding
+// wxNavigationEnabled installs. With nothing bound here, every Tab press was silently
+// dropped and focus never left the strip. Same defect as StaticBox had, one level up.
+class ButtonsListCtrl : public wxNavigationEnabled<wxControl>
 {
 public:
     // BBS

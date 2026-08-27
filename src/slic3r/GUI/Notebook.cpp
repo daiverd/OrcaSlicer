@@ -101,9 +101,12 @@ private:
 };
 } // namespace
 
-ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools) :
-    wxControl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL)
+ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools)
 {
+    // ORCA: wxNavigationEnabled<> has only a default constructor, so the window has to
+    // be created in two phases rather than through a base-class initializer.
+    wxControl::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL);
+
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
 #endif //__WINDOWS__
@@ -286,6 +289,16 @@ bool ButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect /*
     int em = em_unit(this);
     //BBS set size for button
     btn->SetMinSize({(text.empty() ? 40 : 136) * em / 10, 36 * em / 10});
+    // ORCA: roving tabindex, per the WAI-ARIA tabs pattern - the strip is a single Tab
+    // stop, so Tab enters and leaves it in one press instead of stepping through every
+    // tab; moving within the strip is the arrow keys' job. The stop follows the selected
+    // tab, and the focused one keeps it while it has focus, so an arrow key that moved
+    // focus without changing the selection cannot leave focus on a window Tab traversal
+    // refuses to see.
+    btn->SetKeyboardTabStop([this, btn] {
+        return btn->HasFocus() || (m_selection >= 0 && m_selection < static_cast<int>(m_pageButtons.size()) &&
+                                   m_pageButtons[m_selection] == btn);
+    });
 
     // ORCA: wxNO_BORDER zeroed the width; the ring needs a border in every state (see set_tab_colors).
     btn->SetBorderWidth(btn->FromDIP(2));
