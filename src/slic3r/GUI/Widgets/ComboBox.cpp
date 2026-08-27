@@ -429,7 +429,9 @@ void ComboBox::keyDown(wxKeyEvent& event)
             } else if (!items.empty() && drop.HasDismissLongTime()) {
                 drop.autoPosition();
                 drop_down = true;
-                drop.Popup();
+                // Hand focus to the popup, as the mouse path does, so it receives
+                // the keys that drive its own list navigation.
+                drop.Popup(&drop);
                 wxCommandEvent e(wxEVT_COMBOBOX_DROPDOWN);
                 GetEventHandler()->ProcessEvent(e);
             }

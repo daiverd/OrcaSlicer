@@ -138,6 +138,8 @@ private:
 
     int hoverIndex();
 
+    int itemIndex(int hover) const;
+
     int selectedItem();
     std::pair<int, int> actionColumn() const;
 
@@ -145,12 +147,19 @@ private:
     void messureSize();
     void autoPosition();
 
+    void setHoverItem(int hover);
+
+    int findSelectable(int hover, int delta) const;
+
+    void selectHoverItem();
+
     // some useful events
     void mouseDown(wxMouseEvent& event);
     void mouseReleased(wxMouseEvent &event);
     void mouseCaptureLost(wxMouseCaptureLostEvent &event);
     void mouseMove(wxMouseEvent &event);
     void mouseWheelMoved(wxMouseEvent &event);
+    void charHook(wxKeyEvent &event);
 
     void sendDropDownEvent();
     void sendDropDownActionEvent(int index);
