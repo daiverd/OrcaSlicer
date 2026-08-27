@@ -693,6 +693,7 @@ body
 	align-content: flex-start;
 	overflow-y: auto;
 	min-height: 0;
+	list-style: none;	/*----ORCA the list is a semantic <ul> - keep the flex-card look----*/
 }
 
 .FileItem
@@ -753,7 +754,12 @@ body
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
-    word-break: break-all;	
+    word-break: break-all;
+	/*----ORCA the name is a real <button> now (the card's only tab stop) - fill the
+	     card width so the ellipsis still applies, keep the card's hand cursor----*/
+	display: block;
+	width: 100%;
+	cursor: pointer;
 }
 
 .FileNamePack

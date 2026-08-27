@@ -44,8 +44,8 @@ function Set_RecentFile_MouseRightBtn_Event()
 // the app, so these handlers are delegated or document-level rather than per item
 function Init_RecentFile_Events()
 {
-	// ORCA: opening on click rather than mousedown lets a11y.js activate the item
-	// with Enter/Space, like any other role=button
+	// ORCA: opening on click rather than mousedown keeps the keyboard route working -
+	// Enter/Space on the filename <button> fires a native click that bubbles here
 	$("#FileList").on("click", ".FileItem", function () {
 		OnOpenRecentFile( encodeURI($(this).attr('fpath')) );
 	});
@@ -368,12 +368,19 @@ function ShowRecentFileList( pList )
 		let sBadge=sPublished? '<span class="FilePublishedBadge">PUB</span>':'';
 		let sLogoBadge=sPublished? '<img class="FileLogoBadge" src="../../images/OrcaSlicer_gradient_circle.svg" alt="" />':'';
 
-		let TmpHtml='<div class="FileItem" tabindex="0" role="button" fpath="'+sPath+'"  >'+
-				'<a class="FileTip" title="'+sPath+'"></a>'+
-				'<div class="FileImg" ><img src="'+sImg+'" onerror="this.onerror=null;this.src=\'img/d.png\';"  alt=""  />'+sLogoBadge+'</div>'+
-				'<div class="FileNamePack">'+sBadge+'<div class="FileName TextS1">'+sName+'</div></div>'+
-				'<div class="FileDate">'+sTime+'</div>'+
-			    '</div>';
+		// ORCA: only the filename is focusable - a real <button>, so its accessible name
+		// stays the filename alone instead of every text block in the card. The clipped
+		// A11yOnly copy of the path sits between the name and the date so browse mode
+		// reads name, path, date; aria-describedby repeats both for focus (Tab) mode.
+		// The tooltip-only <a> is aria-hidden: its title would otherwise surface it as
+		// a nameless line covering the whole card.
+		let TmpHtml='<li class="FileItem" fpath="'+EscAttr(sPath)+'">'+
+				'<a class="FileTip" title="'+EscAttr(sPath)+'" aria-hidden="true"></a>'+
+				'<div class="FileImg"><img src="'+EscAttr(String(sImg))+'" onerror="this.onerror=null;this.src=\'img/d.png\';" alt="" />'+sLogoBadge+'</div>'+
+				'<div class="FileNamePack">'+sBadge+'<button type="button" class="FileName TextS1 FocusRingInset" aria-describedby="RecentPath'+n+' RecentDate'+n+'">'+EscAttr(sName)+'</button></div>'+
+				'<span class="A11yOnly" id="RecentPath'+n+'">'+EscAttr(sPath)+'</span>'+
+				'<div class="FileDate" id="RecentDate'+n+'">'+EscAttr(sTime)+'</div>'+
+			    '</li>';
 		
 		strHtml+=TmpHtml;
 	}
@@ -428,7 +435,8 @@ function OpenRecnetFileContextMenuAt( pItem )
 
 	ShowRecnetFileContextMenu();
 
-	ContextMenuOpener=pItem;
+	// the item itself is not focusable - the focus comes back to its filename button
+	ContextMenuOpener=$(pItem).find(".FileName")[0];
 	$("#recnet_context_menu [role='menuitem']:first").focus();
 }
 
