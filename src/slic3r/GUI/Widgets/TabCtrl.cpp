@@ -341,6 +341,9 @@ void TabCtrl::keyDown(wxKeyEvent& event)
             SelectItem(GetSelection() + 1);
         }
         break;
+    default:
+        event.Skip();
+        break;
     }
 }
 

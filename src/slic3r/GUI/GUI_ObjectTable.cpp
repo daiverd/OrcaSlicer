@@ -3569,8 +3569,9 @@ void GridCellTextEditor::BeginEdit(int row, int col, wxGrid *grid)
 
     m_control->Bind(wxEVT_CHAR_HOOK, [grid](wxKeyEvent &e) {
 		if (e.GetKeyCode() == WXK_ESCAPE) {
+            // Escape cancels the edit: hide without SaveEditControlValue() so ApplyEdit() never
+            // runs and the cell keeps its pre-edit value.
             grid->HideCellEditControl();
-            grid->SaveEditControlValue();
 		}
         e.Skip();
     });
