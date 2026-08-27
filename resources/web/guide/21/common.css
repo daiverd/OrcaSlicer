@@ -278,7 +278,6 @@ img.ModelThumbnail {
 	height: 100%;
 	padding: 4px 5px;
 	border-radius: 6px;
-	outline: none;
 	box-sizing: border-box;
 	background: var(--button-bg-normal);
 	border: 1px solid var(--button-bg-normal);
@@ -315,8 +314,8 @@ img.ModelThumbnail {
 	background: var(--button-bg-hover);
 }
 
-/* the field drops the platform focus ring for the teal border, which is a state cue and
-   not an indicator - put a ring back. .search clips to its own box, so it goes inside. */
+/* the shared global.css ring applies here too, but .search clips to its own
+   box - pull the ring inside it so it stays visible. */
 .searchTerm:focus-visible {
 	outline: 2px solid var(--fg-color-text);
 	outline-offset: -3px;

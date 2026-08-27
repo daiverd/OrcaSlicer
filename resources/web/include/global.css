@@ -59,6 +59,15 @@
 }
 }
 
+/*/// KEYBOARD FOCUS ///*/
+/* one ring for every focusable control; :focus-visible keeps it off plain
+   mouse clicks (text fields ring on any focus, matching browser defaults).
+   Sits at zero-class specificity so any widget's own ring rule wins. */
+:focus-visible {
+	outline: 2px solid var(--fg-color-text);
+	outline-offset: 1px;
+}
+
 /*////////////////////////////*/
 /*           ICONS            */
 /*////////////////////////////*/
@@ -97,7 +106,6 @@
 
 /*/// BUTTONS ///*/
 /*----Values slightly different since renderer is different----*/
-/*----Currently no support for focus border----*/
 .ButtonTypeCompact   { font-size: 11px; padding: 0px 8px ; border-radius: 12px; line-height: 23px; height: 24px; text-align: center}
 .ButtonTypeWindow    { font-size: 13px; padding: 0px 11px; border-radius: 12px; line-height: 23px; height: 24px; text-align: center}
 .ButtonTypeChoice    { font-size: 15px; padding: 0px 13px; border-radius: 4px ; line-height: 31px; height: 32px; text-align: center}
@@ -179,7 +187,6 @@ OPTIONS
 }
 
 .ComboBox > select:focus {
-    outline: none;
     background-color: var(--focus-bg-box);
     border-color: var(--main-color);;
 }

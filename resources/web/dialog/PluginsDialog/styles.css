@@ -143,7 +143,6 @@ body {
 .explore-menu-item:hover,
 .explore-menu-item:focus-visible,
 .explore-menu-item.selected {
-  outline: none;
   background: rgba(255, 255, 255, 0.14);
 }
 
@@ -622,10 +621,6 @@ body.pane-resizing {
 .script-run-btn:hover {
   transform: none;
   opacity: 1;
-}
-
-.script-run-btn:focus-visible {
-  outline: none;
 }
 
 .script-run-btn:hover .plugin-run-icon,
@@ -1258,7 +1253,6 @@ body.pane-resizing {
 }
 
 .config-textarea:focus {
-  outline: none;
   border-color: var(--main-color);
 }
 

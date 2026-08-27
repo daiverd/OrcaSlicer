@@ -62,7 +62,7 @@ html, body {
 	cursor: pointer;
 }
 
-.LinkBtn:hover
+.LinkBtn:hover, .LinkBtn:focus-visible
 {
 	text-decoration:underline;
 }

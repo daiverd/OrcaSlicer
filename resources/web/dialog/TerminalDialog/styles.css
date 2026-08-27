@@ -47,7 +47,6 @@ html, body {
   color: var(--text);
   font-family: inherit;
   font-size: 13px;
-  outline: none;
 }
 
 #cmd-input:focus {

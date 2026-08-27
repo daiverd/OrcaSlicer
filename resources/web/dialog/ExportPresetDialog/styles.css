@@ -66,7 +66,7 @@
 
 /* the border-color change above doubles as the hover cue - ring keyboard focus distinctly */
 .cbr-search-bar:focus-visible {
-    outline: 2px solid currentColor;
+    outline: 2px solid var(--fg-color-text);
     outline-offset: -3px;
 }
 
