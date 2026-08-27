@@ -21,12 +21,12 @@
 </head>
 <body onLoad="OnInit()">
 <div id="Title">
-	<div class="trans" tid="t10">Printer Selection</div>
+	<h1 class="trans" tid="t10">Printer Selection</h1>
 </div>
 
 <div id="SidebarContainer">
 	<div id="Sidebar" class="thin-scroll">
-		<div class="title">Vendors</div>
+		<h2 class="title">Vendors</h2>
 		<div class="area" id="SidebarVendors">
 			<!-- <div class="SidebarItem"></div> -->
 		</div>
@@ -55,14 +55,14 @@
 <!-- EXAMPLE GENERATED CODE BLOCK
 <div class="OneVendorBlock" Vendor="VendorName">
 	<div class="BlockBanner">
-		<a>VendorName</a>
-			<div class="BannerBtns" onClick="ChooseVendor('VendorName')" >
+		<h2>VendorName</h2>
+			<div class="BannerBtns" role="checkbox" aria-checked="false" onClick="ChooseVendor('VendorName')" >
 				<div class="modelCount"></div>
-				<input type="checkbox" class="VendorCheckbox" />
-			</div>	
+				<input type="checkbox" class="VendorCheckbox" aria-hidden="true" />
+			</div>
 	</div>
 	<div class="PrinterArea">
-		<div class="PrinterBlock" onClick="ChooseModel('VendorName','ModelName')" >
+		<div class="PrinterBlock" role="checkbox" aria-checked="false" onClick="ChooseModel('VendorName','ModelName')" >
 			<div class="PImg" >
 			<img class="ModelThumbnail" src="CoverPath" />
 			</div>

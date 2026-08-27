@@ -15,7 +15,7 @@ document.addEventListener('keydown', function (e) {
 	// including a button or link sitting inside a widget row (a plugin row, a bundle row).
 	if (t.closest('input, textarea, select, button, a[href]') || t.isContentEditable)
 		return;
-	var el = t.closest('[role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="link"]');
+	var el = t.closest('[role="button"], [role="checkbox"], [role="tab"], [role="menuitem"], [role="option"], [role="link"]');
 	if (!el)
 		return;
 	if (el.getAttribute('role') === 'link' && !enter)

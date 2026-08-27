@@ -168,18 +168,23 @@ function GetModelSelect(vendor, model) {
 	return oVendor[model];
 }
 
+// ORCA the selection bar is the visual state, the card is the role="checkbox" - keep both in sync
+function SetModelChecked($cbs, checked)
+{
+	$cbs.toggleClass('ModelCheckBoxSelected', !!checked)
+	    .closest('.PrinterBlock').attr('aria-checked', !!checked);
+}
+
 function ChooseModel(vendor, ModelName)
 {
 	let ChooseItem=$(".ModelCheckBox[vendor='"+vendor+"'][model='"+ModelName+"']");
-	
-	if(ChooseItem.length > 0) {
-		if( $(ChooseItem).hasClass('ModelCheckBoxSelected') )
-			$(ChooseItem).removeClass('ModelCheckBoxSelected');
-		else
-			$(ChooseItem).addClass('ModelCheckBoxSelected');		
 
-		SetModelSelect(vendor, ModelName, $(ChooseItem).hasClass('ModelCheckBoxSelected'));
-	}		
+	if(ChooseItem.length > 0) {
+		let checked = !ChooseItem.hasClass('ModelCheckBoxSelected');
+
+		SetModelChecked(ChooseItem, checked);
+		SetModelSelect(vendor, ModelName, checked);
+	}
 }
 
 function FilterModelList(keyword) {
@@ -240,12 +245,7 @@ function FilterModelList(keyword) {
 		let strModel = OneItem.getAttribute("model");
 		let strVendor = OneItem.getAttribute("vendor");
 
-		let checked = GetModelSelect(strVendor, strModel);
-
-		if (checked)
-			$(OneItem).addClass('ModelCheckBoxSelected');
-		else
-			$(OneItem).removeClass('ModelCheckBoxSelected');
+		SetModelChecked($(OneItem), GetModelSelect(strVendor, strModel));
 	}
 
 	UpdateSidebarVendors();
@@ -278,11 +278,12 @@ function CreateVendorBlock(vendorName)
 	
 	return 	'<div class="OneVendorBlock" Vendor="' + vendorName + '">' +
 			'	<div class="BlockBanner">' +
-			'		<a>' + alt + '</a>' +
-			`		<div class="BannerBtns" tabindex="0" role="button" aria-label="${GetTransText('a11y_select_all_printers','Select all {0} printers').replace('{0}',alt)}" onClick="ChooseVendor('${vendorName}')">`+
+			'		<h2>' + alt + '</h2>' +
+			`		<div class="BannerBtns" tabindex="0" role="checkbox" aria-checked="false" aria-label="${GetTransText('a11y_select_all_printers','Select all {0} printers').replace('{0}',alt)}" onClick="ChooseVendor('${vendorName}')">`+
 			'			<div class="modelCount"></div>' +
-			'			<input type="checkbox" class="VendorCheckbox"/>'+
-			'		</div>'+	
+			// the native box only draws the tick - the row above is the control screen readers see
+			'			<input type="checkbox" class="VendorCheckbox" tabindex="-1" aria-hidden="true"/>'+
+			'		</div>'+
 			'	</div>' +
 			'	<div class="PrinterArea">	' +
 			'	</div>' +
@@ -299,21 +300,24 @@ function CreatePrinterBlock(OneModel)
 	if( vendor=="Custom")					
 		modelName = modelName.split(" ")[1];
 	// these uses different case in name; seckit, ratrig, blocks
+	// the strip leaves the separating space behind - trim it, or the aria-label built
+	// from the name below starts with one ("Afinia H+1(HS)" reads as " H+1(HS)")
 	else if (modelName.toLowerCase().startsWith(vendorName.toLowerCase()))  
-		modelName = modelName.slice(vendorName.length);
+		modelName = modelName.slice(vendorName.length).trim();
 	// these not matches. have to fix in profiles to reduce conditions in here;
 	else if (vendor == "MagicMaker" && modelName.startsWith("MM"))
-		modelName = modelName.slice(("MM").length);
+		modelName = modelName.slice(("MM").length).trim();
 	else if (vendor == "OrcaArena")
-		modelName = modelName.slice(("Orca Arena").length);
+		modelName = modelName.slice(("Orca Arena").length).trim();
 	else if (vendor == "RolohaunDesign" && modelName.startsWith("Rolohaun"))
-		modelName = modelName.slice(("Rolohaun").length);
+		modelName = modelName.slice(("Rolohaun").length).trim();
 
-	// the "?" mark and its card are a hover affordance; screen readers get the same nozzles as
-	// the block's description instead, so the button still reads out as just the model name
+	// the card is a multi-select toggle, so it is a checkbox; the model name is its explicit
+	// accessible name so it is announced first, and the "?" mark and its hover card - which
+	// screen readers never see - are offered as the description instead
 	let nozzles = OneModel['nozzle_diameter'].replaceAll(";", " · ");
 
-	return	`<div class="PrinterBlock" tabindex="0" role="button" aria-description="${GetTransText('a11y_nozzle','Nozzle: {0}').replace('{0}',nozzles)}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
+	return	`<div class="PrinterBlock" tabindex="0" role="checkbox" aria-checked="${!!GetModelSelect(vendor, OneModel['model'])}" aria-label="${modelName}" aria-description="${GetTransText('a11y_nozzle','Nozzle: {0}').replace('{0}',nozzles)}" onClick="ChooseModel('${vendor}','${OneModel['model']}')">`+
 			'	<div class="PImg">'+
 			'		<img class="ModelThumbnail" src="' + OneModel['cover'] + '" alt="" />'+
 			'	</div>'+
@@ -361,8 +365,7 @@ function ChooseVendor(sVendor) { // automatically selects / unselects all
 	const $cbs = $(`.OneVendorBlock[vendor='${sVendor}'] .ModelCheckBox`);
 	const sel  = $cbs.length && $cbs.not('.ModelCheckBoxSelected').length;
 
-	sel ? $cbs.addClass('ModelCheckBoxSelected')
-		: $cbs.removeClass('ModelCheckBoxSelected');
+	SetModelChecked($cbs, sel);
 
 	$cbs.each((i, el)=>{SetModelSelect(sVendor, el.getAttribute('model'), sel)});
 }
@@ -377,6 +380,8 @@ function UpdateVendorCheckbox(sVendor) {
 	const nonSel   = selCount === 0;
 
 	$vcb.prop({checked: allSel , indeterminate: !allSel && !nonSel});
+	// AT support for a bare `indeterminate` is patchy, so state the tri-state on the row too
+	$vb.find(".BannerBtns").attr('aria-checked', allSel ? 'true' : nonSel ? 'false' : 'mixed');
 
 	$vb.find(".modelCount").text(selCount + " / " + $cbs.length);
 }
