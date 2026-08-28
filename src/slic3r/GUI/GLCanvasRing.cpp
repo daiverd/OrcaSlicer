@@ -15,6 +15,7 @@
 
 #include <wx/access.h>
 #include <wx/event.h>
+#include <wx/glcanvas.h>
 #include <wx/window.h>
 
 namespace Slic3r {
