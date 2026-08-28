@@ -309,9 +309,16 @@ bool ButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect /*
     btn->Bind(wxEVT_BUTTON, [this, btn](wxCommandEvent& event) {
         if (auto it = std::find(m_pageButtons.begin(), m_pageButtons.end(), btn); it != m_pageButtons.end()) {
             auto sel = it - m_pageButtons.begin();
+            // ORCA: selecting a tab hands it the strip's only Tab stop, so the focus has to
+            // follow it. SetSelection() moves the focus only when the outgoing tab was
+            // holding it, which left a click made while the focus sat elsewhere selecting a
+            // tab that the next Tab press would then leap to out of nowhere. The Tab stop
+            // itself arrives with the SetSelection() the posted event below triggers; a
+            // click on a tab always ends in one.
+            btn->SetFocus();
             //do it later
             //SetSelection(sel);
-            
+
             wxCommandEvent evt = wxCommandEvent(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED);
             evt.SetId(sel);
             wxPostEvent(this->GetParent(), evt);

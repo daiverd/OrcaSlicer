@@ -135,6 +135,11 @@ wxWindow* TabButtonsListCtrl::GetSelectedButton() const
 void TabButtonsListCtrl::SelectAndNotify(size_t idx)
 {
     SetSelection(int(idx));
+    // ORCA: whatever selects a tab - a click or an arrow key - hands it the strip's only
+    // Tab stop, so the focus has to follow it. SetSelection() moves the focus only when the
+    // outgoing tab was holding it, which left a click made while the focus sat elsewhere
+    // selecting a tab that the next Tab press would then leap to out of nowhere.
+    m_pageButtons[idx]->SetFocus();
     wxCommandEvent evt(wxCUSTOMEVT_TABBOOK_SEL_CHANGED);
     evt.SetId(int(idx));
     wxPostEvent(GetParent(), evt);
