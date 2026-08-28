@@ -5,6 +5,9 @@
 
 #include "SelectMachine.hpp"
 
+#include <vector>
+
+#include <wx/containr.h>
 #include <wx/control.h>
 #include <wx/string.h>
 #include <wx/gdicmn.h>
@@ -18,6 +21,9 @@ class wxMouseCaptureLostEvent;
 class wxMouseEvent;
 class wxWindow;
 
+class BBLTopbarArt;
+class TopbarToolProxy;
+
 class CenteredTitle : public wxControl
 {
 public:
@@ -26,16 +32,28 @@ public:
 
     wxSize DoGetBestSize() const override;
 
+    // ORCA: the window title is a label and a drag surface, never a control - keep it
+    // out of TAB traversal, where it was an unlabelled dead stop ahead of the tools.
+    bool AcceptsFocus() const override { return false; }
+
 protected:
 #ifdef __WXMSW__
     WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
+#endif
+#if wxUSE_ACCESSIBILITY
+    wxAccessible* CreateAccessible() override;
 #endif
 
 private:
     wxString m_title;
 };
 
-class BBLTopbar : public wxAuiToolBar
+// ORCA: plain wxAuiToolBar has no TAB-traversal container logic - that only exists in
+// the wxNavigationEnabled<W> mixin, which wxPanel gets for free. The top bar needs it
+// now that its tools have focusable proxy children (see TopbarToolProxy): without it
+// nothing handles the wxNavigationKeyEvent the proxies raise, and focus can neither
+// enter the bar through SetFocus() nor leave it again.
+class BBLTopbar : public wxNavigationEnabled<wxAuiToolBar>
 {
 public:
     BBLTopbar(wxWindow* pwin, wxFrame* parent);
@@ -63,7 +81,13 @@ public:
     void OnModelStoreClicked(wxAuiToolBarEvent& event);
 
     wxAuiToolBarItem* FindToolByCurrentPosition();
-	
+
+    // ORCA: keyboard and screen-reader access to the tools, see TopbarToolProxy.
+    void SyncToolProxies();
+    void ActivateTool(int tool_id);
+    void FocusAdjacentTool(const TopbarToolProxy* from, int step);
+    void SetFocusedTool(int tool_id);
+
     void SetFileMenu(wxMenu* file_menu);
     void AddDropDownSubMenu(wxMenu* sub_menu, const wxString& title);
     void AddDropDownMenuItem(wxMenuItem* menu_item);
@@ -84,6 +108,9 @@ public:
 protected:
 #ifdef __WXMSW__
     WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
+#endif
+#if wxUSE_ACCESSIBILITY
+    wxAccessible* CreateAccessible() override;
 #endif
 
 private:
@@ -109,6 +136,9 @@ private:
 
     wxBitmap maximize_bitmap;
     wxBitmap window_bitmap;
+
+    BBLTopbarArt*                 m_topbar_art { nullptr };
+    std::vector<TopbarToolProxy*> m_tool_proxies;
 
     int m_toolbar_h;
     bool m_skip_popup_file_menu;

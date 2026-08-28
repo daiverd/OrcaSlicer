@@ -29,6 +29,11 @@
 #endif
 #include "WebViewDialog.hpp"
 #include "PartPlate.hpp"
+#include "Widgets/WidgetAccessible.hpp"
+
+#include <utility>
+
+#include <wx/dcclient.h>
 
 #include <boost/log/trivial.hpp>
 #include "libslic3r/AppConfig.hpp"
@@ -56,11 +61,221 @@ enum CUSTOM_ID
     ID_AMS_NOTEBOOK,
 };
 
+// ORCA: name and role of one interactive top bar tool. The tools are icon-only and
+// carry no short help, so there is nothing to derive an accessible name from; menu
+// openers are told apart from plain buttons so they can be given the menu button role.
+struct TopbarToolInfo
+{
+    wxString name;
+    bool     menu_opener { false };
+};
+
+// ORCA: false for anything that should not become a keyboard stop of its own.
+static bool get_topbar_tool_info(const wxAuiToolBarItem& item, TopbarToolInfo& info)
+{
+    switch (item.GetId()) {
+    case ID_TOP_FILE_MENU:     info = {_L("File"), true}; return true;
+    case ID_TOP_DROPDOWN_MENU: info = {_L("Menu"), true}; return true;
+    case ID_CALIB:             info = {_L("Calibration"), true}; return true;
+    case wxID_OPEN:            info = {_L("Open Project"), false}; return true;
+    case wxID_SAVE:            info = {_L("Save Project"), false}; return true;
+    case wxID_UNDO:            info = {_L("Undo"), false}; return true;
+    case wxID_REDO:            info = {_L("Redo"), false}; return true;
+    // The window buttons are already reachable from the keyboard through the native
+    // window menu (Alt+Space), which also names them, so they stay out of the ring.
+    case wxID_ICONIZE_FRAME:
+    case wxID_MAXIMIZE_FRAME:
+    case wxID_CLOSE_FRAME:     return false;
+    default:
+        // Anything added later still gets a stop as long as it has a visible label.
+        info = {item.GetLabel(), false};
+        return !info.name.empty();
+    }
+}
+
+#if wxUSE_ACCESSIBILITY
+// ORCA: the proxy window is a 1x1 stand-in, so its screen bounds have to come from the
+// tool it represents; the rest (name, focus and enabled state) is the generic
+// WidgetAccessible behaviour.
+class TopbarToolAccessible : public WidgetAccessible
+{
+public:
+    TopbarToolAccessible(TopbarToolProxy* proxy, wxAccRole role, ExtraStateGetter extra_state);
+
+    wxAccStatus GetLocation(wxRect& rect, int elementId) override;
+    wxAccStatus GetDefaultAction(int childId, wxString* actionName) override;
+    wxAccStatus DoDefaultAction(int childId) override;
+};
+#endif // wxUSE_ACCESSIBILITY
+
+// ORCA: a wxAuiToolBar tool is not a window. It cannot take the keyboard focus and no
+// screen reader can see it, which made the whole top bar mouse-only and invisible to
+// assistive technology. Give every interactive tool an invisible 1x1 child window that
+// stands in for it: wx traversal focuses the proxy, the arrow keys move between
+// proxies, Enter/Space runs the tool's own handler, and the proxy carries the tool's
+// accessible name, role and state. Nothing about the toolbar's own mouse handling,
+// including its double duty as the window title bar, changes.
+class TopbarToolProxy : public wxControl
+{
+public:
+    TopbarToolProxy(BBLTopbar* topbar, int tool_id, const TopbarToolInfo& info)
+        : m_topbar(topbar)
+    {
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+        // wxWANTS_CHARS: this window handles the arrow, Home/End, Enter/Space and Tab
+        // keys itself, so they must be delivered here instead of being eaten by the
+        // dialog navigation code.
+        Create(topbar, wxID_ANY, wxPoint(0, 0), wxSize(1, 1), wxWANTS_CHARS | wxBORDER_NONE);
+        SetTool(tool_id, info);
+        // The proxies all sit on the same pixel in the bar's left margin. Children are
+        // clipped out of their parent's painting, so that pixel has to be filled here,
+        // in the background colour the art provider uses for the bar.
+        Bind(wxEVT_PAINT, [this](wxPaintEvent&) {
+            wxPaintDC dc(this);
+            dc.SetBackground(wxBrush(wxColour(38, 46, 48)));
+            dc.Clear();
+        });
+        Bind(wxEVT_KEY_DOWN, &TopbarToolProxy::OnKeyDown, this);
+        Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent& evt) {
+            m_topbar->SetFocusedTool(m_tool_id);
+            evt.Skip();
+        });
+        Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent& evt) {
+            m_topbar->SetFocusedTool(wxID_NONE);
+            evt.Skip();
+        });
+    }
+
+    // Re-point an existing proxy at a tool, so re-syncing never destroys windows that
+    // may hold the focus.
+    void SetTool(int tool_id, const TopbarToolInfo& info)
+    {
+        m_tool_id     = tool_id;
+        m_menu_opener = info.menu_opener;
+        SetName(info.name);
+    }
+
+    BBLTopbar* GetTopbar() const { return m_topbar; }
+    int        GetToolId() const { return m_tool_id; }
+
+protected:
+#ifdef __WXMSW__
+    WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
+#endif
+#if wxUSE_ACCESSIBILITY
+    wxAccessible* CreateAccessible() override;
+#endif
+
+private:
+    void OnKeyDown(wxKeyEvent& evt);
+
+    BBLTopbar* m_topbar;
+    int        m_tool_id { wxID_NONE };
+    bool       m_menu_opener { false };
+};
+
+void TopbarToolProxy::OnKeyDown(wxKeyEvent& evt)
+{
+    switch (evt.GetKeyCode()) {
+    // Arrows move within the bar, the toolbar idiom the tab strips already follow.
+    case WXK_LEFT:  m_topbar->FocusAdjacentTool(this, -1); return;
+    case WXK_RIGHT: m_topbar->FocusAdjacentTool(this, 1); return;
+    // Swallowed rather than passed on: this bar is horizontal, so up and down have no
+    // meaning in it and must not fall through to the frame.
+    case WXK_UP:
+    case WXK_DOWN:  return;
+    case WXK_HOME:  m_topbar->FocusAdjacentTool(nullptr, 1); return;
+    case WXK_END:   m_topbar->FocusAdjacentTool(nullptr, -1); return;
+    case WXK_RETURN:
+    case WXK_NUMPAD_ENTER:
+    case WXK_SPACE: m_topbar->ActivateTool(m_tool_id); return;
+    case WXK_TAB: {
+        // Tab leaves the bar as a whole. MainFrame is not a TAB-traversal container, so
+        // today Navigate() finds nothing to hand the focus to; wrap inside the bar in
+        // that case rather than swallowing the key, and leave properly once it is one.
+        const bool forward = !evt.ShiftDown();
+        const int  flags   = wxNavigationKeyEvent::FromTab |
+                             (forward ? wxNavigationKeyEvent::IsForward : wxNavigationKeyEvent::IsBackward);
+        if (!m_topbar->Navigate(flags))
+            m_topbar->FocusAdjacentTool(this, forward ? 1 : -1);
+        return;
+    }
+    default: evt.Skip(); return;
+    }
+}
+
+#if wxUSE_ACCESSIBILITY
+wxAccessible* TopbarToolProxy::CreateAccessible()
+{
+    return new TopbarToolAccessible(this, m_menu_opener ? wxROLE_SYSTEM_BUTTONMENU : wxROLE_SYSTEM_PUSHBUTTON,
+                                    [this] {
+                                        // The proxy window is always enabled, so the states that
+                                        // matter - a disabled tool, or one whose menu is open -
+                                        // have to be read off the tool itself. A disabled tool
+                                        // stays focusable and simply announces as unavailable,
+                                        // rather than disappearing from the ring.
+                                        long state = 0;
+                                        if (!m_topbar->GetToolEnabled(m_tool_id))
+                                            state |= wxACC_STATE_SYSTEM_UNAVAILABLE;
+                                        if (m_topbar->GetToolSticky(m_tool_id))
+                                            state |= wxACC_STATE_SYSTEM_PRESSED;
+                                        return state;
+                                    });
+}
+
+TopbarToolAccessible::TopbarToolAccessible(TopbarToolProxy* proxy, wxAccRole role, ExtraStateGetter extra_state)
+    : WidgetAccessible(proxy, role, std::move(extra_state))
+{}
+
+wxAccStatus TopbarToolAccessible::GetLocation(wxRect& rect, int elementId)
+{
+    if (elementId != wxACC_SELF)
+        return wxACC_NOT_IMPLEMENTED;
+
+    TopbarToolProxy* proxy = static_cast<TopbarToolProxy*>(GetWindow());
+    if (!proxy)
+        return wxACC_FAIL;
+
+    BBLTopbar*   topbar    = proxy->GetTopbar();
+    const wxRect tool_rect = topbar->GetToolRect(proxy->GetToolId());
+    if (tool_rect.IsEmpty())
+        return wxACC_NOT_IMPLEMENTED;
+
+    rect = wxRect(topbar->ClientToScreen(tool_rect.GetTopLeft()), tool_rect.GetSize());
+    return wxACC_OK;
+}
+
+wxAccStatus TopbarToolAccessible::GetDefaultAction(int childId, wxString* actionName)
+{
+    if (childId != wxACC_SELF)
+        return wxACC_NOT_IMPLEMENTED;
+
+    *actionName = _L("Press");
+    return wxACC_OK;
+}
+
+wxAccStatus TopbarToolAccessible::DoDefaultAction(int childId)
+{
+    if (childId != wxACC_SELF)
+        return wxACC_NOT_IMPLEMENTED;
+
+    TopbarToolProxy* proxy = static_cast<TopbarToolProxy*>(GetWindow());
+    if (!proxy)
+        return wxACC_FAIL;
+
+    proxy->GetTopbar()->ActivateTool(proxy->GetToolId());
+    return wxACC_OK;
+}
+#endif // wxUSE_ACCESSIBILITY
+
 CenteredTitle::CenteredTitle(wxWindow* parent)
     : wxControl()
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+    // ORCA: wx defaults an unnamed window's GetName() to "control", which a screen
+    // reader would read out until the first SetTitle() replaces it.
+    SetName(wxEmptyString);
     Bind(wxEVT_PAINT, [this](wxPaintEvent&) {
         wxBufferedPaintDC dc(this);
         dc.SetBackground(wxBrush(wxColour(38, 46, 48)));
@@ -103,6 +318,15 @@ void CenteredTitle::SetTitle(const wxString& title) {
     Refresh();
 }
 
+#if wxUSE_ACCESSIBILITY
+wxAccessible* CenteredTitle::CreateAccessible()
+{
+    // ORCA: custom-drawn text, so nothing exposes it to a screen reader by itself. The
+    // name is the project title, set by BBLTopbar::SetTitle().
+    return new WidgetAccessible(this, wxROLE_SYSTEM_STATICTEXT);
+}
+#endif
+
 // required for proper height
 wxSize CenteredTitle::DoGetBestSize() const
 {
@@ -115,6 +339,12 @@ class BBLTopbarArt : public wxAuiDefaultToolBarArt
 public:
     virtual void DrawBackground(wxDC& dc, wxWindow* wnd, const wxRect& rect) wxOVERRIDE;
     virtual void DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item, const wxRect& rect) wxOVERRIDE;
+
+    // ORCA: id of the tool whose focus proxy currently holds the keyboard focus
+    void SetFocusedTool(int tool_id) { m_focused_tool = tool_id; }
+
+private:
+    int m_focused_tool { wxID_NONE };
 };
 
 void BBLTopbarArt::DrawBackground(wxDC& dc, wxWindow* wnd, const wxRect& rect)
@@ -225,25 +455,49 @@ void BBLTopbarArt::DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& i
     {
         dc.DrawText(item.GetLabel(), textX, textY);
     }
+
+    // ORCA: keyboard focus ring. Every state of these items is drawn as the same teal
+    // fill, so focus needs an indicator of its own: the near-white of the label text,
+    // which clears 3:1 against both the fill and the bar background, and which
+    // StateColor does not remap for dark mode.
+    if (m_focused_tool != wxID_NONE && item.GetId() == m_focused_tool)
+    {
+        wxRect focus_rect = rect;
+        focus_rect.Deflate(wnd->FromDIP(1));
+        dc.SetPen(wxPen(wxColour(254, 254, 254), wnd->FromDIP(2)));
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.DrawRectangle(focus_rect);
+    }
 }
 
-BBLTopbar::BBLTopbar(wxFrame* parent) 
-    : wxAuiToolBar(parent, ID_TOOL_BAR, wxDefaultPosition, wxDefaultSize, wxAUI_TB_TEXT | wxAUI_TB_HORZ_TEXT)
-{ 
+// ORCA: wxTAB_TRAVERSAL is what makes the tool proxies reachable - it is the style both
+// the traversal container and the platform's dialog navigation key off.
+static constexpr long TOPBAR_STYLE = wxAUI_TB_TEXT | wxAUI_TB_HORZ_TEXT | wxTAB_TRAVERSAL;
+
+BBLTopbar::BBLTopbar(wxFrame* parent)
+{
+    // ORCA: wxNavigationEnabled<> has only a default constructor, so the window has to
+    // be created in two phases rather than through a base-class initializer.
+    wxAuiToolBar::Create(parent, ID_TOOL_BAR, wxDefaultPosition, wxDefaultSize, TOPBAR_STYLE);
     Init(parent);
+    // The proxies stay out of Init(): they are a separate, idempotent pass over the
+    // finished item list, and Init() is public and may be called again.
+    SyncToolProxies();
 }
 
 BBLTopbar::BBLTopbar(wxWindow* pwin, wxFrame* parent)
-    : wxAuiToolBar(pwin, ID_TOOL_BAR, wxDefaultPosition, wxDefaultSize, wxAUI_TB_TEXT | wxAUI_TB_HORZ_TEXT) 
-{ 
+{
+    wxAuiToolBar::Create(pwin, ID_TOOL_BAR, wxDefaultPosition, wxDefaultSize, TOPBAR_STYLE);
     Init(parent);
+    SyncToolProxies();
 }
 
-void BBLTopbar::Init(wxFrame* parent) 
+void BBLTopbar::Init(wxFrame* parent)
 {
     auto* art = new BBLTopbarArt();
     art->SetFont(Label::Body_12);
     SetArtProvider(art);
+    m_topbar_art = art;
     m_frame = parent;
     m_skip_popup_file_menu = false;
     m_skip_popup_dropdown_menu = false;
@@ -410,7 +664,113 @@ BBLTopbar::~BBLTopbar()
     m_file_menu_item = nullptr;
     m_dropdown_menu_item = nullptr;
     m_file_menu = nullptr;
+    // ORCA: take the focus proxies down here rather than leaving them to the base class
+    // destructor: losing the focus calls back into the toolbar, which has to be whole,
+    // and its art provider alive, when that happens.
+    for (TopbarToolProxy* proxy : m_tool_proxies)
+        proxy->Destroy();
+    m_tool_proxies.clear();
+    m_topbar_art = nullptr; // owned and deleted by the base class
 }
+
+// ORCA: bring the focus proxies in line with the current tool list. Idempotent: it
+// re-points the proxies it already has instead of recreating them, so calling it again
+// never destroys the window that holds the keyboard focus. Call it after any change to
+// the set of tools or to their visibility; enabling and disabling a tool needs no call,
+// because the proxies read that state live.
+void BBLTopbar::SyncToolProxies()
+{
+    size_t count = 0;
+    for (size_t i = 0; i < GetToolCount(); ++i) {
+        wxAuiToolBarItem* item = FindToolByIndex(int(i));
+        // Skip separators, spacers, labels and the title control: only real tools.
+        if (!item || item->GetKind() != wxITEM_NORMAL)
+            continue;
+
+        TopbarToolInfo info;
+        if (!get_topbar_tool_info(*item, info))
+            continue;
+
+        if (count < m_tool_proxies.size())
+            m_tool_proxies[count]->SetTool(item->GetId(), info);
+        else
+            m_tool_proxies.push_back(new TopbarToolProxy(this, item->GetId(), info));
+
+        // A hidden tool must not be a keyboard stop, and hiding its proxy is also what
+        // makes a screen reader report it as invisible.
+        const wxSizerItem* sizer_item = item->GetSizerItem();
+        m_tool_proxies[count]->Show(!sizer_item || sizer_item->IsShown());
+        ++count;
+    }
+
+    while (m_tool_proxies.size() > count) {
+        m_tool_proxies.back()->Destroy();
+        m_tool_proxies.pop_back();
+    }
+}
+
+// ORCA: run a tool from the keyboard or from assistive technology, through the very
+// same event the toolbar sends on a mouse press, so there is one activation path and
+// no synthesized mouse input. The menu openers anchor their menus to the tool's own
+// rectangle already, so a menu opened this way appears in the right place.
+void BBLTopbar::ActivateTool(int tool_id)
+{
+    if (!GetToolEnabled(tool_id) || !FindTool(tool_id))
+        return;
+
+    // The skip flags only exist to let a second mouse press on an open menu's tool
+    // close it instead of reopening it; a keypress must always open the menu.
+    m_skip_popup_file_menu     = false;
+    m_skip_popup_dropdown_menu = false;
+    m_skip_popup_calib_menu    = false;
+
+    wxAuiToolBarEvent evt(wxEVT_AUITOOLBAR_TOOL_DROPDOWN, tool_id);
+    evt.SetEventObject(this);
+    evt.SetToolId(tool_id);
+    evt.SetItemRect(GetToolRect(tool_id));
+    GetEventHandler()->ProcessEvent(evt);
+}
+
+// ORCA: move the keyboard focus between tool proxies, wrapping at both ends and
+// skipping hidden tools. from == nullptr starts outside the bar, so step 1 lands on the
+// first tool and step -1 on the last: that is Home and End.
+void BBLTopbar::FocusAdjacentTool(const TopbarToolProxy* from, int step)
+{
+    const int count = int(m_tool_proxies.size());
+    if (count == 0)
+        return;
+
+    int index = step > 0 ? -1 : count;
+    for (int i = 0; i < count; ++i)
+        if (m_tool_proxies[i] == from) {
+            index = i;
+            break;
+        }
+
+    for (int i = 0; i < count; ++i) {
+        index = (index + step + count) % count;
+        if (m_tool_proxies[index]->IsShown()) {
+            m_tool_proxies[index]->SetFocus();
+            return;
+        }
+    }
+}
+
+void BBLTopbar::SetFocusedTool(int tool_id)
+{
+    if (!m_topbar_art)
+        return;
+
+    m_topbar_art->SetFocusedTool(tool_id);
+    Refresh();
+}
+
+#if wxUSE_ACCESSIBILITY
+wxAccessible* BBLTopbar::CreateAccessible()
+{
+    return new WidgetAccessible(this, wxROLE_SYSTEM_TOOLBAR);
+}
+#endif
 
 void BBLTopbar::OnOpenProject(wxAuiToolBarEvent& event)
 {
@@ -480,6 +840,7 @@ void BBLTopbar::ShowCalibrationButton(bool show)
     m_sizer->Layout();
     if (!show)
         m_calib_item->GetSizerItem()->SetDimension({-1000, 0}, {0, 0});
+    SyncToolProxies(); // ORCA: a hidden tool must not stay a keyboard stop
     Refresh();
 }
 
@@ -516,8 +877,10 @@ wxMenu* BBLTopbar::GetCalibMenu()
 void BBLTopbar::SetTitle(wxString title)
 {
     m_titleText = title;
-    if (m_title_ctrl)
+    if (m_title_ctrl) {
         m_title_ctrl->SetTitle(title);
+        m_title_ctrl->SetName(title); // ORCA: the project name a screen reader reads out
+    }
 }
 
 void BBLTopbar::SetMaximizedSize()
@@ -812,6 +1175,19 @@ WXLRESULT CenteredTitle::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lP
     switch (nMsg) {
     case WM_NCHITTEST: {
         // Pass all mouse event to parent
+        return HTTRANSPARENT;
+    }
+    }
+
+    return wxControl::MSWWindowProc(nMsg, wParam, lParam);
+}
+
+WXLRESULT TopbarToolProxy::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+    switch (nMsg) {
+    case WM_NCHITTEST: {
+        // ORCA: the proxy exists for the keyboard only. Let every mouse event through to
+        // the toolbar, which needs them for its tools and for dragging the window.
         return HTTRANSPARENT;
     }
     }
