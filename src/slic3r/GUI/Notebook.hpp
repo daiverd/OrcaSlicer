@@ -81,6 +81,9 @@ private:
     std::vector<wxString>           m_pageLabels; // ORCA
     std::vector<std::string>        m_pageIcons;  // ORCA: resource icon name per page, plugin pages empty
     wxWindow*                       m_overflow_button{nullptr}; // ORCA
+    // ORCA: first of the side tools reparented in by the constructor, i.e. the child the tab
+    // buttons have to be moved in front of to get a Tab order matching the visual one.
+    wxWindow*                       m_first_side_tool{nullptr};
     // ORCA: set while an Enter/Space on a tab button is on its way to becoming a click,
     // so SetSelection knows the activation came from the keyboard. Must outlive the key
     // event: the selection change it triggers is delivered through a posted event.
@@ -460,7 +463,7 @@ public:
                 // tab strip, which is always the 'first' control of a page.
                 if (!isForward)
                 {
-                    SetFocusToTabStrip();
+                    SetFocusToTabStripEnd(event);
                 }
                 else if (parent)
                 {
@@ -551,6 +554,21 @@ private:
             tab->SetFocusFromKbd();
         else
             GetBtnsListCtrl()->SetFocus();
+    }
+
+    // ORCA: coming back out of a page has to enter the strip at its *last* stop rather than
+    // its first, now that the side tools follow the tab buttons in the strip's Tab order -
+    // landing straight on the selected tab would leave them reachable forwards only. Handing
+    // the event to the strip with ourselves as its object is what
+    // wxControlContainer::HandleOnNavigationKey() reads as "propagated down from the parent",
+    // which makes it enter from the end for a backward key and descend into the last side
+    // tool. Hidden side tools are skipped, so the Home tab still lands on the tab button, as
+    // does the fallback when nothing in the strip takes the focus.
+    void SetFocusToTabStripEnd(wxNavigationKeyEvent& event)
+    {
+        event.SetEventObject(this);
+        if (!GetBtnsListCtrl()->GetEventHandler()->ProcessEvent(event))
+            SetFocusToTabStrip();
     }
 
     void Init();

@@ -139,6 +139,12 @@ ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools)
             wxWindow* item_win = item->GetWindow();
             if (item_win) {
                 item_win->Reparent(this);
+                // ORCA: Reparent() appends, and Tab traversal walks the child list, so every
+                // side tool ends up ahead of the tab buttons - which do not exist yet. Keep
+                // the first of them; InsertPage() moves each tab button in front of it so the
+                // Tab order follows the visual left-to-right order instead.
+                if (m_first_side_tool == nullptr)
+                    m_first_side_tool = item_win;
             }
         }
         m_sizer->Add(side_tools, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxBOTTOM, m_btn_margin);
@@ -359,6 +365,16 @@ bool ButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect /*
     m_pageIcons.insert(m_pageIcons.begin() + n, bmp_name);
     m_buttons_sizer->Insert(n, new wxSizerItem(btn));
     m_buttons_sizer->SetCols(m_buttons_sizer->GetCols() + 1);
+    // ORCA: put the button in the Tab order where it is drawn - after the tab before it, or,
+    // for the first tab, ahead of the side tools the constructor reparented in. Without this
+    // a forward Tab from the last tab button left the strip altogether and the side tools
+    // were only ever reachable backwards.
+    if (n > 0)
+        btn->MoveAfterInTabOrder(m_pageButtons[n - 1]);
+    else if (m_pageButtons.size() > 1)
+        btn->MoveBeforeInTabOrder(m_pageButtons[1]);
+    else if (m_first_side_tool != nullptr)
+        btn->MoveBeforeInTabOrder(m_first_side_tool);
     m_sizer->Layout();
     return true;
 }
@@ -439,9 +455,16 @@ void ButtonsListCtrl::SetOverflowButton(wxWindow* button)
 
     m_overflow_button = button;
 
-    if (m_overflow_button != nullptr)
+    if (m_overflow_button != nullptr) {
         // Right after the tab buttons (index 0), ahead of any stretch spacer / side_tools.
         m_sizer->Insert(1, m_overflow_button, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxBOTTOM, m_btn_margin);
+        // ORCA: it is created as a child of the strip and so lands last in the child list.
+        // Move it to where it is drawn, as InsertPage() does for the tab buttons.
+        if (!m_pageButtons.empty())
+            m_overflow_button->MoveAfterInTabOrder(m_pageButtons.back());
+        else if (m_first_side_tool != nullptr)
+            m_overflow_button->MoveBeforeInTabOrder(m_first_side_tool);
+    }
 
     m_sizer->Layout();
 }
