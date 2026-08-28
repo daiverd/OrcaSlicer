@@ -85,7 +85,8 @@ public:
     // ORCA: keyboard and screen-reader access to the tools, see TopbarToolProxy.
     void SyncToolProxies();
     void ActivateTool(int tool_id);
-    void FocusAdjacentTool(const TopbarToolProxy* from, int step);
+    bool FocusAdjacentTool(const TopbarToolProxy* from, int step, bool wrap = true);
+    void FocusNextTabStop(const TopbarToolProxy* from, bool forward);
     void SetFocusedTool(int tool_id);
 
     void SetFileMenu(wxMenu* file_menu);

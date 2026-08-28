@@ -24,6 +24,7 @@
 #include "wxExtensions.hpp"
 #include "Plater.hpp"
 #include "MainFrame.hpp"
+#include "Notebook.hpp"
 #ifdef SLIC3R_CAD
 #include "CAD/DesignPanel.hpp"
 #endif
@@ -190,14 +191,15 @@ void TopbarToolProxy::OnKeyDown(wxKeyEvent& evt)
     case WXK_NUMPAD_ENTER:
     case WXK_SPACE: m_topbar->ActivateTool(m_tool_id); return;
     case WXK_TAB: {
-        // Tab leaves the bar as a whole. MainFrame is not a TAB-traversal container, so
-        // today Navigate() finds nothing to hand the focus to; wrap inside the bar in
-        // that case rather than swallowing the key, and leave properly once it is one.
+        // Tab steps to the next tool and leaves the bar at its ends. MainFrame is a
+        // wxFrame, not a TAB-traversal container, so Navigate() has nothing to hand the
+        // focus to; FocusNextTabStop() does the leaving itself rather than wrapping,
+        // which is what made the bar a TAB trap.
         const bool forward = !evt.ShiftDown();
         const int  flags   = wxNavigationKeyEvent::FromTab |
                              (forward ? wxNavigationKeyEvent::IsForward : wxNavigationKeyEvent::IsBackward);
         if (!m_topbar->Navigate(flags))
-            m_topbar->FocusAdjacentTool(this, forward ? 1 : -1);
+            m_topbar->FocusNextTabStop(this, forward);
         return;
     }
     default: evt.Skip(); return;
@@ -731,14 +733,15 @@ void BBLTopbar::ActivateTool(int tool_id)
     GetEventHandler()->ProcessEvent(evt);
 }
 
-// ORCA: move the keyboard focus between tool proxies, wrapping at both ends and
-// skipping hidden tools. from == nullptr starts outside the bar, so step 1 lands on the
-// first tool and step -1 on the last: that is Home and End.
-void BBLTopbar::FocusAdjacentTool(const TopbarToolProxy* from, int step)
+// ORCA: move the keyboard focus between tool proxies, skipping hidden tools. from ==
+// nullptr starts outside the bar, so step 1 lands on the first tool and step -1 on the
+// last: that is Home and End. The arrow keys wrap; TAB does not, and reads the false
+// return as "the bar ends here".
+bool BBLTopbar::FocusAdjacentTool(const TopbarToolProxy* from, int step, bool wrap)
 {
     const int count = int(m_tool_proxies.size());
     if (count == 0)
-        return;
+        return false;
 
     int index = step > 0 ? -1 : count;
     for (int i = 0; i < count; ++i)
@@ -748,12 +751,81 @@ void BBLTopbar::FocusAdjacentTool(const TopbarToolProxy* from, int step)
         }
 
     for (int i = 0; i < count; ++i) {
-        index = (index + step + count) % count;
+        index += step;
+        if (index < 0 || index >= count) {
+            if (!wrap)
+                return false;
+            index = (index + count) % count;
+        }
         if (m_tool_proxies[index]->IsShown()) {
             m_tool_proxies[index]->SetFocus();
-            return;
+            return true;
         }
     }
+    return false;
+}
+
+// ORCA: first shown and enabled descendant that can take the keyboard focus itself.
+// IsFocusable(), not CanAcceptFocus(): the latter also returns container windows, where
+// SetFocus() does nothing perceptible. Recurse before testing the child so a focusable
+// container never wins over the real control inside it.
+static wxWindow* find_focusable_descendant(wxWindow* win)
+{
+    if (!win)
+        return nullptr;
+
+    for (wxWindow* child : win->GetChildren()) {
+        // IsShown() is not recursive, so hidden subtrees have to be cut off here.
+        if (!child->IsShown() || !child->IsEnabled())
+            continue;
+        if (wxWindow* descendant = find_focusable_descendant(child))
+            return descendant;
+        if (child->IsFocusable())
+            return child;
+    }
+    return nullptr;
+}
+
+// ORCA: the selected tab of the main tab strip, where the focus goes when TAB walks off
+// either end of the bar. Everything on the way there can legitimately be missing - the
+// bar is built before the tab panel exists, and it is not always a MainFrame's bar - so a
+// null return just means there is nowhere to hand the focus to.
+static wxWindow* find_main_tab_stop(wxFrame* frame)
+{
+    MainFrame* main_frame = dynamic_cast<MainFrame*>(frame);
+    if (!main_frame || !main_frame->m_tabpanel)
+        return nullptr;
+
+    ButtonsListCtrl* tab_strip = main_frame->m_tabpanel->GetBtnsListCtrl();
+    if (!tab_strip || !tab_strip->IsShown())
+        return nullptr;
+
+    const int selected = main_frame->m_tabpanel->GetSelection();
+    wxWindow* tab      = selected == wxNOT_FOUND ? nullptr : tab_strip->GetPageButton(size_t(selected));
+    if (tab && tab->IsFocusable())
+        return tab;
+    return find_focusable_descendant(tab_strip);
+}
+
+// ORCA: the TAB step. It moves within the bar like the arrow keys, but at either end it
+// hands the focus out instead of wrapping - MainFrame is a wxFrame, not a TAB-traversal
+// container, so nothing else will, and wrapping is what made the bar a trap that only F6
+// could escape. The main tab strip is the target in both directions: the bar sits above
+// every other pane, so there is nothing before it, and landing on the selected tab is
+// where F6 puts the focus too. Wrapping stays as the last resort, for the case where
+// there is no strip to leave to, so the key is never simply dead.
+void BBLTopbar::FocusNextTabStop(const TopbarToolProxy* from, bool forward)
+{
+    const int step = forward ? 1 : -1;
+    if (FocusAdjacentTool(from, step, /*wrap*/ false))
+        return;
+
+    if (wxWindow* target = find_main_tab_stop(m_frame)) {
+        target->SetFocus();
+        return;
+    }
+
+    FocusAdjacentTool(from, step);
 }
 
 void BBLTopbar::SetFocusedTool(int tool_id)
