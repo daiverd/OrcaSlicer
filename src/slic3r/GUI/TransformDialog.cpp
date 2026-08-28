@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include <wx/access.h>
 #include <wx/checkbox.h>
 #include <wx/sizer.h>
 #include <wx/statbox.h>
@@ -21,6 +22,86 @@
 namespace Slic3r { namespace GUI {
 
 static const char* g_axis_names[3] = {"X", "Y", "Z"};
+
+namespace {
+
+#if wxUSE_ACCESSIBILITY
+
+// Publishes wxWindow::SetName() as the MSAA accName of a *native* control (the real Win32
+// EDIT behind a wxTextCtrl).
+//
+// SetName() on its own never reaches MSAA: it is only read by wxWindowAccessible, and
+// wxWindowBase::CreateAccessible() returns nullptr for a plain wxTextCtrl, so nothing is
+// attached, wx leaves WM_GETOBJECT to DefWindowProc, and the OS proxy names the control
+// after the static text in front of it. Here that is just "X:", identical in all five
+// groups, which is exactly what a screen reader read back before this.
+//
+// Every method other than GetName is deliberately left unimplemented, which makes
+// wxIAccessible fall back to the control's own standard accessible object (see
+// wxAccessible::GetIAccessibleStd), so role, value, caret, selection, the read-only state
+// and everything else keep coming from the native control exactly as before.
+//
+// The `integration` branch carries an equivalent class as NativeCtrlAccessible in
+// Widgets/WidgetAccessible.hpp (branch a11y-axe-nrvs). This file-local copy keeps this
+// branch self-contained on main; its shape is kept identical so that consolidating the
+// two into the shared header is a mechanical change once the branches are sequenced.
+class NativeCtrlAccessible : public wxAccessible
+{
+public:
+    explicit NativeCtrlAccessible(wxWindow* win) : wxAccessible(win) {}
+
+    wxAccStatus GetName(int childId, wxString* name) override
+    {
+        if (childId != wxACC_SELF)
+            return wxACC_NOT_IMPLEMENTED;
+
+        wxWindow* win = GetWindow();
+        if (win == nullptr)
+            return wxACC_FAIL;
+
+        const wxString title = win->GetName();
+        if (title.empty())
+            // Nothing has named this control - leave the native accessible to its own
+            // guess rather than overriding it with nothing.
+            return wxACC_NOT_IMPLEMENTED;
+
+        *name = title;
+        return wxACC_OK;
+    }
+};
+
+#endif // wxUSE_ACCESSIBILITY
+
+// Names a native control for both wx and the accessibility API. wxWindowBase::SetAccessible()
+// takes ownership and deletes the object from ~wxWindowBase, so every control gets its own
+// instance and the dialog has nothing to free.
+void set_accessible_name(wxWindow* win, const wxString& name)
+{
+    win->SetName(name);
+#if wxUSE_ACCESSIBILITY
+    win->SetAccessible(new NativeCtrlAccessible(win));
+#endif
+}
+
+// A read-only wxTextCtrl that Tab still reaches.
+//
+// wxMSW's wxTextCtrl::AcceptsFocusFromKeyboard() is `(IsEditable() || IsMultiLine()) &&
+// wxControl::AcceptsFocus()`, so a single-line wxTE_READONLY control is skipped by wx's
+// dialog navigation (wxControlContainer::HandleOnNavigationKey) and Tab never lands on it -
+// which defeats the whole reason for using a text control instead of a static text. Only
+// keyboard reachability is restored here; the control stays read-only, so it still reports
+// the READONLY state and still rejects typing.
+class ReadOnlyFocusableTextCtrl : public wxTextCtrl
+{
+public:
+    using wxTextCtrl::wxTextCtrl;
+
+    // The plain wxWindow rule (focusable and not opted out), i.e. wxTextCtrl's without its
+    // editable test.
+    bool AcceptsFocusFromKeyboard() const override { return wxWindow::AcceptsFocusFromKeyboard(); }
+};
+
+} // namespace
 
 // The text controls accept whatever the user's locale uses as a decimal separator, and fall
 // back to the C locale so that values pasted from elsewhere still parse.
@@ -74,8 +155,9 @@ TransformDialog::TransformDialog(wxWindow* parent, GizmoObjectManipulation& mani
     wxBoxSizer* main_sizer = new wxBoxSizer(wxVERTICAL);
 
     // The coordinate system is owned by the gizmo panels; this dialog mirrors the current mode
-    // rather than changing it. Read-only rather than static text so it is reachable by Tab and
-    // therefore announced.
+    // rather than changing it. A read-only text control rather than a static text so that Tab
+    // reaches it and it is therefore announced - see ReadOnlyFocusableTextCtrl, which is what
+    // makes a read-only control keyboard-reachable at all under wxMSW.
     wxString coordinates;
     switch (m_manipulation.get_coordinates_type()) {
     case ECoordinatesType::Instance: coordinates = _L("Object"); break;
@@ -85,8 +167,9 @@ TransformDialog::TransformDialog(wxWindow* parent, GizmoObjectManipulation& mani
 
     wxBoxSizer*   coordinates_sizer = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* coordinates_label = new wxStaticText(this, wxID_ANY, _L("Coordinate system") + ":");
-    wxTextCtrl*   coordinates_value = new wxTextCtrl(this, wxID_ANY, coordinates, wxDefaultPosition, wxDefaultSize, wxTE_READONLY);
-    coordinates_value->SetName(_L("Coordinate system"));
+    wxTextCtrl*   coordinates_value = new ReadOnlyFocusableTextCtrl(this, wxID_ANY, coordinates, wxDefaultPosition,
+                                                                    wxDefaultSize, wxTE_READONLY);
+    set_accessible_name(coordinates_value, _L("Coordinate system"));
     coordinates_sizer->Add(coordinates_label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
     coordinates_sizer->Add(coordinates_value, 1, wxALIGN_CENTER_VERTICAL);
     main_sizer->Add(coordinates_sizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, FromDIP(12));
@@ -106,6 +189,14 @@ TransformDialog::TransformDialog(wxWindow* parent, GizmoObjectManipulation& mani
 
     m_initial_uniform_scale = m_manipulation.get_uniform_scaling();
     m_uniform_scale         = new wxCheckBox(this, wxID_ANY, _L("Uniform scale"));
+    // wxCheckBox does supply its own accessible (wxCheckBoxAccessible), so unlike the text
+    // controls above it only needs a name, not one of ours: wxWindowAccessible::GetName()
+    // special-cases wxButton and otherwise falls back to wxWindow::GetName(), which without
+    // this is the wxCheckBoxNameStr default and is read out as "check". Attaching a
+    // NativeCtrlAccessible here would replace wxCheckBoxAccessible and lose the role and
+    // checked state it reports while the control is owner-drawn, which it is as soon as
+    // UpdateDlgDarkUI() gives it a foreground colour.
+    m_uniform_scale->SetName(_L("Uniform scale"));
     m_uniform_scale->SetValue(m_initial_uniform_scale);
     main_sizer->Add(m_uniform_scale, 0, wxLEFT | wxRIGHT | wxTOP, FromDIP(12));
 
@@ -134,12 +225,13 @@ wxSizer* TransformDialog::create_group(Group group, const wxString& name, const 
     wxFlexGridSizer*  grid   = new wxFlexGridSizer(0, 6, FromDIP(4), FromDIP(6));
 
     for (int axis = 0; axis < 3; ++axis) {
-        // Created label first so that the platform's "name from the preceding label" rule picks
-        // it up; SetName() carries the fully qualified name for any accessible object on top.
+        // The label stays the visible, sighted-user cue; the accessible name below is the
+        // fully qualified one, because the platform's "name from the preceding label" rule
+        // would otherwise give all five groups the same three names ("X:", "Y:", "Z:").
         wxStaticText* label = new wxStaticText(holder, wxID_ANY, wxString(g_axis_names[axis]) + ":");
         wxTextCtrl*   field = new wxTextCtrl(holder, wxID_ANY, double_to_string(values(axis), 2), wxDefaultPosition,
                                              wxSize(FromDIP(80), -1));
-        field->SetName(wxString::Format("%s %s", name, g_axis_names[axis]));
+        set_accessible_name(field, wxString::Format("%s %s", name, g_axis_names[axis]));
 
         grid->Add(label, 0, wxALIGN_CENTER_VERTICAL);
         grid->Add(field, 0, wxALIGN_CENTER_VERTICAL);
