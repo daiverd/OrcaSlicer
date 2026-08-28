@@ -559,6 +559,8 @@ void Tab::create_preset_tab()
 
     if (dynamic_cast<TabPrinter *>(this) || dynamic_cast<TabPrint *>(this)) {
         m_extruder_switch = new MultiSwitchButton(panel);
+        // ORCA: names the group its options are announced in; there is no visible label to derive it from
+        m_extruder_switch->SetName(_L("Extruder"));
         m_extruder_switch->SetFont(Label::Body_11);
         m_extruder_switch->SetFitToOptions();
         m_extruder_switch->Bind(wxCUSTOMEVT_MULTISWITCH_SELECTION, [this](auto &evt) {
@@ -610,6 +612,7 @@ void Tab::create_preset_tab()
         m_main_sizer->Add(m_variant_sizer, 0, wxEXPAND | wxTOP, m_em_unit);
     } else if (dynamic_cast<TabFilament *>(this)) {
         m_variant_combo = new MultiSwitchButton(panel);
+        m_variant_combo->SetName(_L("Extruder")); // ORCA: see m_extruder_switch above
         m_variant_combo->SetFont(Label::Body_11);
         m_variant_combo->Bind(wxCUSTOMEVT_MULTISWITCH_SELECTION, [this](auto &evt) {
             evt.Skip();

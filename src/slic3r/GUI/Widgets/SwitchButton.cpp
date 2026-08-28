@@ -685,6 +685,11 @@ MultiSwitchButton::MultiSwitchButton(wxWindow *parent, wxWindowID id, const wxPo
 {
     SetCornerRadius(m_button_radius);
     SetBorderWidth(0);
+#if wxUSE_ACCESSIBILITY
+    // ORCA: a row of buttons standing for one exclusive choice - report the
+    // container as a group so the options are announced as belonging together.
+    SetAccessibleRole(wxROLE_SYSTEM_GROUPING);
+#endif
 
     // Orca: a switch can hold more buttons than the layout has room for (a toolchanger lists one per
     // tool), so they live in a scrolled area: the caller caps the switch at its natural width and
