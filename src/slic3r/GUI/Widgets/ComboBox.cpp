@@ -65,10 +65,12 @@ ComboBox::ComboBox(wxWindow *parent,
     // it just defaults to StaticBox's generic role. A combo box is a distinct,
     // well-known role screen readers announce specially - use it.
     //
-    // Windows' MSAA-to-UIA proxy only offers an ExpandCollapse pattern for an element
-    // that reports one of these two states, and implements Expand()/Collapse() by
-    // calling accDoDefaultAction - so the state has to track the popup and the default
-    // action has to open and close it.
+    // The EXPANDED/COLLAPSED state is what screen readers announce for the popup being
+    // open or shut, and a non-null default action is what makes the control operable
+    // from assistive tech (Windows' MSAA-to-UIA proxy grants InvokePattern from it).
+    // The proxy cannot synthesize a UIA ExpandCollapse *pattern* from MSAA - that
+    // would need a native IAccessibleEx provider - but it does map the state to the
+    // ExpandCollapseState property.
     SetAccessibleRole(wxROLE_SYSTEM_COMBOBOX, [this] {
         return drop_down ? wxACC_STATE_SYSTEM_EXPANDED : wxACC_STATE_SYSTEM_COLLAPSED;
     });
