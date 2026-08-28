@@ -2,6 +2,7 @@
 #include "GUI_App.hpp"
 #include "GUI.hpp"
 #include "NotificationManager.hpp"
+#include "Shortcuts.hpp"
 #include "Widgets/StateColor.hpp"
 #include "libslic3r/libslic3r.h"
 #include <imgui.h>
@@ -68,6 +69,12 @@ static const ImU32 BACKGROUND_COLOR_LIGHT = IM_COL32(255, 255, 255, 255);
 static const ImU32 GROOVE_COLOR_DARK      = IM_COL32(45, 45, 49, 255);
 static const ImU32 GROOVE_COLOR_LIGHT     = IM_COL32(206, 206, 206, 255);
 static const ImU32 BRAND_COLOR            = IM_COL32(0, 150, 136, 255);
+
+// The names ImGui knows the two slider windows by, which is the only handle anything outside
+// a render has on where they ended up. Identifiers, not text: the misspelling is the name the
+// window has always had and keeping it is what keeps the lookups matching the renders.
+static const char* MOVES_SLIDER_WINDOW  = "moves_slider";
+static const char* LAYERS_SLIDER_WINDOW = "laysers_slider";
 
 static int m_tick_value = -1;
 static ImVec4 m_tick_rect;
@@ -216,16 +223,22 @@ int IMSlider::GetActiveValue() const
 
 void IMSlider::SetLowerValue(const int lower_val)
 {
+    const int lower = m_lower_value;
+    const int higher = m_higher_value;
     m_lower_value = lower_val;
     correct_lower_value();
     set_as_dirty();
+    value_changed_from(lower, higher);
 }
 
 void IMSlider::SetHigherValue(const int higher_val)
 {
+    const int lower = m_lower_value;
+    const int higher = m_higher_value;
     m_higher_value = higher_val;
     correct_higher_value();
     set_as_dirty();
+    value_changed_from(lower, higher);
 }
 
 void IMSlider::SetSelectionSpan(const int lower_val, const int higher_val)
@@ -1279,9 +1292,9 @@ bool IMSlider::render(int canvas_width, int canvas_height)
     if (is_horizontal()) {
         ImVec2 size  = ImVec2(canvas_width - 2 * std::max(LEFT_MARGIN * m_scale, 0.2f * canvas_width), HORIZONTAL_SLIDER_WINDOW_HEIGHT * m_scale);
         imgui.set_next_window_pos(0.5f * static_cast<float>(canvas_width), canvas_height, ImGuiCond_Always, 0.5f, 1.0f);
-        imgui.begin(std::string("moves_slider"), windows_flag);
+        imgui.begin(std::string(MOVES_SLIDER_WINDOW), windows_flag);
         int value = GetHigherValue();
-        if (horizontal_slider("moves_slider", &value, GetMinValue(), GetMaxValue(), size, scale)) {
+        if (horizontal_slider(MOVES_SLIDER_WINDOW, &value, GetMinValue(), GetMaxValue(), size, scale)) {
             result = true;
             SetHigherValue(value);
         }
@@ -1289,7 +1302,7 @@ bool IMSlider::render(int canvas_width, int canvas_height)
     } else {
         ImVec2 size = ImVec2(VERTICAL_SLIDER_WINDOW_WIDTH * m_scale, 0.8f * canvas_height);
         imgui.set_next_window_pos(canvas_width, 0.5f * static_cast<float>(canvas_height), ImGuiCond_Always, 1.0f, 0.5f);
-        imgui.begin(std::string("laysers_slider"), windows_flag);
+        imgui.begin(std::string(LAYERS_SLIDER_WINDOW), windows_flag);
 
         int higher_value = GetHigherValue();
         int lower_value = GetLowerValue();
@@ -1297,7 +1310,7 @@ bool IMSlider::render(int canvas_width, int canvas_height)
         std::string lower_label  = get_label(m_lower_value);
         int temp_higher_value    = higher_value;
         int temp_lower_value     = lower_value;
-        if (vertical_slider("laysers_slider", &higher_value, &lower_value, higher_label, lower_label, GetMinValue(), GetMaxValue(),
+        if (vertical_slider(LAYERS_SLIDER_WINDOW, &higher_value, &lower_value, higher_label, lower_label, GetMinValue(), GetMaxValue(),
                   size, m_selection, is_one_layer(), scale)) {
             if (temp_higher_value != higher_value)
                 SetHigherValue(higher_value);
@@ -1320,6 +1333,10 @@ bool IMSlider::render(int canvas_width, int canvas_height)
         if (ImGui::ImageButton3(normal_id, hover_id, ONE_LAYER_BUTTON_SIZE * m_scale)) {
             switch_one_layer_mode();
         }
+        // the button is an icon with no label of its own, so nothing but the tooltip says
+        // what it does
+        if (ImGui::IsItemHovered())
+            show_tooltip(wxGetApp().shortcuts().with_key(_u8L("One layer mode"), Shortcut::ToggleOneLayerMode));
         imgui.end();
     }
 
@@ -1642,9 +1659,22 @@ void IMSlider::set_scale(float scale)
     if(m_scale != scale) m_scale = scale;
 }
 
+bool IMSlider::get_render_rect(wxRect& rect) const
+{
+    if (ImGui::GetCurrentContext() == nullptr)
+        return false;
+
+    const ImGuiWindow* window = ImGui::FindWindowByName(is_horizontal() ? MOVES_SLIDER_WINDOW : LAYERS_SLIDER_WINDOW);
+    if (window == nullptr || window->Size.x <= 0.0f || window->Size.y <= 0.0f)
+        return false;
+
+    rect = wxRect((int)window->Pos.x, (int)window->Pos.y, (int)window->Size.x, (int)window->Size.y);
+    return true;
+}
+
 void IMSlider::on_mouse_wheel(wxMouseEvent& evt) {
-    auto moves_slider_window = ImGui::FindWindowByName("moves_slider");
-    auto layers_slider_window = ImGui::FindWindowByName("laysers_slider");
+    auto moves_slider_window = ImGui::FindWindowByName(MOVES_SLIDER_WINDOW);
+    auto layers_slider_window = ImGui::FindWindowByName(LAYERS_SLIDER_WINDOW);
     if (!moves_slider_window || !layers_slider_window) {
         BOOST_LOG_TRIVIAL(info) << "Couldn't find slider window";
         return;
@@ -1780,6 +1810,35 @@ std::string IMSlider::get_label(int tick, LabelType label_type)
     }
 
     return "";
+}
+
+std::string IMSlider::get_accessible_value()
+{
+    // the moves slider draws the move index itself, with nothing to add to it
+    if (is_horizontal())
+        return std::to_string(m_higher_value);
+
+    // The layers slider draws the layer number over the height, right aligned on two lines,
+    // which does not read out. Same two numbers, one line, and the height with its unit.
+    const std::string label = get_label(m_selection == ssLower ? m_lower_value : m_higher_value);
+    const size_t      split = label.find('\n');
+    if (split == std::string::npos)
+        return label;
+
+    // both halves are right aligned in a field of five for the slider face
+    auto trimmed = [&label](size_t from, size_t to) {
+        while (from < to && label[from] == ' ') ++from;
+        while (to > from && label[to - 1] == ' ') --to;
+        return label.substr(from, to - from);
+    };
+
+    return trimmed(0, split) + ", " + trimmed(split + 1, label.size()) + " mm";
+}
+
+void IMSlider::value_changed_from(int lower, int higher)
+{
+    if (m_on_value_changed && (m_lower_value != lower || m_higher_value != higher))
+        m_on_value_changed();
 }
 
 double IMSlider::get_double_value(const SelectedSlider &selection)

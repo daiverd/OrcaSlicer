@@ -1,5 +1,6 @@
 #include "GLCanvasRing.hpp"
 
+#include "GCodeViewer.hpp"
 #include "GLCanvas3D.hpp"
 #include "GLModel.hpp"
 #include "GLShader.hpp"
@@ -7,6 +8,7 @@
 #include "GUI.hpp"
 #include "GUI_App.hpp"
 #include "I18N.hpp"
+#include "IMSlider.hpp"
 #include "Plater.hpp"
 #include "Shortcuts.hpp"
 #include "Gizmos/GLGizmoEmboss.hpp"
@@ -234,7 +236,7 @@ static void split_tooltip(const std::string& tooltip, wxString& name, wxString& 
         name.RemoveLast();
 }
 
-int GLCanvasKeyboardRing::child_count() const
+int GLCanvasKeyboardRing::entry_child_count() const
 {
     int count = 0;
     for (int stop = 0; stop < Num_Stops; ++stop) {
@@ -242,6 +244,12 @@ int GLCanvasKeyboardRing::child_count() const
     }
 
     return count;
+}
+
+int GLCanvasKeyboardRing::child_count() const
+{
+    // the sliders come after the entries, so a canvas which has none keeps the ids it had
+    return entry_child_count() + slider_count();
 }
 
 int GLCanvasKeyboardRing::focused_child_id() const
@@ -263,13 +271,18 @@ int GLCanvasKeyboardRing::focused_child_id() const
 
 bool GLCanvasKeyboardRing::child_info(int child_id, ChildInfo& info) const
 {
+    info = ChildInfo();
+
+    int slider = 0;
+    if (slider_at(child_id, slider))
+        return slider_info(slider, info);
+
     Stop   stop;
     size_t index = 0;
     if (!child_at(child_id, stop, index))
         return false;
 
     const Entry& entry = stop.entries[index];
-    info = ChildInfo();
     info.description = stop.name;
     wxString detail;
 
@@ -314,34 +327,50 @@ bool GLCanvasKeyboardRing::child_info(int child_id, ChildInfo& info) const
 
 bool GLCanvasKeyboardRing::child_rect(int child_id, wxRect& rect) const
 {
-    Stop   stop;
-    size_t index = 0;
-    if (!child_at(child_id, stop, index))
-        return false;
-
     const Size cnv_size = m_canvas.get_canvas_size();
     const float cnv_w = (float)cnv_size.get_width();
     const float cnv_h = (float)cnv_size.get_height();
     if (cnv_w == 0.0f || cnv_h == 0.0f)
         return false;
 
-    const Entry& entry = stop.entries[index];
     float left, right, top, bottom;
-    if (entry.toolbar == nullptr) {
-        // the gizmo strip is already in canvas pixels from the top left corner
-        if (!m_canvas.get_gizmos_manager().get_gizmo_rect(entry.gizmo, left, right, top, bottom))
-            return false;
-    }
-    else {
-        const int item_id = entry.toolbar->get_item_id(entry.item_name);
-        if (item_id < 0 || !entry.toolbar->get_item_rect(item_id, left, right, top, bottom))
+    int slider = 0;
+    if (slider_at(child_id, slider)) {
+        IMSlider* im_slider = slider_of(slider);
+        wxRect window_rect;
+        // there is nothing to report before ImGui has laid the slider out
+        if (im_slider == nullptr || !im_slider->get_render_rect(window_rect))
             return false;
 
-        // the toolbar layout is in canvas pixels around the canvas center, y growing up
-        left += 0.5f * cnv_w;
-        right += 0.5f * cnv_w;
-        top = 0.5f * cnv_h - top;
-        bottom = 0.5f * cnv_h - bottom;
+        // the ImGui layout is already in canvas pixels from the top left corner
+        left = (float)window_rect.GetLeft();
+        top = (float)window_rect.GetTop();
+        right = left + (float)window_rect.GetWidth();
+        bottom = top + (float)window_rect.GetHeight();
+    }
+    else {
+        Stop   stop;
+        size_t index = 0;
+        if (!child_at(child_id, stop, index))
+            return false;
+
+        const Entry& entry = stop.entries[index];
+        if (entry.toolbar == nullptr) {
+            // the gizmo strip is already in canvas pixels from the top left corner
+            if (!m_canvas.get_gizmos_manager().get_gizmo_rect(entry.gizmo, left, right, top, bottom))
+                return false;
+        }
+        else {
+            const int item_id = entry.toolbar->get_item_id(entry.item_name);
+            if (item_id < 0 || !entry.toolbar->get_item_rect(item_id, left, right, top, bottom))
+                return false;
+
+            // the toolbar layout is in canvas pixels around the canvas center, y growing up
+            left += 0.5f * cnv_w;
+            right += 0.5f * cnv_w;
+            top = 0.5f * cnv_h - top;
+            bottom = 0.5f * cnv_h - bottom;
+        }
     }
 
     // the layouts are in canvas pixels, which are client pixels times the display scale
@@ -362,6 +391,15 @@ bool GLCanvasKeyboardRing::activate_child(int child_id)
     activate(stop.entries[index]);
     m_canvas.set_as_dirty();
     return true;
+}
+
+void GLCanvasKeyboardRing::attach_sliders()
+{
+    for (int slider = 0; slider < Num_Sliders; ++slider) {
+        IMSlider* im_slider = slider_of(slider);
+        if (im_slider != nullptr)
+            im_slider->set_value_changed_callback([this, slider]() { notify_slider_value(slider); });
+    }
 }
 #endif // wxUSE_ACCESSIBILITY
 
@@ -499,6 +537,30 @@ void GLCanvasKeyboardRing::notify_activated()
 }
 
 #if wxUSE_ACCESSIBILITY
+void GLCanvasKeyboardRing::notify_slider_value(int slider)
+{
+    wxWindow* window = m_canvas.get_wxglcanvas();
+    const int child_id = slider_child_id(slider);
+    // the sliders of a canvas which does not draw them are not announced at all
+    if (window == nullptr || child_id == 0)
+        return;
+
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_VALUECHANGE, window, wxOBJID_CLIENT, child_id);
+}
+
+int GLCanvasKeyboardRing::slider_count() const
+{
+    // The two sliders exist on every canvas, as the G-code viewer they belong to does, but
+    // only the Preview draws them, and only what is on screen is worth announcing.
+    return m_canvas.get_canvas_type() == GLCanvas3D::ECanvasType::CanvasPreview ? Num_Sliders : 0;
+}
+
+IMSlider* GLCanvasKeyboardRing::slider_of(int slider) const
+{
+    GCodeViewer& gcode_viewer = m_canvas.get_gcode_viewer();
+    return slider == LayersSlider ? gcode_viewer.get_layers_slider() : gcode_viewer.get_moves_slider();
+}
+
 bool GLCanvasKeyboardRing::child_at(int child_id, Stop& stop, size_t& index) const
 {
     if (child_id <= 0)
@@ -518,6 +580,39 @@ bool GLCanvasKeyboardRing::child_at(int child_id, Stop& stop, size_t& index) con
     }
 
     return false;
+}
+
+bool GLCanvasKeyboardRing::slider_at(int child_id, int& slider) const
+{
+    const int first = entry_child_count() + 1;
+    if (child_id < first || child_id >= first + slider_count())
+        return false;
+
+    slider = child_id - first;
+    return true;
+}
+
+int GLCanvasKeyboardRing::slider_child_id(int slider) const
+{
+    return slider_count() == 0 ? 0 : entry_child_count() + 1 + slider;
+}
+
+bool GLCanvasKeyboardRing::slider_info(int slider, ChildInfo& info) const
+{
+    IMSlider* im_slider = slider_of(slider);
+    if (im_slider == nullptr)
+        return false;
+
+    info.name = slider == LayersSlider ? _L("Layers") : _L("Moves");
+    // nothing here moves the slider, and nothing else says what does
+    info.description = _L("Use the arrow keys on the preview to move it");
+    info.value = from_u8(im_slider->get_accessible_value());
+    info.role = wxROLE_SYSTEM_SLIDER;
+    info.enabled = !im_slider->is_rendering_as_disabled();
+    // Announced only: the arrow keys drive the sliders from the scene stop, as they always
+    // have, so the ring has no stop for them and the focus never lands on one.
+    info.focusable = false;
+    return true;
 }
 #endif // wxUSE_ACCESSIBILITY
 

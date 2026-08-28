@@ -17,6 +17,7 @@ namespace GUI {
 
 class GLCanvas3D;
 class GLToolbar;
+class IMSlider;
 
 // Keyboard access to the controls drawn on the GL canvas. They are sprites, not
 // windows, so wx focus traversal cannot see any of them. Each toolbar object is a
@@ -46,16 +47,20 @@ public:
     void render_focus_ring(const GLGizmosManager& gizmos) const;
 
 #if wxUSE_ACCESSIBILITY
-    // What GLCanvasAccessible exposes as the MSAA simple children of the canvas. The ids
-    // are flat, 1..N over the entries of every stop in stop order, and they are resolved
-    // against live data on every call, so an id read before a toolbar changed can be stale.
+    // What GLCanvasAccessible exposes as the MSAA simple children of the canvas. The ids are
+    // flat, 1..N over the entries of every stop in stop order and then over the sliders the
+    // canvas has, and they are resolved against live data on every call, so an id read before
+    // a toolbar changed can be stale.
     struct ChildInfo
     {
-        wxString name;        // the label of the entry alone, localized
-        wxString description; // the name of the stop it belongs to, plus what the tooltip adds
-        wxString shortcut;
-        bool     enabled{ true };
-        bool     pressed{ false };
+        wxString  name;        // the label of the entry alone, localized
+        wxString  description; // the name of the stop it belongs to, plus what the tooltip adds
+        wxString  shortcut;
+        wxString  value;       // empty for a child which has no value of its own
+        wxAccRole role{ wxROLE_SYSTEM_PUSHBUTTON };
+        bool      enabled{ true };
+        bool      focusable{ true };
+        bool      pressed{ false };
     };
 
     int  child_count() const;
@@ -65,6 +70,10 @@ public:
     // in canvas client pixels; false while the entry has no geometry to report
     bool child_rect(int child_id, wxRect& rect) const;
     bool activate_child(int child_id);
+
+    // Have the sliders of this canvas report the values they commit. They belong to the
+    // canvas and are destroyed with it, so what they call cannot outlive this object.
+    void attach_sliders();
 #endif // wxUSE_ACCESSIBILITY
 
 private:
@@ -76,6 +85,15 @@ private:
         AssembleViewToolbar,
         CollapseToolbar,
         Num_Stops
+    };
+
+    // The Preview sliders. They are announced children but no stop of the ring: the arrow
+    // keys drive them from the scene stop, which is where they have always been driven from.
+    enum ESlider
+    {
+        LayersSlider,
+        MovesSlider,
+        Num_Sliders
     };
 
     static constexpr int Scene_Stop = -1;
@@ -124,7 +142,16 @@ private:
     void notify_activated();
 
 #if wxUSE_ACCESSIBILITY
+    // The child ids of the toolbar entries, which the slider ids follow
+    int  entry_child_count() const;
+    // 0 on every canvas which draws no slider, which is every canvas but the Preview
+    int  slider_count() const;
+    IMSlider* slider_of(int slider) const;
     bool child_at(int child_id, Stop& stop, size_t& index) const;
+    bool slider_at(int child_id, int& slider) const;
+    int  slider_child_id(int slider) const;
+    bool slider_info(int slider, ChildInfo& info) const;
+    void notify_slider_value(int slider);
 #endif // wxUSE_ACCESSIBILITY
 
     GLCanvas3D& m_canvas;

@@ -1794,6 +1794,9 @@ bool GLCanvas3D::init()
     // The canvas window owns the object and deletes any previous one, so running this a
     // second time after a failed init is harmless.
     m_canvas->SetAccessible(new GLCanvasAccessible(m_canvas, *this));
+    // the Preview sliders are announced children of the canvas, so a value they commit has
+    // to reach the screen reader; they are members of this canvas and die with it
+    m_keyboard_ring.attach_sliders();
 #endif // wxUSE_ACCESSIBILITY
 
     m_initialized = true;

@@ -17,6 +17,10 @@ class GLCanvas3D;
 // one has the virtual focus, and is read live on every query so that a toolbar changing under
 // a screen reader is reported as it is rather than as it was.
 //
+// The toolbar entries are buttons which take the focus and can be pressed from here. The
+// Preview sliders are children too, but they are announced only: they report a value and
+// nothing else, because the keys which drive them belong to the canvas as a whole.
+//
 // Windows only, as wxAccessible itself is: wx 3.3 has no accessibility backend on the other
 // platforms, where the keyboard ring works but announces nothing.
 class GLCanvasAccessible : public wxAccessible
@@ -30,6 +34,7 @@ public:
     wxAccStatus GetDescription(int childId, wxString* description) override;
     wxAccStatus GetRole(int childId, wxAccRole* role) override;
     wxAccStatus GetState(int childId, long* state) override;
+    wxAccStatus GetValue(int childId, wxString* strValue) override;
     wxAccStatus GetLocation(wxRect& rect, int elementId) override;
     wxAccStatus GetKeyboardShortcut(int childId, wxString* shortcut) override;
     wxAccStatus GetDefaultAction(int childId, wxString* actionName) override;

@@ -62,12 +62,14 @@ wxAccStatus GLCanvasAccessible::GetRole(int childId, wxAccRole* role)
     if (childId == wxACC_SELF)
         return wxACC_NOT_IMPLEMENTED;
 
-    if (childId > m_canvas.get_keyboard_ring().child_count())
+    GLCanvasKeyboardRing::ChildInfo info;
+    if (!m_canvas.get_keyboard_ring().child_info(childId, info))
         return wxACC_FAIL;
 
-    // Toolbar buttons, including the toggles and the gizmos: a toggled entry is a button
-    // reported as pressed, which is what a toolbar does, rather than a check box.
-    *role = wxROLE_SYSTEM_PUSHBUTTON;
+    // A toolbar button, including the toggles and the gizmos: a toggled entry is a button
+    // reported as pressed, which is what a toolbar does, rather than a check box. Or one of
+    // the Preview sliders.
+    *role = info.role;
     return wxACC_OK;
 }
 
@@ -81,13 +83,14 @@ wxAccStatus GLCanvasAccessible::GetState(int childId, long* state)
     if (!ring.child_info(childId, info))
         return wxACC_FAIL;
 
-    // Focusable always: a screen reader which is told an element cannot take the focus
-    // discards the focus events sent for it.
-    long s = wxACC_STATE_SYSTEM_FOCUSABLE;
+    // A screen reader which is told an element cannot take the focus discards the focus
+    // events sent for it, so every entry is focusable. The sliders are not: they are read
+    // where they are and never focused, which is what read only says.
+    long s = info.focusable ? wxACC_STATE_SYSTEM_FOCUSABLE : wxACC_STATE_SYSTEM_READONLY;
     const wxWindow* window = GetWindow();
     if (window == nullptr || !window->IsShownOnScreen())
         s |= wxACC_STATE_SYSTEM_INVISIBLE | wxACC_STATE_SYSTEM_OFFSCREEN;
-    else if (window->HasFocus() && ring.focused_child_id() == childId)
+    else if (info.focusable && window->HasFocus() && ring.focused_child_id() == childId)
         s |= wxACC_STATE_SYSTEM_FOCUSED;
     if (!info.enabled)
         s |= wxACC_STATE_SYSTEM_UNAVAILABLE;
@@ -95,6 +98,23 @@ wxAccStatus GLCanvasAccessible::GetState(int childId, long* state)
         s |= wxACC_STATE_SYSTEM_PRESSED;
 
     *state = s;
+    return wxACC_OK;
+}
+
+wxAccStatus GLCanvasAccessible::GetValue(int childId, wxString* strValue)
+{
+    if (childId == wxACC_SELF)
+        return wxACC_NOT_IMPLEMENTED;
+
+    GLCanvasKeyboardRing::ChildInfo info;
+    if (!m_canvas.get_keyboard_ring().child_info(childId, info))
+        return wxACC_FAIL;
+
+    if (info.value.empty())
+        // a toolbar button is what it is named, with no value on top of that
+        return wxACC_NOT_IMPLEMENTED;
+
+    *strValue = info.value;
     return wxACC_OK;
 }
 
@@ -135,8 +155,13 @@ wxAccStatus GLCanvasAccessible::GetDefaultAction(int childId, wxString* actionNa
     if (childId == wxACC_SELF)
         return wxACC_NOT_IMPLEMENTED;
 
-    if (childId > m_canvas.get_keyboard_ring().child_count())
+    GLCanvasKeyboardRing::ChildInfo info;
+    if (!m_canvas.get_keyboard_ring().child_info(childId, info))
         return wxACC_FAIL;
+
+    if (info.role != wxROLE_SYSTEM_PUSHBUTTON)
+        // the sliders are read from here, not driven
+        return wxACC_NOT_IMPLEMENTED;
 
     *actionName = _L("Press");
     return wxACC_OK;
