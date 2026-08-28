@@ -2367,6 +2367,13 @@ wxBoxSizer* MainFrame::create_side_tools()
     print_sizer->Add(m_print_btn, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, FromDIP(1));
     print_panel->SetSizer(print_sizer);
 
+    // ORCA: both halves of each split button are Tab stops, and Tab traversal walks the
+    // child list, which follows creation order - so Tab reached "Slice plate" before the
+    // arrow that is drawn to its left. Put each label half back behind its own arrow so
+    // the Tab order runs left to right, the way the sizers above lay the halves out.
+    m_slice_btn->MoveAfterInTabOrder(m_slice_option_btn);
+    m_print_btn->MoveAfterInTabOrder(m_print_option_btn);
+
     update_side_button_style();
     m_slice_option_btn->Enable();
     m_print_option_btn->Enable();
