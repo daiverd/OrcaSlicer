@@ -323,7 +323,8 @@ public:
                 // focus is currently on notebook tab and should leave
                 // it backwards (Shift-TAB)
                 event.SetCurrentFocus(this);
-                if (!parent->HandleWindowEvent(event))
+                if (!parent->HandleWindowEvent(event) &&
+                    !(m_selection != wxNOT_FOUND && WrapNavigationInto(m_pages[m_selection], event)))
                     event.Skip();
             }
             else if (isFromParent || isFromSelf || isFromBtns)
@@ -363,10 +364,15 @@ public:
                 else if (parent)
                 {
                     event.SetCurrentFocus(this);
-                    // ORCA: a forward key the parent declines has to stay skipped, or
+                    // ORCA: every host panel of ours - AuxiliaryPanel, MonitorPanel,
+                    // CalibrationPanel, MultiMachinePage - hands us its side tools and then
+                    // holds nothing but us, so it has nowhere to send a forward key and this is
+                    // the end of the traversal cycle. Wrap round to the tab strip ourselves;
+                    // only if even that finds nothing to focus is the event left skipped, or
                     // wxControlContainer::HandleOnNavigationKey() reads "processed" from our
                     // return value and stops both escalating and looking for a control to focus.
-                    if (!parent->HandleWindowEvent(event))
+                    if (!parent->HandleWindowEvent(event) &&
+                        !WrapNavigationInto(GetBtnsListCtrl(), event))
                         event.Skip();
                 }
             }
@@ -434,6 +440,25 @@ private:
              win != nullptr && win != this; win = win->GetParent())
             if (win == btns)
                 return true;
+        return false;
+    }
+
+    // ORCA: closes the traversal cycle when nothing outside us wants the key. Without this
+    // the container that started the walk falls back on wrapping inside itself, which
+    // strands the focus in whichever half of the book control it started in - the page
+    // cycling over its own fields forever, the strip over its own buttons. Re-entering
+    // `win` as if the event came from us restarts the walk at its first (forward) or last
+    // (backward) child, exactly like a container wrapping round, so the cycle spans strip
+    // and page alike. The event object is restored if `win` has nothing to focus either,
+    // so an unhandled event reaches the caller as it arrived. The Notebook twin needs no
+    // counterpart: its pages have deeper ancestors of their own to wrap inside.
+    bool WrapNavigationInto(wxWindow* win, wxNavigationKeyEvent& event)
+    {
+        wxObject* const from = event.GetEventObject();
+        event.SetEventObject(this);
+        if (win->HandleWindowEvent(event))
+            return true;
+        event.SetEventObject(from);
         return false;
     }
 
