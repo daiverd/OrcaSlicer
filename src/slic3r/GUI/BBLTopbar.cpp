@@ -356,7 +356,13 @@ private:
 
 void BBLTopbarArt::DrawBackground(wxDC& dc, wxWindow* wnd, const wxRect& rect)
 {
-    dc.SetBrush(wxBrush(wxColour(38, 46, 48)));
+    // ORCA: stroke the edge in the fill colour, the way DrawButton does. The default pen
+    // is black, and now that each tool is painted into a proxy window of its own the
+    // rectangle's edges land inside the visible area instead of off the ends of the bar,
+    // so an unset pen outlines every tool.
+    const wxColour background(38, 46, 48);
+    dc.SetPen(wxPen(background));
+    dc.SetBrush(wxBrush(background));
     wxRect clipRect = rect;
     clipRect.y -= 8;
     clipRect.height += 8;
