@@ -312,23 +312,28 @@ public:
             // the wxObject* casts are required to avoid MinGW GCC 2.95.3 ICE
             const bool isFromParent = event.GetEventObject() == (wxObject*)parent;
             const bool isFromSelf = event.GetEventObject() == (wxObject*)this;
+            // ORCA: our tab strip is a child window of its own rather than a part of this
+            // control, so everything wxNotebook deals with as coming from its tab area
+            // reaches us as a from-child event and has to be told apart from a page's.
+            const bool isFromBtns = event.GetEventObject() == (wxObject*)GetBtnsListCtrl();
             const bool isForward = event.GetDirection();
 
-            if (isFromSelf && !isForward)
+            if ((isFromSelf || isFromBtns) && !isForward)
             {
                 // focus is currently on notebook tab and should leave
                 // it backwards (Shift-TAB)
                 event.SetCurrentFocus(this);
-                parent->HandleWindowEvent(event);
+                if (!parent->HandleWindowEvent(event))
+                    event.Skip();
             }
-            else if (isFromParent || isFromSelf)
+            else if (isFromParent || isFromSelf || isFromBtns)
             {
                 // no, it doesn't come from child, case (b) or (c): forward to a
                 // page but only if entering notebook page (i.e. direction is
                 // backwards (Shift-TAB) comething from out-of-notebook, or
                 // direction is forward (TAB) from ourselves),
                 if (m_selection != wxNOT_FOUND &&
-                    (!event.GetDirection() || isFromSelf))
+                    (!isForward || isFromSelf || isFromBtns))
                 {
                     // so that the page knows that the event comes from it's parent
                     // and is being propagated downwards
@@ -341,35 +346,26 @@ public:
                     }
                     //else: page manages focus inside it itself
                 }
-                else // otherwise set the focus to the notebook itself
+                else // otherwise set the focus to the tab strip
                 {
-                    SetFocus();
+                    SetFocusToTabStrip();
                 }
             }
             else
             {
                 // it comes from our child, case (a), pass to the parent, but only
                 // if the direction is forwards. Otherwise set the focus to the
-                // notebook itself. The notebook is always the 'first' control of a
-                // page.
-                // ORCA: our tab strip is a child window of its own rather than a part of
-                // this control, so a backward key from the strip arrives here as a
-                // from-child event too and has to leave us, while one from a page has to
-                // land on the strip - SetFocus() is overridden to focus the current page
-                // and would bounce it straight back into the page it came from. A forward
-                // key our parent declines has to stay skipped, or the escalation below us
-                // reads "processed" and stops looking for a control to focus.
-                if (!isForward && event.GetEventObject() != (wxObject*) GetBtnsListCtrl())
+                // tab strip, which is always the 'first' control of a page.
+                if (!isForward)
                 {
-                    wxWindow* const tab = GetBtnsListCtrl()->GetSelectedButton();
-                    if (tab)
-                        tab->SetFocusFromKbd();
-                    else
-                        GetBtnsListCtrl()->SetFocus();
+                    SetFocusToTabStrip();
                 }
                 else if (parent)
                 {
                     event.SetCurrentFocus(this);
+                    // ORCA: a forward key the parent declines has to stay skipped, or
+                    // wxControlContainer::HandleOnNavigationKey() reads "processed" from our
+                    // return value and stops both escalating and looking for a control to focus.
                     if (!parent->HandleWindowEvent(event))
                         event.Skip();
                 }
@@ -423,6 +419,17 @@ protected:
     }
 
 private:
+    // ORCA: the roving tabindex makes the selected tab the strip's only Tab stop, and the
+    // side tools reparented into the strip are its first children, so a plain SetFocus()
+    // on the strip would land on one of those instead.
+    void SetFocusToTabStrip()
+    {
+        if (wxWindow* const tab = GetBtnsListCtrl()->GetSelectedButton())
+            tab->SetFocusFromKbd();
+        else
+            GetBtnsListCtrl()->SetFocus();
+    }
+
     void Init()
     {
         // We don't need any border as we don't have anything to separate the
