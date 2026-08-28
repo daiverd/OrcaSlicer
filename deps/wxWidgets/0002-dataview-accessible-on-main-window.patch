@@ -1,0 +1,294 @@
+Associate wxDataViewCtrlAccessible with the main window, not the control.
+
+The generic wxDataViewCtrl is a composite control: the outer window is just a
+container, while keyboard focus, mouse events and the row geometry all belong
+to the inner wxDataViewMainWindow. The accessible object exposing the rows was
+attached to the outer window, which no screen reader ever queries, so clients
+asking the focused window for its children got none and the rows were
+invisible to assistive technology.
+
+Attach wxDataViewCtrlAccessible to wxDataViewMainWindow instead and drop the
+override on the control itself (the container falls back to the default
+wxWindowAccessible, so the rows are not exposed twice). The MSAA focus,
+selection and reorder events sent from the main window now name that window
+too, so focus tracking follows the current row.
+
+ include/wx/generic/dataview.h | 15 ++++++----
+ src/generic/datavgen.cpp      | 67 +++++++++++++++++++++++++------------------
+ 2 files changed, 49 insertions(+), 33 deletions(-)
+
+diff --git a/include/wx/generic/dataview.h b/include/wx/generic/dataview.h
+index b74d9ac..a0abc89 100644
+--- a/include/wx/generic/dataview.h
++++ b/include/wx/generic/dataview.h
+@@ -362,10 +362,6 @@ public:     // utility functions not part of the API
+ 
+     virtual void OnInternalIdle() override;
+ 
+-#if wxUSE_ACCESSIBILITY
+-    virtual wxAccessible* CreateAccessible() override;
+-#endif // wxUSE_ACCESSIBILITY
+-
+ private:
+     // Implement pure virtual method inherited from wxCompositeWindow.
+     virtual wxWindowList GetCompositeWindowParts() const override;
+@@ -432,10 +428,14 @@ private:
+ // wxDataViewCtrlAccessible
+ //-----------------------------------------------------------------------------
+ 
++// Note that this object is associated with the main window of the control and
++// not the control itself because the main window is the one which has the
++// keyboard focus and to which the mouse events are sent, so this is the window
++// the accessibility clients look at.
+ class WXDLLIMPEXP_CORE wxDataViewCtrlAccessible: public wxWindowAccessible
+ {
+ public:
+-    wxDataViewCtrlAccessible(wxDataViewCtrl* win);
++    wxDataViewCtrlAccessible(wxDataViewMainWindow* win);
+     virtual ~wxDataViewCtrlAccessible() = default;
+ 
+     virtual wxAccStatus HitTest(const wxPoint& pt, int* childId,
+@@ -476,6 +476,11 @@ public:
+     virtual wxAccStatus GetFocus(int* childId, wxAccessible** child) override;
+ 
+     virtual wxAccStatus GetSelections(wxVariant* selections) override;
++
++private:
++    // Return the control this accessible object provides information about or
++    // nullptr if it can't be determined (which shouldn't normally happen).
++    wxDataViewCtrl* GetCtrl();
+ };
+ #endif // wxUSE_ACCESSIBILITY
+ 
+diff --git a/src/generic/datavgen.cpp b/src/generic/datavgen.cpp
+index d5178ff..aca1b8e 100644
+--- a/src/generic/datavgen.cpp
++++ b/src/generic/datavgen.cpp
+@@ -783,6 +783,16 @@ public:
+     virtual wxWindow *GetMainWindowOfCompositeControl() override
+         { return GetOwner(); }
+ 
++#if wxUSE_ACCESSIBILITY
++    // The accessible object is associated with this window and not the control
++    // itself because this is the window which has the keyboard focus and the
++    // one the rows belong to, i.e. the one the accessibility clients query.
++    virtual wxAccessible* CreateAccessible() override
++    {
++        return new wxDataViewCtrlAccessible(this);
++    }
++#endif // wxUSE_ACCESSIBILITY
++
+ #if wxUSE_DRAG_AND_DROP
+     wxBitmap CreateItemBitmap( unsigned int row, int &indent );
+ #endif // wxUSE_DRAG_AND_DROP
+@@ -3612,7 +3622,7 @@ void wxDataViewMainWindow::ChangeCurrentRow( unsigned int row )
+ 
+     // send event
+ #if wxUSE_ACCESSIBILITY
+-    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, m_owner, wxOBJID_CLIENT, m_currentRow+1);
++    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, this, wxOBJID_CLIENT, m_currentRow+1);
+ #endif // wxUSE_ACCESSIBILITY
+ }
+ 
+@@ -3693,7 +3703,7 @@ bool wxDataViewMainWindow::IsRowSelected( unsigned int row )
+ void wxDataViewMainWindow::SendSelectionChangedEvent( const wxDataViewItem& item)
+ {
+ #if wxUSE_ACCESSIBILITY
+-    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_SELECTIONWITHIN, m_owner, wxOBJID_CLIENT, wxACC_SELF);
++    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_SELECTIONWITHIN, this, wxOBJID_CLIENT, wxACC_SELF);
+ #endif // wxUSE_ACCESSIBILITY
+ 
+     wxDataViewEvent le(wxEVT_DATAVIEW_SELECTION_CHANGED, m_owner, item);
+@@ -3965,7 +3975,7 @@ wxDataViewMainWindow::SendExpanderEvent(wxEventType type,
+ {
+ #if wxUSE_ACCESSIBILITY
+     if ( type == wxEVT_DATAVIEW_ITEM_EXPANDED || type == wxEVT_DATAVIEW_ITEM_COLLAPSED )
+-        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_REORDER, m_owner, wxOBJID_CLIENT, wxACC_SELF);
++        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_REORDER, this, wxOBJID_CLIENT, wxACC_SELF);
+ #endif // wxUSE_ACCESSIBILITY
+ 
+     wxDataViewEvent le(type, m_owner, item);
+@@ -5493,7 +5503,7 @@ void wxDataViewMainWindow::OnSetFocus( wxFocusEvent &event )
+ #if wxUSE_ACCESSIBILITY
+     else
+     {
+-        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, m_owner, wxOBJID_CLIENT, wxACC_SELF);
++        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, this, wxOBJID_CLIENT, wxACC_SELF);
+     }
+ #endif // wxUSE_ACCESSIBILITY
+ 
+@@ -6665,29 +6675,30 @@ void wxDataViewCtrl::DoEnableSystemTheme(bool enable, wxWindow* window)
+         Base::DoEnableSystemTheme(enable, m_headerArea);
+ }
+ 
+-#if wxUSE_ACCESSIBILITY
+-wxAccessible* wxDataViewCtrl::CreateAccessible()
+-{
+-    return new wxDataViewCtrlAccessible(this);
+-}
+-#endif // wxUSE_ACCESSIBILITY
+-
+ #if wxUSE_ACCESSIBILITY
+ //-----------------------------------------------------------------------------
+ // wxDataViewCtrlAccessible
+ //-----------------------------------------------------------------------------
+ 
+-wxDataViewCtrlAccessible::wxDataViewCtrlAccessible(wxDataViewCtrl* win)
++wxDataViewCtrlAccessible::wxDataViewCtrlAccessible(wxDataViewMainWindow* win)
+     : wxWindowAccessible(win)
+ {
+ }
+ 
++wxDataViewCtrl* wxDataViewCtrlAccessible::GetCtrl()
++{
++    wxDataViewMainWindow* const
++        dvWnd = wxDynamicCast(GetWindow(), wxDataViewMainWindow);
++
++    return dvWnd ? dvWnd->GetOwner() : nullptr;
++}
++
+ // Can return either a child object, or an integer
+ // representing the child element, starting from 1.
+ wxAccStatus wxDataViewCtrlAccessible::HitTest(const wxPoint& pt,
+                             int* childId, wxAccessible** childObject)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     wxDataViewItem item;
+@@ -6733,7 +6744,7 @@ wxAccStatus wxDataViewCtrlAccessible::HitTest(const wxPoint& pt,
+ // Returns the rectangle for this object (id = 0) or a child element (id > 0).
+ wxAccStatus wxDataViewCtrlAccessible::GetLocation(wxRect& rect, int elementId)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+     wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+ 
+@@ -6768,7 +6779,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetLocation(wxRect& rect, int elementId)
+ wxAccStatus wxDataViewCtrlAccessible::Navigate(wxNavDir navDir, int fromId,
+             int* toId, wxAccessible** toObject)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+     wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+ 
+@@ -6851,7 +6862,7 @@ wxAccStatus wxDataViewCtrlAccessible::Navigate(wxNavDir navDir, int fromId,
+ // Gets the name of the specified object.
+ wxAccStatus wxDataViewCtrlAccessible::GetName(int childId, wxString* name)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     if ( childId == wxACC_SELF )
+@@ -6914,7 +6925,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetName(int childId, wxString* name)
+ // Gets the number of children.
+ wxAccStatus wxDataViewCtrlAccessible::GetChildCount(int* childCount)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+     wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+ 
+@@ -6938,7 +6949,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetChild(int childId, wxAccessible** child
+ // window (e.g. an edit control).
+ wxAccStatus wxDataViewCtrlAccessible::DoDefaultAction(int childId)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     if ( childId != wxACC_SELF )
+@@ -6974,7 +6985,7 @@ wxAccStatus wxDataViewCtrlAccessible::DoDefaultAction(int childId)
+ // a document has a default action of "Press" rather than "Prints the current document."
+ wxAccStatus wxDataViewCtrlAccessible::GetDefaultAction(int childId, wxString* actionName)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     wxString action;
+@@ -7006,7 +7017,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetDefaultAction(int childId, wxString* ac
+ // Returns the description for this object or a child.
+ wxAccStatus wxDataViewCtrlAccessible::GetDescription(int childId, wxString* description)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     if ( childId == wxACC_SELF )
+@@ -7085,7 +7096,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetDescription(int childId, wxString* desc
+ // Returns help text for this object or a child, similar to tooltip text.
+ wxAccStatus wxDataViewCtrlAccessible::GetHelpText(int childId, wxString* helpText)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+ #if wxUSE_HELP
+@@ -7119,7 +7130,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetHelpText(int childId, wxString* helpTex
+ // Return e.g. ALT+K
+ wxAccStatus wxDataViewCtrlAccessible::GetKeyboardShortcut(int childId, wxString* shortcut)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     if ( childId != wxACC_SELF )
+@@ -7151,7 +7162,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetKeyboardShortcut(int childId, wxString*
+ // Returns a role constant.
+ wxAccStatus wxDataViewCtrlAccessible::GetRole(int childId, wxAccRole* role)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+     wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+ 
+@@ -7166,7 +7177,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetRole(int childId, wxAccRole* role)
+ // Returns a state constant.
+ wxAccStatus wxDataViewCtrlAccessible::GetState(int childId, long* state)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+     wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+ 
+@@ -7223,7 +7234,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetState(int childId, long* state)
+ // or child.
+ wxAccStatus wxDataViewCtrlAccessible::GetValue(int childId, wxString* strValue)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     wxString val;
+@@ -7251,7 +7262,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetValue(int childId, wxString* strValue)
+ // Selects the object or child.
+ wxAccStatus wxDataViewCtrlAccessible::Select(int childId, wxAccSelectionFlags selectFlags)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+     wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+ 
+@@ -7393,7 +7404,7 @@ wxAccStatus wxDataViewCtrlAccessible::Select(int childId, wxAccSelectionFlags se
+ // If this object has the focus, child should be 'this'.
+ wxAccStatus wxDataViewCtrlAccessible::GetFocus(int* childId, wxAccessible** child)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+     wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+ 
+@@ -7443,7 +7454,7 @@ wxAccStatus wxDataViewCtrlAccessible::GetFocus(int* childId, wxAccessible** chil
+ // - a list variant (GetType() == wxT("list"))
+ wxAccStatus wxDataViewCtrlAccessible::GetSelections(wxVariant* selections)
+ {
+-    wxDataViewCtrl* dvCtrl = wxDynamicCast(GetWindow(), wxDataViewCtrl);
++    wxDataViewCtrl* dvCtrl = GetCtrl();
+     wxCHECK( dvCtrl, wxACC_FAIL );
+ 
+     wxDataViewItemArray sel;
