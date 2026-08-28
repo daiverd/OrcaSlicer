@@ -3501,6 +3501,24 @@ void MainFrame::init_menubar_as_editor()
             this, [this]() { return is_prepare_or_preview_tab(); },
             []() { return wxGetApp().show_3d_navigator(); }, this);
 
+        // ORCA same toggle as the canvas view options popup entry "Zoom button"
+        append_menu_check_item(viewMenu, wxID_ANY, _L("Zoom button"), _L("Show the zoom button on the canvas toolbar."),
+            [this](wxCommandEvent&) {
+                wxGetApp().toggle_canvas_zoom_button();
+                m_plater->get_current_canvas3D()->post_event(SimpleEvent(wxEVT_PAINT));
+            },
+            this, [this]() { return is_prepare_or_preview_tab(); },
+            [this]() { return wxGetApp().show_canvas_zoom_button(); }, this);
+
+        // ORCA same toggle as the canvas view options popup entry "Axes"
+        append_menu_check_item(viewMenu, wxID_ANY, _L("Axes"), _L("Show world axes on plate"),
+            [this](wxCommandEvent&) {
+                m_plater->get_current_canvas3D()->toggle_world_axes_visibility();
+                m_plater->get_current_canvas3D()->post_event(SimpleEvent(wxEVT_PAINT));
+            },
+            this, [this]() { return is_prepare_or_preview_tab(); },
+            [this]() { return m_plater->get_current_canvas3D()->is_world_axes_shown(); }, this);
+
         append_menu_check_item(viewMenu, wxID_ANY, _L("Show Gridlines"), _L("Show Gridlines on plate"),
             [this](wxCommandEvent&) {
                 wxGetApp().toggle_show_plate_gridlines();
@@ -3587,10 +3605,28 @@ void MainFrame::init_menubar_as_editor()
             this, [this]() { return m_tabpanel->GetSelectedPageName() == TAB_ID_PREPARE; },
             []() { return wxGetApp().show_outline(); }, this);
 
-        /*viewMenu->AppendSeparator();
-        append_menu_check_item(viewMenu, wxID_ANY, _L("Show &Wireframe") + "\t" + ctrl + shift + _L("Enter"), _L("Show wireframes in 3D scene."),
-            [this](wxCommandEvent&) { m_plater->toggle_show_wireframe(); m_plater->get_current_canvas3D()->post_event(SimpleEvent(wxEVT_PAINT)); }, this,
-            [this]() { return m_plater->is_wireframe_enabled(); }, [this]() { return m_plater->is_show_wireframe(); }, this);*/
+        // ORCA same toggle as the canvas view options popup entry "Wireframe" and the ShowWireframe shortcut.
+        // Display-only key, so the macOS menu bar does not swallow the key the canvas handles, also in Preview
+        // where this item is disabled.
+        wxMenuItem* show_wireframe = append_menu_check_item(viewMenu, wxID_ANY, shortcut_label(_L("Wireframe"), Shortcut::ShowWireframe, false), _L("Show wireframes in 3D scene."),
+            [this](wxCommandEvent&) {
+                m_plater->toggle_show_wireframe();
+                m_plater->get_current_canvas3D()->post_event(SimpleEvent(wxEVT_PAINT));
+            },
+            this, [this]() { return m_plater->is_view3D_shown() && m_plater->is_wireframe_enabled(); },
+            [this]() { return m_plater->is_show_wireframe(); }, this);
+        m_shortcut_menu_items.push_back({ show_wireframe, Shortcut::ShowWireframe, _L("Wireframe"), false });
+
+        // ORCA same toggle as the canvas view options popup entry "Realistic View"
+        append_menu_check_item(viewMenu, wxID_ANY, _L("Realistic View"), _L("Render the 3D scene with realistic lighting and shadows."),
+            [this](wxCommandEvent&) {
+                AppConfig* cfg = wxGetApp().app_config;
+                cfg->set_bool(SETTING_OPENGL_REALISTIC_MODE, !cfg->get_bool(SETTING_OPENGL_REALISTIC_MODE));
+                cfg->save();
+                m_plater->get_current_canvas3D()->post_event(SimpleEvent(wxEVT_PAINT));
+            },
+            this, [this]() { return m_plater->is_view3D_shown(); },
+            [this]() { return wxGetApp().app_config->get_bool(SETTING_OPENGL_REALISTIC_MODE); }, this);
 
         //viewMenu->AppendSeparator();
         ////BBS orthogonal view
