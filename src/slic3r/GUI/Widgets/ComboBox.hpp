@@ -100,6 +100,10 @@ public:
     bool     is_drop_down(){return drop_down;}
     void     DeleteOneItem(unsigned int pos) { DoDeleteOneItem(pos); }
 
+    // Open the drop down if it is closed, close it if it is open - the keyboard's
+    // Enter / Space behaviour, also used as the accessible default action.
+    void ToggleDropDown();
+
     void ForceDropdownOpen();
     void CloseDropdown();
 

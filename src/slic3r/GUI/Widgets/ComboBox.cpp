@@ -1,5 +1,6 @@
 #include "ComboBox.hpp"
 #include "Label.hpp"
+#include "../I18N.hpp"
 
 #include "slic3r/GUI/Widgets/TextInput.hpp"
 #include <utility>
@@ -63,7 +64,16 @@ ComboBox::ComboBox(wxWindow *parent,
     // ORCA: TextInput (StaticBox-family) already gets a real accessible object;
     // it just defaults to StaticBox's generic role. A combo box is a distinct,
     // well-known role screen readers announce specially - use it.
-    SetAccessibleRole(wxROLE_SYSTEM_COMBOBOX);
+    //
+    // Windows' MSAA-to-UIA proxy only offers an ExpandCollapse pattern for an element
+    // that reports one of these two states, and implements Expand()/Collapse() by
+    // calling accDoDefaultAction - so the state has to track the popup and the default
+    // action has to open and close it.
+    SetAccessibleRole(wxROLE_SYSTEM_COMBOBOX, [this] {
+        return drop_down ? wxACC_STATE_SYSTEM_EXPANDED : wxACC_STATE_SYSTEM_COLLAPSED;
+    });
+    // MSAA's verb for a combo box, which is collapsed whenever anything asks.
+    SetAccessibleDefaultAction(_L("Open"), [this] { ToggleDropDown(); });
 #endif
     drop.Create(this, style & DD_STYLE_MASK);
 
@@ -291,6 +301,23 @@ void ComboBox::DoDeleteOneItem(unsigned int pos)
     drop.Invalidate(true);
 }
 
+void ComboBox::ToggleDropDown()
+{
+    // Assistive technology can ask for this without knowing the combo is unclickable.
+    if (!IsEnabled())
+        return;
+
+    if (drop_down) {
+        drop.DismissAndNotify();
+    } else if (!items.empty() && drop.HasDismissLongTime()) { // DropDown paints nothing for an empty list
+        drop.autoPosition();
+        drop_down = true;
+        drop.Popup();
+        wxCommandEvent e(wxEVT_COMBOBOX_DROPDOWN);
+        GetEventHandler()->ProcessEvent(e);
+    }
+}
+
 void ComboBox::ForceDropdownOpen()
 {
     if (!IsEnabled() || items.empty())
@@ -430,15 +457,7 @@ void ComboBox::keyDown(wxKeyEvent& event)
     switch (event.GetKeyCode()) {
         case WXK_RETURN:
         case WXK_SPACE:
-            if (drop_down) {
-                drop.DismissAndNotify();
-            } else if (!items.empty() && drop.HasDismissLongTime()) {
-                drop.autoPosition();
-                drop_down = true;
-                drop.Popup();
-                wxCommandEvent e(wxEVT_COMBOBOX_DROPDOWN);
-                GetEventHandler()->ProcessEvent(e);
-            }
+            ToggleDropDown();
             break;
         case WXK_UP:
         case WXK_DOWN:
