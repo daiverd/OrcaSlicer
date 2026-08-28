@@ -1454,23 +1454,21 @@ void MainFrame::update_title_colour_after_set_title()
 
 void MainFrame::show_option(bool show)
 {
-    if (!show) {
-        if (m_slice_btn->IsShown()) {
-            m_slice_btn->Hide();
-            m_print_btn->Hide();
-            m_slice_option_btn->Hide();
-            m_print_option_btn->Hide();
-            Layout();
-        }
-    } else {
-        if (!m_slice_btn->IsShown()) {
-            m_slice_btn->Show();
-            m_print_btn->Show();
-            m_slice_option_btn->Show();
-            m_print_option_btn->Show();
-            Layout();
-        }
-    }
+    if (m_slice_btn->IsShown() == show)
+        return;
+
+    m_slice_btn->Show(show);
+    m_print_btn->Show(show);
+    m_slice_option_btn->Show(show);
+    m_print_option_btn->Show(show);
+    // ORCA: hiding just the buttons left their two panels in the tab strip shown but empty,
+    // and a shown container with no focusable children is a keyboard stop in its own right -
+    // wxControlContainer::HandleOnNavigationKey() focuses the container itself once none of
+    // its children will take the focus. A Tab walk on the Home tab therefore landed on two
+    // zero-sized, invisible controls. Hide the panels along with what they hold.
+    m_slice_btn->GetParent()->Show(show);
+    m_print_btn->GetParent()->Show(show);
+    Layout();
 }
 
 void MainFrame::set_undo_redo_enabled(bool undo, bool redo)
