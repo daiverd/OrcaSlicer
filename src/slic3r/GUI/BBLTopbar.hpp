@@ -84,10 +84,16 @@ public:
 
     // ORCA: keyboard and screen-reader access to the tools, see TopbarToolProxy.
     void SyncToolProxies();
+    void LayoutToolProxies();
+    void PaintTool(wxDC& dc, int tool_id, const wxRect& rect);
     void ActivateTool(int tool_id);
     bool FocusAdjacentTool(const TopbarToolProxy* from, int step, bool wrap = true);
     void FocusNextTabStop(const TopbarToolProxy* from, bool forward);
     void SetFocusedTool(int tool_id);
+
+    // ORCA: the proxies paint the tools they cover, and Refresh() does not reach child
+    // windows - see LayoutToolProxies().
+    void Refresh(bool eraseBackground = true, const wxRect* rect = nullptr) override;
 
     void SetFileMenu(wxMenu* file_menu);
     void AddDropDownSubMenu(wxMenu* sub_menu, const wxString& title);

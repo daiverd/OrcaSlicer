@@ -34,6 +34,7 @@
 
 #include <utility>
 
+#include <wx/dcbuffer.h>
 #include <wx/dcclient.h>
 
 #include <boost/log/trivial.hpp>
@@ -95,9 +96,10 @@ static bool get_topbar_tool_info(const wxAuiToolBarItem& item, TopbarToolInfo& i
 }
 
 #if wxUSE_ACCESSIBILITY
-// ORCA: the proxy window is a 1x1 stand-in, so its screen bounds have to come from the
-// tool it represents; the rest (name, focus and enabled state) is the generic
-// WidgetAccessible behaviour.
+// ORCA: the proxy covers its tool, so the window rect MSAA would report by itself is
+// already the right one; reporting the tool's rect explicitly keeps the two in step even
+// in the moment between a re-layout of the bar and the proxies following it. The rest
+// (name, focus and enabled state) is the generic WidgetAccessible behaviour.
 class TopbarToolAccessible : public WidgetAccessible
 {
 public:
@@ -111,11 +113,13 @@ public:
 
 // ORCA: a wxAuiToolBar tool is not a window. It cannot take the keyboard focus and no
 // screen reader can see it, which made the whole top bar mouse-only and invisible to
-// assistive technology. Give every interactive tool an invisible 1x1 child window that
+// assistive technology. Give every interactive tool a child window laid over it that
 // stands in for it: wx traversal focuses the proxy, the arrow keys move between
 // proxies, Enter/Space runs the tool's own handler, and the proxy carries the tool's
-// accessible name, role and state. Nothing about the toolbar's own mouse handling,
-// including its double duty as the window title bar, changes.
+// accessible name, role, state and screen rectangle. The proxy takes over drawing the
+// tool it covers, and returns HTTRANSPARENT for every mouse message, so nothing about
+// the toolbar's own appearance or mouse handling, including its double duty as the
+// window title bar, changes.
 class TopbarToolProxy : public wxControl
 {
 public:
@@ -126,15 +130,16 @@ public:
         // wxWANTS_CHARS: this window handles the arrow, Home/End, Enter/Space and Tab
         // keys itself, so they must be delivered here instead of being eaten by the
         // dialog navigation code.
+        // The real position and size arrive with the first LayoutToolProxies().
         Create(topbar, wxID_ANY, wxPoint(0, 0), wxSize(1, 1), wxWANTS_CHARS | wxBORDER_NONE);
         SetTool(tool_id, info);
-        // The proxies all sit on the same pixel in the bar's left margin. Children are
-        // clipped out of their parent's painting, so that pixel has to be filled here,
-        // in the background colour the art provider uses for the bar.
+        // A proxy covers its tool exactly (see BBLTopbar::LayoutToolProxies), and a child
+        // window is clipped out of its parent's painting, so the pixels of the tool are
+        // the proxy's to draw. It draws them through the bar's own art provider, so this
+        // is the same drawing as before, moved to the window that now owns the area.
         Bind(wxEVT_PAINT, [this](wxPaintEvent&) {
-            wxPaintDC dc(this);
-            dc.SetBackground(wxBrush(wxColour(38, 46, 48)));
-            dc.Clear();
+            wxAutoBufferedPaintDC dc(this);
+            m_topbar->PaintTool(dc, m_tool_id, GetClientRect());
         });
         Bind(wxEVT_KEY_DOWN, &TopbarToolProxy::OnKeyDown, this);
         Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent& evt) {
@@ -638,6 +643,13 @@ void BBLTopbar::Init(wxFrame* parent)
     int client_w = parent->GetClientSize().GetWidth();
     this->SetSize(client_w, m_toolbar_h);
 
+    // ORCA: the proxies follow the tools they cover. wxAuiToolBar lays its items out in
+    // its own wxEVT_SIZE handler, which runs after this one, so read the new rects on the
+    // next turn of the event loop rather than the stale ones now.
+    this->Bind(wxEVT_SIZE, [this](wxSizeEvent& event) {
+        event.Skip();
+        CallAfter([this] { LayoutToolProxies(); });
+    });
     this->Bind(wxEVT_MOTION, &BBLTopbar::OnMouseMotion, this);
     this->Bind(wxEVT_MOUSE_CAPTURE_LOST, &BBLTopbar::OnMouseCaptureLost, this);
     this->Bind(wxEVT_MENU_CLOSE, &BBLTopbar::OnMenuClose, this);
@@ -668,10 +680,13 @@ BBLTopbar::~BBLTopbar()
     m_file_menu = nullptr;
     // ORCA: take the focus proxies down here rather than leaving them to the base class
     // destructor: losing the focus calls back into the toolbar, which has to be whole,
-    // and its art provider alive, when that happens.
-    for (TopbarToolProxy* proxy : m_tool_proxies)
+    // and its art provider alive, when that happens. Drop each one from the list before
+    // destroying it, because that call back reaches Refresh(), which walks the list.
+    while (!m_tool_proxies.empty()) {
+        TopbarToolProxy* proxy = m_tool_proxies.back();
+        m_tool_proxies.pop_back();
         proxy->Destroy();
-    m_tool_proxies.clear();
+    }
     m_topbar_art = nullptr; // owned and deleted by the base class
 }
 
@@ -706,9 +721,57 @@ void BBLTopbar::SyncToolProxies()
     }
 
     while (m_tool_proxies.size() > count) {
-        m_tool_proxies.back()->Destroy();
+        TopbarToolProxy* proxy = m_tool_proxies.back();
         m_tool_proxies.pop_back();
+        proxy->Destroy();
     }
+
+    LayoutToolProxies();
+}
+
+// ORCA: put every proxy exactly over the tool it stands for. It is the proxy window that
+// assistive technology sees, and UI Automation takes an element's bounding rectangle from
+// the window rather than from the MSAA location, so parked at 1x1 in the corner all six
+// reported as one-pixel elements at the screen origin. Covering the tool also makes the
+// proxy the window that owns those pixels - see the paint handler in TopbarToolProxy.
+// Cheap and idempotent: nothing moves unless the bar was laid out again.
+void BBLTopbar::LayoutToolProxies()
+{
+    for (TopbarToolProxy* proxy : m_tool_proxies) {
+        const wxRect tool_rect = GetToolRect(proxy->GetToolId());
+        // A hidden tool is parked off to the left at zero size; its proxy is hidden too
+        // and has nothing to cover, so leave it where it is.
+        if (tool_rect.IsEmpty() || proxy->GetRect() == tool_rect)
+            continue;
+        proxy->SetSize(tool_rect);
+    }
+}
+
+// ORCA: draw one tool into a proxy that covers it, through the bar's own art provider, so
+// the pixels are the ones the bar drew before the proxy was there - focus ring included,
+// and drawn once, because the toolbar's own copy of this tool is clipped away by the
+// child window. rect is the proxy's client rect; the art provider lays every element out
+// relative to it, so the drawing does not care that it is no longer at the bar's origin.
+void BBLTopbar::PaintTool(wxDC& dc, int tool_id, const wxRect& rect)
+{
+    wxAuiToolBarItem* item = FindTool(tool_id);
+    if (!m_topbar_art || !item)
+        return;
+
+    m_topbar_art->DrawBackground(dc, this, rect);
+    m_topbar_art->DrawButton(dc, this, *item, rect);
+}
+
+// ORCA: the proxies paint their own tools, and Refresh() does not reach child windows, so
+// every repaint the bar asks for - hover, sticky, enabled state, the focus ring - has to
+// be handed on or the tools under the proxies would go stale. Repaints Windows starts
+// itself need no help: the invalid region covers the child windows as well.
+void BBLTopbar::Refresh(bool eraseBackground, const wxRect* rect)
+{
+    wxAuiToolBar::Refresh(eraseBackground, rect);
+
+    for (TopbarToolProxy* proxy : m_tool_proxies)
+        proxy->Refresh();
 }
 
 // ORCA: run a tool from the keyboard or from assistive technology, through the very
@@ -1025,6 +1088,7 @@ void BBLTopbar::Rescale() {
     item->SetBitmap(create_scaled_bitmap("topbar_close", this, TOPBAR_ICON_SIZE));
 
     Realize();
+    LayoutToolProxies(); // ORCA: the tools are a different size now, so the proxies are too
 }
 
 void BBLTopbar::OnIconize(wxAuiToolBarEvent& event)
@@ -1258,8 +1322,12 @@ WXLRESULT TopbarToolProxy::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM 
 {
     switch (nMsg) {
     case WM_NCHITTEST: {
-        // ORCA: the proxy exists for the keyboard only. Let every mouse event through to
-        // the toolbar, which needs them for its tools and for dragging the window.
+        // ORCA: the proxy exists for the keyboard only, and it now covers its tool, so
+        // this is what keeps the bar usable with a mouse: HTTRANSPARENT makes the hit test
+        // carry on to the window underneath, which is the toolbar itself, and it receives
+        // every press, release, double click and motion in its own coordinates, exactly as
+        // it did before the proxies were there. Hover highlighting, tooltips and dragging
+        // the window by the bar all run off those messages.
         return HTTRANSPARENT;
     }
     }
