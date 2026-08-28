@@ -2350,6 +2350,13 @@ wxBoxSizer* MainFrame::create_side_tools()
         fit_tab_labels(); // ORCA on label change
     }
 
+    // ORCA: both halves of each split button are Tab stops of their own, and a SideButton is
+    // named by its label - which the arrow halves deliberately do not have. Name them after
+    // what they pop up: the slice arrow picks between slicing this plate and all of them, the
+    // print arrow between the print / send / export actions.
+    m_slice_option_btn->SetName(_L("Slice options"));
+    m_print_option_btn->SetName(_L("Print options"));
+
     auto slice_sizer = new wxBoxSizer(wxHORIZONTAL);
     slice_sizer->Add(m_slice_option_btn, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, FromDIP(1));
     slice_sizer->Add(m_slice_btn, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, FromDIP(1));
