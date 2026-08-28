@@ -40,6 +40,7 @@
 #include <wx/dialog.h>
 #include <wx/sizer.h>
 #include <wx/textctrl.h>
+#include <wx/dcclient.h>
 #include <wx/settings.h>
 #include <wx/tokenzr.h>
 #include <wx/utils.h>
@@ -66,6 +67,7 @@
 #include "PresetComboBoxes.hpp"
 #include "Widgets/CheckBox.hpp"
 #include "Widgets/DialogButtons.hpp"
+#include "Widgets/WidgetAccessible.hpp"
 
 #ifdef __linux__
 #define wxLinux true
@@ -1011,6 +1013,18 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_scrolledWindow = new wxScrolledWindow(m_panel_tab, wxID_ANY, wxDefaultPosition, UNSAVE_CHANGE_DIALOG_SCROLL_WINDOW_SIZE,  wxNO_BORDER|wxVSCROLL);
     m_scrolledWindow->SetScrollRate(0, FromDIP(20));
     m_scrolledWindow->SetBackgroundColour(GREY200);
+    // Nothing inside the diff table is a Tab stop, so the scrolled window is
+    // the single stop for the whole table. Announce it as a list and let it
+    // take the focus itself, which is what makes the arrow, Page and Home/End
+    // keys reach wxScrolledWindow's own scroll handling.
+    m_scrolledWindow->SetName(_L("Modified settings"));
+#if wxUSE_ACCESSIBILITY
+    m_scrolledWindow->SetAccessible(new WidgetAccessible(m_scrolledWindow, wxROLE_SYSTEM_LIST));
+#endif
+    m_scrolledWindow->Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent &e) { set_list_focused(true); e.Skip(); });
+    m_scrolledWindow->Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent &e) { set_list_focused(false); e.Skip(); });
+    Bind(wxEVT_PAINT, &UnsavedChangesDialog::paint_list_focus_ring, this);
+
     m_sizer_bottom = new wxBoxSizer(wxVERTICAL);
     m_sizer_bottom->Add(m_scrolledWindow, 1, wxEXPAND, 0);
     m_sizer_tab->Add(m_sizer_bottom, 0, wxEXPAND, 0);
@@ -1171,6 +1185,35 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     // top line). Start on the confirming action button instead.
     if (Button *first_btn = m_transfer_btn ? m_transfer_btn : m_discard_btn ? m_discard_btn : m_save_btn)
         first_btn->SetFocus();
+}
+
+// The scrolled diff list is a Tab stop but paints nothing of its own, and its
+// client area is completely covered by the row windows, so the focus indicator
+// is drawn by the dialog in the margin it already leaves around the table.
+wxRect UnsavedChangesDialog::list_focus_ring_rect() const
+{
+    wxRect rect = m_panel_tab->GetRect();
+    rect.Inflate(FromDIP(3));
+    return rect;
+}
+
+void UnsavedChangesDialog::set_list_focused(bool focused)
+{
+    if (m_list_focused == focused)
+        return;
+    m_list_focused = focused;
+    RefreshRect(list_focus_ring_rect());
+}
+
+void UnsavedChangesDialog::paint_list_focus_ring(wxPaintEvent &)
+{
+    wxPaintDC dc(this);
+    if (!m_list_focused)
+        return;
+
+    dc.SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT), FromDIP(2)));
+    dc.SetBrush(*wxTRANSPARENT_BRUSH);
+    dc.DrawRectangle(list_focus_ring_rect());
 }
 
 void UnsavedChangesDialog::show_info_line(Action action, std::string preset_name)

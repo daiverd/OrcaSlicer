@@ -423,6 +423,13 @@ protected:
     void on_dpi_changed(const wxRect& suggested_rect) override;
     void on_sys_color_changed() override;
     bool check_option_valid();
+
+    // focus indicator for the scrolled diff list, see UnsavedChangesDialog.cpp
+    wxRect list_focus_ring_rect() const;
+    void   set_list_focused(bool focused);
+    void   paint_list_focus_ring(wxPaintEvent &);
+
+    bool m_list_focused { false };
 };
 
 
