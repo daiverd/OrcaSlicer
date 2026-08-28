@@ -253,6 +253,19 @@ void TabButton::keyDownUp(wxKeyEvent &event)
     event.Skip();
 }
 
+#ifdef __WIN32__
+
+// ORCA: wxMSW converts the arrow keys into navigation events before any wxEVT_KEY_DOWN is
+// generated unless the focused window asks for them here - which is why only Home/End,
+// which it does not convert, ever reached the tab strip's arrow-key handler.
+WXLRESULT TabButton::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+    if (nMsg == WM_GETDLGCODE) { return DLGC_WANTARROWS; }
+    return StaticBox::MSWWindowProc(nMsg, wParam, lParam);
+}
+
+#endif
+
 bool TabButton::AcceptsFocus() const { return wxWindow::AcceptsFocus(); }
 
 bool TabButton::AcceptsFocusRecursively() const { return AcceptsFocus(); }

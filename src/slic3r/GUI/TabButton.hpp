@@ -64,6 +64,10 @@ protected:
     bool AcceptsFocusRecursively() const override;
     bool AcceptsFocusFromKeyboard() const override;
 
+#ifdef __WIN32__
+    WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
+#endif
+
 private:
     void paintEvent(wxPaintEvent& evt);
 
