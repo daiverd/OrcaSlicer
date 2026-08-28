@@ -278,6 +278,7 @@ ParamsPanel::ParamsPanel( wxWindow* parent, wxWindowID id, const wxPoint& pos, c
         m_top_panel->SetBackgroundColor2(0xF1F1F1);
 
         m_process_icon = new ScalableButton(m_top_panel, wxID_ANY, "process");
+        m_process_icon->SetName(_L("Process")); // ORCA: same text as the adjacent label, which isn't itself linked to this icon
 
         m_title_label = new Label(m_top_panel, _L("Process"));
 

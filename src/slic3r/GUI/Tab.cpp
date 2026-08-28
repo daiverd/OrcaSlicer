@@ -367,6 +367,10 @@ void Tab::create_preset_tab()
     set_tooltips_text();
 
     add_scaled_button(m_top_panel, &m_undo_btn,        m_bmp_white_bullet.name());
+    // ORCA: this button's tooltip only exists while the preset is dirty, so an
+    // unmodified preset left it with no accessible name at all. The name has to
+    // describe the control, not its current state, so keep it fixed.
+    m_undo_btn->SetName(_L("Reset all settings"));
     //add_scaled_button(m_top_panel, &m_undo_to_sys_btn, m_bmp_white_bullet.name());
     add_scaled_button(m_top_panel, &m_btn_search,      "search");
     m_btn_search->SetToolTip(_L("Search in preset"));

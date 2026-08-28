@@ -3291,6 +3291,7 @@ Sidebar::Sidebar(Plater *parent)
     wxBoxSizer* bSizer39;
     bSizer39 = new wxBoxSizer( wxHORIZONTAL );
     p->m_filament_icon = new ScalableButton(p->m_panel_filament_title, wxID_ANY, "filament");
+    p->m_filament_icon->SetName(_L("Filament")); // ORCA: icon-only, no adjacent label to derive a name from
     p->m_staticText_filament_settings = new Label(p->m_panel_filament_title, _L("Project Filaments"), LB_PROPAGATE_MOUSE_EVENT);
     bSizer39->Add(p->m_filament_icon, 0, wxALIGN_CENTER | wxLEFT, FromDIP(SidebarProps::TitlebarMargin()));
     bSizer39->Add(p->m_staticText_filament_settings, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT, FromDIP(SidebarProps::ElementSpacing()));
@@ -3443,6 +3444,7 @@ Sidebar::Sidebar(Plater *parent)
         auto* btn_sizer = new wxBoxSizer(wxHORIZONTAL);
         auto* icon_add  = new ScalableButton(p->m_btn_add_mixed_filament, wxID_ANY, "add_filament", wxEmptyString,
                                              wxDefaultSize, wxDefaultPosition, wxBU_EXACTFIT | wxNO_BORDER, false, 16);
+        icon_add->SetName(_L("Add Mixed Filament")); // ORCA: same text as the label beside it, which isn't itself linked to this icon
         auto* add_label = new wxStaticText(p->m_btn_add_mixed_filament, wxID_ANY, _L("Add Mixed Filament"),
                                            wxDefaultPosition, wxDefaultSize, 0);
         add_label->SetFont(::Label::Body_13);
