@@ -119,17 +119,19 @@ bool BitmapTextRenderer::GetValue(wxVariant& WXUNUSED(value)) const
     return false;
 }
 
-#if ENABLE_NONCUSTOM_DATA_VIEW_RENDERING && wxUSE_ACCESSIBILITY
+#if wxUSE_ACCESSIBILITY
 wxString BitmapTextRenderer::GetAccessibleDescription() const
 {
-#ifdef SUPPORTS_MARKUP
+#if defined(SUPPORTS_MARKUP) && defined(wxHAS_GENERIC_DATAVIEWCTRL)
+    // Callers such as DiffModel wrap the cell text in <span color=...>, which
+    // must not be read out.
     if (m_markupText)
-        return wxMarkupParser::Strip(m_text);
-#endif // SUPPORTS_MARKUP
+        return wxMarkupParser::Strip(m_value.GetText());
+#endif // SUPPORTS_MARKUP && wxHAS_GENERIC_DATAVIEWCTRL
 
     return m_value.GetText();
 }
-#endif // wxUSE_ACCESSIBILITY && ENABLE_NONCUSTOM_DATA_VIEW_RENDERING
+#endif // wxUSE_ACCESSIBILITY
 
 bool BitmapTextRenderer::Render(wxRect rect, wxDC *dc, int state)
 {

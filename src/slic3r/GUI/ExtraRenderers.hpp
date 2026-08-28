@@ -106,9 +106,13 @@ public:
 
     bool SetValue(const wxVariant& value) override;
     bool GetValue(wxVariant& value) const override;
-#if ENABLE_NONCUSTOM_DATA_VIEW_RENDERING && wxUSE_ACCESSIBILITY
+#if wxUSE_ACCESSIBILITY
+    // Also needed in the wxDataViewCustomRenderer configuration: the inherited
+    // implementation reads the cell through GetValue(), which this renderer
+    // does not implement, so without this override every row of every
+    // wxDataViewCtrl using it is announced as "Row N".
     virtual wxString GetAccessibleDescription() const override;
-#endif // wxUSE_ACCESSIBILITY && ENABLE_NONCUSTOM_DATA_VIEW_RENDERING
+#endif // wxUSE_ACCESSIBILITY
 
     virtual bool Render(wxRect cell, wxDC* dc, int state) override;
     virtual wxSize GetSize() const override;
