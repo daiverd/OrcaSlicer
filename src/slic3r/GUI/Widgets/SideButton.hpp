@@ -64,6 +64,18 @@ public:
 
     void SetIconOffset(const int offset);
 
+protected:
+#if wxUSE_ACCESSIBILITY
+    // ORCA: a plain wxWindow gets no wxAccessible at all, so a screen reader sees
+    // only what the OS proxy can guess from the native window - which never includes
+    // SetName(), leaving the icon-only dropdown halves of the slice and print buttons
+    // nameless. WidgetAccessible publishes the name and reports a push button rather
+    // than a generic client area; a button nobody named still returns "not
+    // implemented" for its name, so wx falls back to the standard accessible and it
+    // keeps being named after its label exactly as before.
+    wxAccessible* CreateAccessible() override;
+#endif
+
 private:
     wxSize textSize;
     wxSize minSize;

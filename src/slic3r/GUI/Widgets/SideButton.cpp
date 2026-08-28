@@ -1,5 +1,6 @@
 #include "SideButton.hpp"
 #include "Label.hpp"
+#include "WidgetAccessible.hpp"
 
 #include <vector>
 #include "slic3r/GUI/Widgets/StateHandler.hpp"
@@ -67,8 +68,21 @@ SideButton::SideButton(wxWindow* parent, wxString text, wxString icon, long stly
     SetFont(Label::Body_14);
     wxWindow::SetLabel(text);
 
+    // ORCA: wx defaults an unnamed wxWindow's GetName() to the literal string "panel"
+    // (wxPanelNameStr), not empty - clear it so WidgetAccessible's "no name set" check
+    // works, and a button nobody named falls through to its label instead of reporting
+    // "panel". Same trap as in ScalableButton's constructors.
+    SetName(wxEmptyString);
+
     messureSize();
 }
+
+#if wxUSE_ACCESSIBILITY
+wxAccessible* SideButton::CreateAccessible()
+{
+    return new WidgetAccessible(this, wxROLE_SYSTEM_PUSHBUTTON);
+}
+#endif
 
 void SideButton::SetCornerRadius(double radius)
 {
