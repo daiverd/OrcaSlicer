@@ -446,7 +446,13 @@ public:
                 else if (parent)
                 {
                     event.SetCurrentFocus(this);
-                    parent->HandleWindowEvent(event);
+                    // ORCA: our parent is MainFrame, and a wxFrame - unlike a wxDialog - is not a
+                    // wxNavigationEnabled container, so nothing there handles the event. Leave it
+                    // skipped in that case: wxControlContainer::HandleOnNavigationKey() otherwise
+                    // reads "processed" from our return value, stops escalating and stops looking
+                    // for a control to focus, which traps the focus inside the page.
+                    if (!parent->HandleWindowEvent(event))
+                        event.Skip();
                 }
             }
         }
