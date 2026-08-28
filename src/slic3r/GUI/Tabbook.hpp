@@ -58,6 +58,8 @@ public:
     const wxSize& GetPaddingSize(size_t n);
     void SetPaddingSize(const wxSize& size);
     void SetFooterText(const wxString& text);
+    // ORCA: button of the currently selected page, the landing target for keyboard pane navigation
+    wxWindow* GetSelectedButton() const;
     TabButton*                      pageButton;
 
 private:
@@ -350,14 +352,26 @@ public:
                 // if the direction is forwards. Otherwise set the focus to the
                 // notebook itself. The notebook is always the 'first' control of a
                 // page.
-                if (!isForward)
+                // ORCA: our tab strip is a child window of its own rather than a part of
+                // this control, so a backward key from the strip arrives here as a
+                // from-child event too and has to leave us, while one from a page has to
+                // land on the strip - SetFocus() is overridden to focus the current page
+                // and would bounce it straight back into the page it came from. A forward
+                // key our parent declines has to stay skipped, or the escalation below us
+                // reads "processed" and stops looking for a control to focus.
+                if (!isForward && event.GetEventObject() != (wxObject*) GetBtnsListCtrl())
                 {
-                    SetFocus();
+                    wxWindow* const tab = GetBtnsListCtrl()->GetSelectedButton();
+                    if (tab)
+                        tab->SetFocusFromKbd();
+                    else
+                        GetBtnsListCtrl()->SetFocus();
                 }
                 else if (parent)
                 {
                     event.SetCurrentFocus(this);
-                    parent->HandleWindowEvent(event);
+                    if (!parent->HandleWindowEvent(event))
+                        event.Skip();
                 }
             }
         }

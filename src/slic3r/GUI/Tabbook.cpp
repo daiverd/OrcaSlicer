@@ -125,6 +125,13 @@ void TabButtonsListCtrl::SetSelection(int sel)
     Refresh();
 }
 
+wxWindow* TabButtonsListCtrl::GetSelectedButton() const
+{
+    if (m_selection >= 0 && m_selection < int(m_pageButtons.size()))
+        return m_pageButtons[m_selection];
+    return nullptr;
+}
+
 void TabButtonsListCtrl::SelectAndNotify(size_t idx)
 {
     SetSelection(int(idx));
