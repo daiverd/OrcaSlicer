@@ -819,6 +819,22 @@ static std::string none{"none"};
 #define GREY300 wxColour(238,238,238)
 #define GREY200 wxColour(248,248,248)
 
+// A wxPanel that only holds static text or acts as a spacer, a divider or a
+// layout wrapper. Such a panel must never be a Tab stop: it has no name, no
+// focus indicator and nothing to activate. wxPanel accepts focus for itself
+// whenever it has no focusable children (wxControlContainerBase::AcceptsFocus),
+// and wxNavigationEnabled overrides AcceptsFocusFromKeyboard() in a way that
+// ignores wxWindow::DisableFocusFromKeyboard(), so overriding the three
+// AcceptsFocus...() methods is the only way to take it out of the Tab order.
+class DecorativePanel : public wxPanel
+{
+public:
+    using wxPanel::wxPanel;
+
+    bool AcceptsFocus() const override { return false; }
+    bool AcceptsFocusRecursively() const override { return false; }
+    bool AcceptsFocusFromKeyboard() const override { return false; }
+};
 
 UnsavedChangesDialog::UnsavedChangesDialog(const wxString &caption, const wxString &header, const std::string &app_config_key, int act_buttons)
     : DPIDialog(static_cast<wxWindow *>(wxGetApp().mainframe),
@@ -883,8 +899,12 @@ inline int UnsavedChangesDialog::ShowModal()
         }
     }
     int r = DPIDialog::ShowModal();
-    if (r != wxID_CANCEL && dynamic_cast<::CheckBox*>(FindWindowById(wxID_APPLY))->GetValue()) {
-        wxGetApp().app_config->set(choise_key, std::to_string(int(m_exit_action)));
+    if (r != wxID_CANCEL) {
+        // Search our own children only: an unparented FindWindowById() searches
+        // every window in the application, and the result may not be a CheckBox.
+        auto *checkbox = dynamic_cast<::CheckBox *>(FindWindowById(wxID_APPLY, this));
+        if (checkbox && checkbox->GetValue())
+            wxGetApp().app_config->set(choise_key, std::to_string(int(m_exit_action)));
     }
     return r;
 }
@@ -895,7 +915,7 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
 
     wxBoxSizer *m_sizer_main = new wxBoxSizer(wxVERTICAL);
 
-    m_top_line = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1), wxTAB_TRAVERSAL);
+    m_top_line = new DecorativePanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1), wxTAB_TRAVERSAL);
     m_top_line->SetBackgroundColour(wxColour(166, 169, 170));
 
     m_sizer_main->Add(m_top_line, 0, wxEXPAND, 0);
@@ -920,13 +940,13 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_panel_tab->SetBackgroundColour(wxColour("#D9D9D9"));
     wxBoxSizer *m_sizer_tab = new wxBoxSizer(wxVERTICAL);
 
-    m_table_top = new wxPanel(m_panel_tab, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+    m_table_top = new DecorativePanel(m_panel_tab, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
     m_table_top->SetBackgroundColour(wxColour("#D9D9D9"));
 
     wxBoxSizer *m_sizer_top = new wxBoxSizer(wxHORIZONTAL);
 
     // m_sizer_top->Add(0, 0, 0, wxLEFT, UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH);
-    auto        m_panel_temp   = new wxPanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+    auto        m_panel_temp   = new DecorativePanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
     wxBoxSizer *top_title_temp_v = new wxBoxSizer(wxVERTICAL);
     top_title_temp_v->SetMinSize(wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1));
     wxBoxSizer *top_title_temp_h = new wxBoxSizer(wxHORIZONTAL);
@@ -940,11 +960,11 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_panel_temp->Layout();
     m_sizer_top->Add(m_panel_temp, 1, wxALIGN_CENTER, 0);
 
-    title_block_middle = new wxPanel(m_table_top, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+    title_block_middle = new DecorativePanel(m_table_top, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
     title_block_middle->SetBackgroundColour(wxColour(172, 172, 172));
 
     m_sizer_top->Add(title_block_middle, 0, wxBOTTOM | wxEXPAND | wxTOP, 2);
-    auto m_panel_oldv = new wxPanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1), wxTAB_TRAVERSAL );
+    auto m_panel_oldv = new DecorativePanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1), wxTAB_TRAVERSAL );
     wxBoxSizer *top_title_oldv = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer *top_title_oldv_h = new wxBoxSizer(wxHORIZONTAL);
 
@@ -959,12 +979,12 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_panel_oldv->Layout();
     m_sizer_top->Add(m_panel_oldv, 0, wxALIGN_CENTER, 0);
 
-    title_block_right = new wxPanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(1, -1), wxTAB_TRAVERSAL);
+    title_block_right = new DecorativePanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(1, -1), wxTAB_TRAVERSAL);
     title_block_right->SetBackgroundColour(wxColour(172, 172, 172));
 
     m_sizer_top->Add(title_block_right, 0, wxBOTTOM | wxEXPAND | wxTOP, 2);
 
-    auto m_panel_newv = new wxPanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize( UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1 ), wxTAB_TRAVERSAL );
+    auto m_panel_newv = new DecorativePanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize( UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1 ), wxTAB_TRAVERSAL );
     wxBoxSizer *top_title_newv = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer *top_title_newv_h = new wxBoxSizer(wxHORIZONTAL);
 
@@ -1012,6 +1032,9 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
 
     auto checkbox_sizer = new wxBoxSizer(wxHORIZONTAL);
     auto checkbox       = new ::CheckBox(this, wxID_APPLY);
+    // The visible label is a sibling wxStaticText, not a label attached to the
+    // checkbox, so the accessible name has to be set explicitly.
+    checkbox->SetName(_L("Remember my choice."));
     checkbox_sizer->Add(checkbox, 0, wxALL | wxALIGN_CENTER, FromDIP(2));
 
     auto checkbox_text = new wxStaticText(this, wxID_ANY, _L("Remember my choice."), wxDefaultPosition, wxDefaultSize, 0);
@@ -1142,6 +1165,12 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     Layout();
     Fit();
     // Centre(wxBOTH);
+
+    // Without this, wxSetFocusToChild() gives the initial focus to the first
+    // focusable child, which is the diff table (and used to be the decorative
+    // top line). Start on the confirming action button instead.
+    if (Button *first_btn = m_transfer_btn ? m_transfer_btn : m_discard_btn ? m_discard_btn : m_save_btn)
+        first_btn->SetFocus();
 }
 
 void UnsavedChangesDialog::show_info_line(Action action, std::string preset_name)
@@ -1444,7 +1473,7 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
     for (auto category : category_list) {
         auto iter = class_c_list.find(category);
         //category
-        auto panel_category = new wxPanel(m_scrolledWindow, wxID_ANY, wxDefaultPosition, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT), wxTAB_TRAVERSAL);
+        auto panel_category = new DecorativePanel(m_scrolledWindow, wxID_ANY, wxDefaultPosition, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT), wxTAB_TRAVERSAL);
         panel_category->SetBackgroundColour(GREY300);
 
         wxBoxSizer *sizer_category   = new wxBoxSizer(wxHORIZONTAL);
@@ -1477,10 +1506,12 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
                 if (g == 0) {
                      auto panel_item = new wxWindow(m_scrolledWindow, -1, wxDefaultPosition, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT));
                      panel_item->SetBackgroundColour(GREY200);
+                     // Group headers are not interactive: keep them out of the Tab order.
+                     panel_item->DisableFocusFromKeyboard();
 
                      wxBoxSizer *sizer_item = new wxBoxSizer(wxHORIZONTAL);
 
-                     auto panel_left = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+                     auto panel_left = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
                      panel_left->SetBackgroundColour(GREY200);
 
                      wxBoxSizer *sizer_left_v = new wxBoxSizer(wxVERTICAL);
@@ -1505,10 +1536,14 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
 
                 auto panel_item = new wxWindow(m_scrolledWindow, -1, wxDefaultPosition, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT));
                 panel_item->SetBackgroundColour(GREY200);
+                // The rows are a read-only report with nothing to activate, so they
+                // are not Tab stops. They stay focusable by SetFocus() so that arrow
+                // key navigation can be added within the list later on.
+                panel_item->DisableFocusFromKeyboard();
 
                 wxBoxSizer *sizer_item = new wxBoxSizer(wxHORIZONTAL);
 
-                auto panel_left = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH , -1), wxTAB_TRAVERSAL);
+                auto panel_left = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH , -1), wxTAB_TRAVERSAL);
                 panel_left->SetBackgroundColour(GREY200);
 
                 wxBoxSizer *sizer_left_v = new wxBoxSizer(wxVERTICAL);
@@ -1524,7 +1559,7 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
                 panel_left->Layout();
                 sizer_item->Add(panel_left, 0, wxALIGN_CENTER, 0);
 
-                auto        panel_oldv  = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+                auto        panel_oldv  = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
                 wxBoxSizer *sizer_old_v = new wxBoxSizer(wxVERTICAL);
 
 
@@ -1539,7 +1574,7 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
                 panel_oldv->Layout();
                 sizer_item->Add(panel_oldv, 0, wxALIGN_CENTER, 0);
 
-                auto        panel_newv  = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+                auto        panel_newv  = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
                 wxBoxSizer *sizer_new_v = new wxBoxSizer(wxVERTICAL);
 
                 data.new_value = subreplace(data.new_value.ToStdString(), "\n", " ");
