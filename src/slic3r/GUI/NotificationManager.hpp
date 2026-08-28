@@ -8,6 +8,7 @@
 #include "I18N.hpp"
 #include "Jobs/ProgressIndicator.hpp"
 #include "Downloader.hpp"
+#include "NotificationAccessible.hpp"
 
 #include <cstdint>
 #include <cstddef>
@@ -1041,6 +1042,10 @@ private:
 	void push_delayed_notification_data(std::unique_ptr<NotificationManager::PopNotification> notification, std::function<bool(void)> condition_callback, int64_t initial_delay, int64_t delay_interval);
 	//finds older notification of same type and moves it to the end of queue. returns true if found
 	bool activate_existing(const NotificationManager::PopNotification* notification);
+	// Speaks a notification the user must not miss through the screen reader. Errors and serious
+	// warnings only: everything else would talk over the user, and slicing progress is reported
+	// as a progress bar instead. See NotificationAccessible.hpp.
+	void announce_notification(const NotificationData& notification_data);
 	// Put the more important notifications to the bottom of the list.
 	void sort_notifications();
 	// If there is some error notification active, then the "Export G-code" notification after the slicing is finished is suppressed.
@@ -1075,6 +1080,9 @@ private:
 	NotificationIDProvider 		 m_id_provider;
 	std::deque<std::unique_ptr<PopNotification>> m_pop_notifications;
     PopNotification* m_to_delete_after_finish_render{nullptr};
+	// Screen reader view of the stack: the notifications themselves are drawn with ImGui and
+	// reach no accessibility API of their own.
+	NotificationAccessibility    m_accessibility;
 	// delayed waiting notifications, first is remaining time
 	std::vector<DelayedNotification> m_waiting_notifications;
 	//timestamps used for slicing finished - notification could be gone so it needs to be stored here
