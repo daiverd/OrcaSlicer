@@ -429,7 +429,17 @@ protected:
     void   set_list_focused(bool focused);
     void   paint_list_focus_ring(wxPaintEvent &);
 
+    // arrow key navigation over the rows of the diff list, see UnsavedChangesDialog.cpp
+    void on_list_char_hook(wxKeyEvent &evt);
+    void register_row(wxWindow *row);
+    int  row_index(const wxWindow *win) const;
+    bool is_in_list(const wxWindow *win) const;
+    void focus_row(int index);
+    void leave_list(bool forward);
+
     bool m_list_focused { false };
+    // category headers, group headers and option rows, in the order they are shown
+    std::vector<wxWindow *> m_rows;
 };
 
 
