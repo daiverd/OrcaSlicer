@@ -23,6 +23,7 @@
 #include "slic3r/GUI/wxExtensions.hpp"
 
 #include "OptionsGroup.hpp"
+#include "Widgets/WidgetAccessible.hpp"
 
 class wxColour;
 class wxDC;
@@ -132,6 +133,12 @@ public:
 
     void    msw_rescale();
     void    sys_color_changed();
+
+#if wxUSE_ACCESSIBILITY
+    // ORCA: this panel holds every row of one options group, so it is the natural
+    // place to expose the group itself - see the constructor.
+    wxAccessible* CreateAccessible() override;
+#endif
 
     wxPoint get_pos(const Line& line, Field* field = nullptr);
     int     get_height(const Line& line);

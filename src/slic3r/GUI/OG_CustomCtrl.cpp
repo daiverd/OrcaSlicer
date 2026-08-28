@@ -69,6 +69,13 @@ OG_CustomCtrl::OG_CustomCtrl(   wxWindow*            parent,
         SetDoubleBuffered(true);// SetDoubleBuffered exists on Win and Linux/GTK, but is missing on OSX
     SetBackgroundColour(parent->GetBackgroundColour());
 
+    // ORCA: the group's title is drawn by a StaticLine header that screen readers
+    // never see, while every field of the group is a child of this panel. Naming
+    // the panel with that title and reporting it as a group (see CreateAccessible)
+    // is the MSAA equivalent of a fieldset with a legend. Also clears wx's "panel"
+    // default name, which would otherwise be read out as the group's name.
+    SetName(og->title.IsEmpty() ? wxString() : _(og->title));
+
     // BBS: new font
     m_font = Label::Body_14;
     SetFont(m_font);
@@ -87,6 +94,13 @@ OG_CustomCtrl::OG_CustomCtrl(   wxWindow*            parent,
     this->Bind(wxEVT_LEFT_DOWN, &OG_CustomCtrl::OnLeftDown, this);
     this->Bind(wxEVT_LEAVE_WINDOW, &OG_CustomCtrl::OnLeaveWin, this);
 }
+
+#if wxUSE_ACCESSIBILITY
+wxAccessible* OG_CustomCtrl::CreateAccessible()
+{
+    return new WidgetAccessible(this, wxROLE_SYSTEM_GROUPING);
+}
+#endif // wxUSE_ACCESSIBILITY
 
 void OG_CustomCtrl::init_ctrl_lines()
 {
