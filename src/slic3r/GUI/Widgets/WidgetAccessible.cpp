@@ -142,4 +142,23 @@ wxAccStatus WidgetAccessible::GetState(int childId, long* state)
     return wxACC_OK;
 }
 
+wxAccStatus NativeCtrlAccessible::GetName(int childId, wxString* name)
+{
+    if (childId != wxACC_SELF)
+        return wxACC_NOT_IMPLEMENTED;
+
+    wxWindow* win = GetWindow();
+    if (!win)
+        return wxACC_FAIL;
+
+    const wxString title = win->GetName();
+    if (title.empty())
+        // Nothing has named this control - leave the native accessible to its own
+        // guess rather than overriding it with nothing.
+        return wxACC_NOT_IMPLEMENTED;
+
+    *name = title;
+    return wxACC_OK;
+}
+
 #endif // wxUSE_ACCESSIBILITY

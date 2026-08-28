@@ -65,6 +65,24 @@ private:
     DefaultActionHandler m_default_action;
 };
 
+// Accessible for a *native* control (a real Win32 window such as the EDIT behind
+// wxTextCtrl) that only needs a name. wxWindow::SetName() is not plumbed into MSAA
+// at all: with no wxAccessible attached, wx lets DefWindowProc answer WM_GETOBJECT
+// and the OS proxy names the control after a preceding static label - which Orca's
+// custom-drawn parameter rows do not have, so the control ends up nameless.
+//
+// Every method other than GetName is deliberately left unimplemented, which makes
+// wxIAccessible fall back to the control's own standard accessible object (see
+// wxAccessible::GetIAccessibleStd), so role, value, caret, selection, the read-only
+// state and everything else keep coming from the native control exactly as before.
+class NativeCtrlAccessible : public wxAccessible
+{
+public:
+    explicit NativeCtrlAccessible(wxWindow* win) : wxAccessible(win) {}
+
+    wxAccStatus GetName(int childId, wxString* name) override;
+};
+
 #endif // wxUSE_ACCESSIBILITY
 
 #endif // slic3r_GUI_WidgetAccessible_hpp_
