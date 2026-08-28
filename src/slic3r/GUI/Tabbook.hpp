@@ -315,7 +315,7 @@ public:
             // ORCA: our tab strip is a child window of its own rather than a part of this
             // control, so everything wxNotebook deals with as coming from its tab area
             // reaches us as a from-child event and has to be told apart from a page's.
-            const bool isFromBtns = event.GetEventObject() == (wxObject*)GetBtnsListCtrl();
+            const bool isFromBtns = IsFromTabStrip(event);
             const bool isForward = event.GetDirection();
 
             if ((isFromSelf || isFromBtns) && !isForward)
@@ -419,6 +419,24 @@ protected:
     }
 
 private:
+    // ORCA: a Tab press leaving the strip reaches us still stamped with the window it
+    // started from, never with the strip itself: wxWindow::Navigate() makes the focused
+    // window the event object, and wxControlContainer::HandleOnNavigationKey()'s
+    // escalate-to-parent loop rewrites only the event's *current focus* on the way up.
+    // Comparing against the strip by identity therefore missed the "Return" button
+    // reparented into it, so its Shift+Tab was treated as a page's and bounced straight
+    // back to the selected tab. Ask for membership instead; pages are siblings of the
+    // strip rather than descendants of it, so they still take the from-a-page branch.
+    bool IsFromTabStrip(const wxNavigationKeyEvent& event) const
+    {
+        const wxWindow* const btns = GetBtnsListCtrl();
+        for (const wxWindow* win = wxDynamicCast(event.GetEventObject(), wxWindow);
+             win != nullptr && win != this; win = win->GetParent())
+            if (win == btns)
+                return true;
+        return false;
+    }
+
     // ORCA: the roving tabindex makes the selected tab the strip's only Tab stop, and the
     // side tools reparented into the strip are its first children, so a plain SetFocus()
     // on the strip would land on one of those instead.
