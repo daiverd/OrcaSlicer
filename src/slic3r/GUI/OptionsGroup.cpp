@@ -47,6 +47,44 @@ namespace Slic3r { namespace GUI {
 // BBS: new layout
 constexpr int titleWidth = 20;
 
+// ORCA: an option's own label, translated the same context sensitive way the label
+// painting does it (see OG_CustomCtrl::CtrlLine::render).
+static wxString get_option_label(const ConfigOptionDef& opt)
+{
+    if (opt.label.empty())
+        return wxString();
+    return opt.label == L_CONTEXT("Top", "Layers") || opt.label == L_CONTEXT("Bottom", "Layers") ?
+        _L_CONTEXT(opt.label, "Layers") : _(opt.label);
+}
+
+// ORCA: OG_CustomCtrl paints a row's label straight onto the panel instead of creating
+// a wxStaticText for it, so nothing associates a field with its label and a screen
+// reader announces the field unnamed - or, through WidgetAccessible's fallback, reads
+// out its whole tooltip. Name the field with the text the row actually shows: the line
+// label, the per option sublabel that tells the fields of a multi option row apart, and
+// the unit sidetext drawn next to (or inside) the field. The tooltip is left to
+// WidgetAccessible::GetDescription.
+static void set_field_accessible_name(const Line& line, const Option& opt, bool is_multioption_line, Field* field)
+{
+    if (!field)
+        return;
+
+    wxString name = line.label;
+    if (is_multioption_line)
+        if (const wxString sublabel = get_option_label(opt.opt); !sublabel.IsEmpty())
+            name = name.IsEmpty() ? sublabel : name + ": " + sublabel;
+    if (name.IsEmpty())
+        // Full width fields are drawn without a label of their own, so the option's
+        // name from the config definition is the best that is left.
+        name = get_option_label(opt.opt);
+    if (name.IsEmpty())
+        return; // nothing to say that the tooltip fallback doesn't already say
+    if (!opt.opt.sidetext.empty())
+        name += " (" + _(opt.opt.sidetext) + ")";
+
+    field->set_accessible_name(name);
+}
+
 const t_field& OptionsGroup::build_field(const Option& opt) { return build_field(opt.opt_id, opt.opt); }
 const t_field& OptionsGroup::build_field(const t_config_option_key& id)
 {
@@ -357,6 +395,7 @@ void OptionsGroup::activate_line(Line& line)
         option_set.front().side_widget == nullptr && line.get_extra_widgets().size() == 0) {
         const auto& option = option_set.front();
         const auto& field  = build_field(option);
+        set_field_accessible_name(line, option, /*is_multioption_line*/ false, field.get());
 
         // BBS: new layout
         const auto h_sizer = new wxBoxSizer(wxHORIZONTAL);
@@ -449,6 +488,7 @@ void OptionsGroup::activate_line(Line& line)
         line.get_extra_widgets().size() == 0) {
         const auto& option = option_set.front();
         const auto& field  = build_field(option);
+        set_field_accessible_name(line, option, /*is_multioption_line*/ false, field.get());
 
         if (!custom_ctrl) {
             int flags = option.opt.full_width ? wxEXPAND : wxALIGN_CENTER_VERTICAL;
@@ -484,6 +524,7 @@ void OptionsGroup::activate_line(Line& line)
         // add field
         const Option& opt_ref = opt;
         auto& field           = build_field(opt_ref);
+        set_field_accessible_name(line, opt_ref, is_multioption_line, field.get());
         if (!custom_ctrl) {
             if (option_set.size() == 1 && option_set.front().opt.full_width) {
                 const auto v_sizer = new wxBoxSizer(wxVERTICAL);

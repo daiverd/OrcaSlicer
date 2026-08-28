@@ -78,6 +78,9 @@ void SpinInput::Create(wxWindow *parent,
     state_handler.attach({&label_color, &text_color});
     state_handler.update_binds();
     text_ctrl = new TextCtrl(this, wxID_ANY, text, {20, 4}, wxDefaultSize, style | wxBORDER_NONE | wxTE_PROCESS_ENTER, wxTextValidator(wxFILTER_DIGITS));
+    // ORCA: wx names an unnamed wxTextCtrl "text", which a screen reader would read
+    // back as this field's name; the real one arrives later through SetName().
+    text_ctrl->SetName(wxEmptyString);
 
 #ifdef __WXGTK__
     Slic3r::GUI::RemoveInputBorder(text_ctrl);
@@ -117,6 +120,13 @@ void SpinInput::SetLabel(const wxString &label)
     wxWindow::SetLabel(label);
     messureSize();
     Refresh();
+}
+
+void SpinInput::SetName(const wxString &name)
+{
+    wxWindow::SetName(name);
+    if (text_ctrl)
+        text_ctrl->SetName(name);
 }
 
 void SpinInput::SetLabelColor(StateColor const &color)

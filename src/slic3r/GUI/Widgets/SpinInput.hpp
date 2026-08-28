@@ -28,7 +28,7 @@ class SpinInput : public wxNavigationEnabled<StaticBox>
     wxSize labelSize;
     StateColor   label_color;
     StateColor   text_color;
-    wxTextCtrl * text_ctrl;
+    wxTextCtrl * text_ctrl {nullptr};
     Button * button_inc;
     Button * button_dec;
     wxTimer timer;
@@ -67,6 +67,10 @@ public:
     void SetCornerRadius(double radius);
 
     void SetLabel(const wxString &label) wxOVERRIDE;
+
+    // ORCA: keyboard focus lands on the inner wxTextCtrl, so that is the window a
+    // screen reader takes the name from - keep the two in sync.
+    void SetName(const wxString &name) wxOVERRIDE;
 
     void SetLabelColor(StateColor const &color);
 
