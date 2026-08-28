@@ -400,6 +400,12 @@ public:
     unsigned int get_items_count() const { return (unsigned int)m_items.size(); }
     int get_item_id(const std::string& name) const;
 
+    // Bounding box of the given item, in the space m_layout.left and m_layout.top are
+    // expressed in: canvas pixels, origin at the canvas center, y growing up. The
+    // layout is only positioned while rendering, so the result is meaningless before
+    // the first frame. Returns false if the item does not exist or is not visible.
+    bool get_item_rect(int item_id, float& left, float& right, float& top, float& bottom) const;
+
     void force_left_action(int item_id, GLCanvas3D& parent) { do_action(GLToolbarItem::Left, item_id, parent, false); }
     void force_right_action(int item_id, GLCanvas3D& parent) { do_action(GLToolbarItem::Right, item_id, parent, false); }
 
@@ -438,12 +444,8 @@ private:
     float get_main_size() const;
     void do_action(GLToolbarItem::EActionType type, int item_id, GLCanvas3D& parent, bool check_hover);
     void update_hover_state(const Vec2d& mouse_pos, GLCanvas3D& parent);
-    void update_hover_state_horizontal(const Vec2d& mouse_pos, GLCanvas3D& parent);
-    void update_hover_state_vertical(const Vec2d& mouse_pos, GLCanvas3D& parent);
     // returns the id of the item under the given mouse position or -1 if none
     int contains_mouse(const Vec2d& mouse_pos, const GLCanvas3D& parent) const;
-    int contains_mouse_horizontal(const Vec2d& mouse_pos, const GLCanvas3D& parent) const;
-    int contains_mouse_vertical(const Vec2d& mouse_pos, const GLCanvas3D& parent) const;
 
     void render_background(float left, float top, float right, float bottom, float border_w, float border_h) const;
     void render_horizontal(const GLCanvas3D &parent, GLToolbarItem::EType type, bool draw_icons);
