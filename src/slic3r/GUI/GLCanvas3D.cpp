@@ -88,6 +88,7 @@
 #include "BackgroundSlicingProcess.hpp"
 #include "CameraUtils.hpp"
 #include "GLModel.hpp"
+#include "GLCanvasAccessible.hpp"
 #include "GLShader.hpp"
 #include "libslic3r/ConnectedBodies.hpp"
 #include "GUI.hpp"
@@ -1677,6 +1678,13 @@ GLCanvas3D::GLCanvas3D(wxGLCanvas* canvas, Bed3D &bed)
 
 GLCanvas3D::~GLCanvas3D()
 {
+#if wxUSE_ACCESSIBILITY
+    // the canvas window outlives this object, and the accessible object it owns answers
+    // every query out of this one
+    if (m_canvas != nullptr)
+        m_canvas->SetAccessible(nullptr);
+#endif // wxUSE_ACCESSIBILITY
+
     if (_set_current()) {
         m_scene_cache.reset();
         m_frame_profiler.reset();
@@ -1780,6 +1788,14 @@ bool GLCanvas3D::init()
 #endif
     //if (!wxGetApp().is_gl_version_greater_or_equal_to(3, 0))
     //    wxGetApp().plater()->enable_wireframe(false);
+
+#if wxUSE_ACCESSIBILITY
+    // The toolbars exist from here on, so a screen reader has something to be told about.
+    // The canvas window owns the object and deletes any previous one, so running this a
+    // second time after a failed init is harmless.
+    m_canvas->SetAccessible(new GLCanvasAccessible(m_canvas, *this));
+#endif // wxUSE_ACCESSIBILITY
+
     m_initialized = true;
 
     return true;

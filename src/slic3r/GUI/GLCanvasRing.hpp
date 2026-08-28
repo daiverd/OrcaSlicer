@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <wx/access.h>
+#include <wx/gdicmn.h>
 #include <wx/string.h>
 
 #include "Gizmos/GLGizmosManager.hpp"
@@ -42,6 +44,28 @@ public:
 
     void render_focus_ring(const GLToolbar& toolbar) const;
     void render_focus_ring(const GLGizmosManager& gizmos) const;
+
+#if wxUSE_ACCESSIBILITY
+    // What GLCanvasAccessible exposes as the MSAA simple children of the canvas. The ids
+    // are flat, 1..N over the entries of every stop in stop order, and they are resolved
+    // against live data on every call, so an id read before a toolbar changed can be stale.
+    struct ChildInfo
+    {
+        wxString name;        // the label of the entry alone, localized
+        wxString description; // the name of the stop it belongs to, plus what the tooltip adds
+        wxString shortcut;
+        bool     enabled{ true };
+        bool     pressed{ false };
+    };
+
+    int  child_count() const;
+    // the entry the virtual focus is on, 0 while the focus is on the scene stop
+    int  focused_child_id() const;
+    bool child_info(int child_id, ChildInfo& info) const;
+    // in canvas client pixels; false while the entry has no geometry to report
+    bool child_rect(int child_id, wxRect& rect) const;
+    bool activate_child(int child_id);
+#endif // wxUSE_ACCESSIBILITY
 
 private:
     // the toolbar stops, in the order Tab visits them; a stop with no entry is skipped
@@ -93,9 +117,23 @@ private:
     bool focused_entry(Entry& entry) const;
     void activate(const Entry& entry);
 
+    // Announce the virtual focus, and what the focused entry has become when it was just
+    // activated. Both are Windows only: wx has an accessibility backend there and nowhere
+    // else, and the ring itself works on all three platforms without one.
+    void notify_focus();
+    void notify_activated();
+
+#if wxUSE_ACCESSIBILITY
+    bool child_at(int child_id, Stop& stop, size_t& index) const;
+#endif // wxUSE_ACCESSIBILITY
+
     GLCanvas3D& m_canvas;
     int         m_focused_stop{ Scene_Stop };
     Parked      m_parked[Num_Stops];
+#if wxUSE_ACCESSIBILITY
+    // the child count the last event went out with, to notice that the ids have moved
+    int         m_announced_child_count{ 0 };
+#endif // wxUSE_ACCESSIBILITY
 };
 
 } // namespace GUI

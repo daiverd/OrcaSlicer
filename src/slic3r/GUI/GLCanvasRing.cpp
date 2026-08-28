@@ -4,14 +4,18 @@
 #include "GLModel.hpp"
 #include "GLShader.hpp"
 #include "GLToolbar.hpp"
+#include "GUI.hpp"
 #include "GUI_App.hpp"
 #include "I18N.hpp"
 #include "Plater.hpp"
+#include "Shortcuts.hpp"
 #include "Gizmos/GLGizmoEmboss.hpp"
 
 #include <algorithm>
 
+#include <wx/access.h>
 #include <wx/event.h>
+#include <wx/window.h>
 
 namespace Slic3r {
 namespace GUI {
@@ -72,12 +76,14 @@ bool GLCanvasKeyboardRing::focus_next_stop()
         if (!stop_of(stop).entries.empty()) {
             m_focused_stop = stop;
             m_canvas.set_as_dirty();
+            notify_focus();
             return true;
         }
     }
 
     m_focused_stop = Scene_Stop;
     m_canvas.set_as_dirty();
+    // the focus is about to leave the canvas, which wx announces on its own
     return false;
 }
 
@@ -90,12 +96,14 @@ bool GLCanvasKeyboardRing::focus_previous_stop()
         if (!stop_of(stop).entries.empty()) {
             m_focused_stop = stop;
             m_canvas.set_as_dirty();
+            notify_focus();
             return true;
         }
     }
 
     m_focused_stop = Scene_Stop;
     m_canvas.set_as_dirty();
+    notify_focus();
     return true;
 }
 
@@ -128,6 +136,7 @@ bool GLCanvasKeyboardRing::on_key(wxKeyEvent& evt)
     if (stop.entries.empty()) {
         // the focused toolbar lost its last entry between two key events
         m_focused_stop = Scene_Stop;
+        notify_focus();
         return false;
     }
 
@@ -138,6 +147,7 @@ bool GLCanvasKeyboardRing::on_key(wxKeyEvent& evt)
         // the action may switch the canvas, which resets the focus, so nothing below
         activate(stop.entries[index]);
         m_canvas.set_as_dirty();
+        notify_activated();
         return true;
     }
 
@@ -152,6 +162,7 @@ bool GLCanvasKeyboardRing::on_key(wxKeyEvent& evt)
 
     m_parked[m_focused_stop] = { stop.entries[index], index };
     m_canvas.set_as_dirty();
+    notify_focus();
     return true;
 }
 
@@ -198,6 +209,155 @@ void GLCanvasKeyboardRing::render_focus_ring(const GLGizmosManager& gizmos) cons
         1.0f - 2.0f * top / cnv_h, 1.0f - 2.0f * bottom / cnv_h,
         2.0f / cnv_w, 2.0f / cnv_h);
 }
+
+#if wxUSE_ACCESSIBILITY
+// A toolbar tooltip is "Label [Shortcut]", with one more line per variant of the same
+// command where there is one. The label alone is the accessible name, the bracket is the
+// keyboard shortcut, and what is left over is detail for the description.
+static void split_tooltip(const std::string& tooltip, wxString& name, wxString& shortcut, wxString& detail)
+{
+    const wxString text = from_u8(tooltip);
+    name = text.BeforeFirst('\n');
+    detail = text.AfterFirst('\n');
+
+    if (name.EndsWith("]")) {
+        const size_t open = name.rfind('[');
+        if (open != wxString::npos) {
+            shortcut = name.substr(open + 1, name.size() - open - 2);
+            name = name.substr(0, open);
+        }
+    }
+    name.Trim();
+}
+
+int GLCanvasKeyboardRing::child_count() const
+{
+    int count = 0;
+    for (int stop = 0; stop < Num_Stops; ++stop) {
+        count += (int)stop_of(stop).entries.size();
+    }
+
+    return count;
+}
+
+int GLCanvasKeyboardRing::focused_child_id() const
+{
+    if (!has_focus())
+        return 0;
+
+    int first = 1;
+    for (int stop = 0; stop < Num_Stops; ++stop) {
+        const Stop candidate = stop_of(stop);
+        if (stop == m_focused_stop)
+            return candidate.entries.empty() ? 0 : first + (int)parked_index(stop, candidate.entries);
+
+        first += (int)candidate.entries.size();
+    }
+
+    return 0;
+}
+
+bool GLCanvasKeyboardRing::child_info(int child_id, ChildInfo& info) const
+{
+    Stop   stop;
+    size_t index = 0;
+    if (!child_at(child_id, stop, index))
+        return false;
+
+    const Entry& entry = stop.entries[index];
+    info = ChildInfo();
+    info.description = stop.name;
+
+    if (entry.toolbar == nullptr) {
+        const GLGizmosManager& gizmos = m_canvas.get_gizmos_manager();
+        const GLGizmoBase* gizmo = gizmos.get_gizmo(entry.gizmo);
+        if (gizmo == nullptr)
+            return false;
+
+        info.name = from_u8(gizmo->get_name(false));
+        if (const std::optional<Shortcut> shortcut = gizmo->shortcut(); shortcut.has_value())
+            info.shortcut = from_u8(wxGetApp().shortcuts().display(*shortcut));
+        info.enabled = gizmo->is_activable();
+        info.pressed = gizmos.get_current_type() == entry.gizmo;
+        return true;
+    }
+
+    const GLToolbarItem* item = entry.toolbar->get_item(entry.toolbar->get_item_id(entry.item_name));
+    if (item == nullptr)
+        return false;
+
+    wxString detail;
+    split_tooltip(item->get_tooltip(), info.name, info.shortcut, detail);
+    if (info.name.empty())
+        // nothing to take a label from; the internal name is at least an identifier
+        info.name = from_u8(item->get_name());
+    if (!item->get_additional_tooltip().empty()) {
+        if (!detail.empty())
+            detail += "\n";
+        detail += from_u8(item->get_additional_tooltip());
+    }
+    if (!detail.empty()) {
+        info.description += ". ";
+        info.description += detail;
+    }
+
+    info.enabled = item->is_enabled();
+    info.pressed = item->is_pressed();
+    return true;
+}
+
+bool GLCanvasKeyboardRing::child_rect(int child_id, wxRect& rect) const
+{
+    Stop   stop;
+    size_t index = 0;
+    if (!child_at(child_id, stop, index))
+        return false;
+
+    const Size cnv_size = m_canvas.get_canvas_size();
+    const float cnv_w = (float)cnv_size.get_width();
+    const float cnv_h = (float)cnv_size.get_height();
+    if (cnv_w == 0.0f || cnv_h == 0.0f)
+        return false;
+
+    const Entry& entry = stop.entries[index];
+    float left, right, top, bottom;
+    if (entry.toolbar == nullptr) {
+        // the gizmo strip is already in canvas pixels from the top left corner
+        if (!m_canvas.get_gizmos_manager().get_gizmo_rect(entry.gizmo, left, right, top, bottom))
+            return false;
+    }
+    else {
+        const int item_id = entry.toolbar->get_item_id(entry.item_name);
+        if (item_id < 0 || !entry.toolbar->get_item_rect(item_id, left, right, top, bottom))
+            return false;
+
+        // the toolbar layout is in canvas pixels around the canvas center, y growing up
+        left += 0.5f * cnv_w;
+        right += 0.5f * cnv_w;
+        top = 0.5f * cnv_h - top;
+        bottom = 0.5f * cnv_h - bottom;
+    }
+
+    // the layouts are in canvas pixels, which are client pixels times the display scale
+    const float scale = cnv_size.get_scale_factor();
+    rect = wxRect((int)(left / scale), (int)(top / scale),
+        (int)((right - left) / scale), (int)((bottom - top) / scale));
+    return rect.width > 0 && rect.height > 0;
+}
+
+bool GLCanvasKeyboardRing::activate_child(int child_id)
+{
+    Stop   stop;
+    size_t index = 0;
+    if (!child_at(child_id, stop, index))
+        return false;
+
+    // the same in-process path the keyboard and the mouse take, no synthesized clicks
+    activate(stop.entries[index]);
+    m_canvas.set_as_dirty();
+    return true;
+}
+#endif // wxUSE_ACCESSIBILITY
 
 GLCanvasKeyboardRing::Stop GLCanvasKeyboardRing::stop_of(int stop) const
 {
@@ -297,6 +457,63 @@ void GLCanvasKeyboardRing::activate(const Entry& entry)
     if (item != nullptr && item->get_state() == GLToolbarItem::Hover)
         item->set_state(GLToolbarItem::Normal);
 }
+
+void GLCanvasKeyboardRing::notify_focus()
+{
+#if wxUSE_ACCESSIBILITY
+    wxWindow* window = m_canvas.get_wxglcanvas();
+    if (window == nullptr)
+        return;
+
+    // Nothing rebuilds the children between two events, so a toolbar which gained or lost
+    // an entry has silently moved the ids the client is holding. The count is the cheapest
+    // thing to notice that by; a change which keeps the count is not detected.
+    const int count = child_count();
+    if (count != m_announced_child_count) {
+        m_announced_child_count = count;
+        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_REORDER, window, wxOBJID_CLIENT, wxACC_SELF);
+    }
+
+    // child id 0 is the canvas itself, which is what the scene stop is
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, window, wxOBJID_CLIENT, focused_child_id());
+#endif // wxUSE_ACCESSIBILITY
+}
+
+void GLCanvasKeyboardRing::notify_activated()
+{
+#if wxUSE_ACCESSIBILITY
+    wxWindow* window = m_canvas.get_wxglcanvas();
+    const int child_id = focused_child_id();
+    // an action which took the focus off the canvas is announced by wx itself
+    if (window == nullptr || child_id == 0)
+        return;
+
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_STATECHANGE, window, wxOBJID_CLIENT, child_id);
+#endif // wxUSE_ACCESSIBILITY
+}
+
+#if wxUSE_ACCESSIBILITY
+bool GLCanvasKeyboardRing::child_at(int child_id, Stop& stop, size_t& index) const
+{
+    if (child_id <= 0)
+        return false;
+
+    int first = 1;
+    for (int candidate = 0; candidate < Num_Stops; ++candidate) {
+        Stop owner = stop_of(candidate);
+        const int count = (int)owner.entries.size();
+        if (child_id < first + count) {
+            index = (size_t)(child_id - first);
+            stop = std::move(owner);
+            return true;
+        }
+
+        first += count;
+    }
+
+    return false;
+}
+#endif // wxUSE_ACCESSIBILITY
 
 } // namespace GUI
 } // namespace Slic3r

@@ -964,6 +964,8 @@ public:
     wxGLCanvas* get_wxglcanvas() { return m_canvas; }
 	const wxGLCanvas* get_wxglcanvas() const { return m_canvas; }
 
+    GLCanvasKeyboardRing& get_keyboard_ring() { return m_keyboard_ring; }
+
     bool init();
     void post_event(wxEvent &&event);
 
