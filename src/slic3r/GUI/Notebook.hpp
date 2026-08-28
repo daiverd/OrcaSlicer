@@ -454,14 +454,29 @@ public:
                 // if the direction is forwards. Otherwise set the focus to the
                 // notebook itself. The notebook is always the 'first' control of a
                 // page.
-                if (!isForward)
+                // ORCA: our tab strip is a child window of its own rather than a part of
+                // this control, so a backward key from the strip arrives here as a
+                // from-child event too and has to leave us, while one from a page has to
+                // land on the strip - SetFocus() is overridden to focus the current page
+                // and would bounce it straight back into the page it came from.
+                if (!isForward && event.GetEventObject() != (wxObject*) GetBtnsListCtrl())
                 {
-                    SetFocus();
+                    wxWindow* const tab = GetBtnsListCtrl()->GetSelectedButton();
+                    if (tab)
+                        tab->SetFocusFromKbd();
+                    else
+                        GetBtnsListCtrl()->SetFocus();
                 }
                 else if (parent)
                 {
                     event.SetCurrentFocus(this);
-                    parent->HandleWindowEvent(event);
+                    // ORCA: our parent is MainFrame, and a wxFrame - unlike a wxDialog - is not a
+                    // wxNavigationEnabled container, so nothing there handles the event. Leave it
+                    // skipped in that case: wxControlContainer::HandleOnNavigationKey() otherwise
+                    // reads "processed" from our return value, stops escalating and stops looking
+                    // for a control to focus, which traps the focus inside the page.
+                    if (!parent->HandleWindowEvent(event))
+                        event.Skip();
                 }
             }
         }
