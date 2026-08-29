@@ -45,6 +45,10 @@ public:
 
     int GetSelection() const;
 
+    // ORCA: the button standing for the selected tab, which is what the accessible
+    // reports as this strip's selected child.
+    wxWindow* GetSelectedItemButton() const;
+
     void SelectItem(int item);
 
     void Unselect();
@@ -74,6 +78,11 @@ public:
     bool IsVisible(unsigned int item) const;
 
     int GetFullSize() const;
+
+protected:
+#if wxUSE_ACCESSIBILITY
+    wxAccessible* CreateAccessible() override;
+#endif
 
 private:
     virtual void DoSetSize(int x, int y, int width, int height, int sizeFlags = wxSIZE_AUTO) override;

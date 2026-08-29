@@ -18,6 +18,36 @@
 
 #include <algorithm>
 
+#if wxUSE_ACCESSIBILITY
+namespace {
+// ORCA: the strip is the selection container for its tab buttons, so it is the one asked
+// which of them is current (IAccessible::get_accSelection, which the UIA proxy turns into
+// the Selection pattern's selected item). The buttons cannot take the focus, so this is
+// the only place that answer can come from.
+class TabCtrlAccessible : public WidgetAccessible
+{
+public:
+    explicit TabCtrlAccessible(TabCtrl* ctrl) : WidgetAccessible(ctrl, wxROLE_SYSTEM_PAGETABLIST) {}
+
+#if wxUSE_VARIANT
+    wxAccStatus GetSelections(wxVariant* selections) override
+    {
+        auto* ctrl = static_cast<TabCtrl*>(GetWindow());
+        wxWindow* btn = ctrl ? ctrl->GetSelectedItemButton() : nullptr;
+        wxAccessible* btn_acc = btn ? btn->GetOrCreateAccessible() : nullptr;
+        if (!btn_acc)
+            return wxACC_NOT_IMPLEMENTED;
+
+        // wx passes a single selected child on as a "void*" variant holding its
+        // wxAccessible (see wxIAccessible::get_accSelection).
+        *selections = wxVariant(static_cast<void*>(btn_acc));
+        return wxACC_OK;
+    }
+#endif // wxUSE_VARIANT
+};
+} // namespace
+#endif // wxUSE_ACCESSIBILITY
+
 wxDEFINE_EVENT(wxEVT_TAB_SEL_CHANGING, wxCommandEvent);
 wxDEFINE_EVENT(wxEVT_TAB_SEL_CHANGED, wxCommandEvent);
 
@@ -54,9 +84,8 @@ TabCtrl::TabCtrl(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSi
     hsizer->Add(sizer, 0, wxEXPAND | wxBOTTOM, border_width * 4);
     SetSizer(hsizer);
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &TabCtrl::buttonClicked, this);
-#if wxUSE_ACCESSIBILITY
-    SetAccessibleRole(wxROLE_SYSTEM_PAGETABLIST);
-#endif
+    // ORCA: the tab list role, and which tab is current, come from TabCtrlAccessible
+    // (see CreateAccessible), so no SetAccessibleRole call here
     // wxString reason;
     // IsTransparentBackgroundSupported(&reason);
 }
@@ -64,6 +93,18 @@ TabCtrl::TabCtrl(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSi
 TabCtrl::~TabCtrl() { delete images; }
 
 int TabCtrl::GetSelection() const { return sel; }
+
+wxWindow* TabCtrl::GetSelectedItemButton() const
+{
+    return sel >= 0 && sel < int(btns.size()) ? btns[sel] : nullptr;
+}
+
+#if wxUSE_ACCESSIBILITY
+wxAccessible* TabCtrl::CreateAccessible()
+{
+    return new TabCtrlAccessible(this);
+}
+#endif
 
 void TabCtrl::SelectItem(int item)
 {
@@ -85,6 +126,12 @@ void TabCtrl::SelectItem(int item)
     sendTabCtrlEvent();
     relayout();
     Refresh();
+#if wxUSE_ACCESSIBILITY
+    // ORCA: the tab buttons are not focusable, so without this a screen reader is never
+    // told that an arrow key (or a click) moved to another page.
+    if (wxWindow* btn = GetSelectedItemButton())
+        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_SELECTION, btn, wxOBJID_CLIENT, wxACC_SELF);
+#endif
 }
 
 void TabCtrl::Unselect() { SelectItem(-1); }
