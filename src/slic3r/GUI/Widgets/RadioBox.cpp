@@ -39,6 +39,12 @@ void RadioBox::SetValue(bool value)
     update();
 }
 
+#ifdef __WXMSW__
+WXLRESULT RadioBox::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+    return msw_claim_arrow_keys(nMsg, wParam, wxBitmapToggleButton::MSWWindowProc(nMsg, wParam, lParam));
+}
+#endif
 
 void RadioBox::Rescale()
 {

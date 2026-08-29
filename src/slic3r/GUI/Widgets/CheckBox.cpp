@@ -94,6 +94,11 @@ void CheckBox::update()
 
 CheckBox::State CheckBox::GetNormalState() const { return State_Normal; }
 
+WXLRESULT CheckBox::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+    return msw_claim_arrow_keys(nMsg, wParam, wxBitmapToggleButton::MSWWindowProc(nMsg, wParam, lParam));
+}
+
 #endif
 
 

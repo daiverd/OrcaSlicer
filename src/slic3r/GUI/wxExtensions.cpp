@@ -70,6 +70,26 @@ void msw_rescale_menu(wxMenu* menu)
 #endif /* __WXMSW__ */
 #endif /* no __WXGTK__ */
 
+#ifdef __WXMSW__
+// ORCA: see the comment on the declaration in wxExtensions.hpp.
+WXLRESULT msw_claim_arrow_keys(WXUINT nMsg, WXWPARAM wParam, WXLRESULT dlg_code)
+{
+    if (nMsg == WM_GETDLGCODE) {
+        switch (wParam) {
+        case VK_LEFT:
+        case VK_RIGHT:
+        case VK_UP:
+        case VK_DOWN:
+            dlg_code |= DLGC_WANTARROWS;
+            break;
+        default:
+            break;
+        }
+    }
+    return dlg_code;
+}
+#endif /* __WXMSW__ */
+
 void enable_menu_item(wxUpdateUIEvent& evt, std::function<bool()> const cb_condition, wxMenuItem* item, wxWindow* win)
 {
     const bool enable = cb_condition();
@@ -1073,6 +1093,13 @@ ScalableButton::ScalableButton( wxWindow *          parent,
 
     SetBitmap(bitmap.bmp());
 }
+
+#ifdef __WXMSW__
+WXLRESULT ScalableButton::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+    return msw_claim_arrow_keys(nMsg, wParam, wxButton::MSWWindowProc(nMsg, wParam, lParam));
+}
+#endif
 
 void ScalableButton::SetBitmap_(const ScalableBitmap& bmp)
 {
