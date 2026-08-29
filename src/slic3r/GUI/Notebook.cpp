@@ -3,6 +3,7 @@
 //#ifdef _WIN32
 
 #include "GUI_App.hpp"
+#include "I18N.hpp"
 #include "wxExtensions.hpp"
 #include "Widgets/Button.hpp"
 #include "Widgets/StateColor.hpp"
@@ -106,6 +107,10 @@ ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools)
     // ORCA: wxNavigationEnabled<> has only a default constructor, so the window has to
     // be created in two phases rather than through a base-class initializer.
     wxControl::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL);
+    // ORCA: unnamed, this is announced as the wx default "control"; in Preview it is also
+    // the container the side-tool panels below are reparented into (see the side_tools
+    // loop below), so it needs a name of its own rather than borrowing one of theirs.
+    SetName(_L("Main tabs"));
 
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
