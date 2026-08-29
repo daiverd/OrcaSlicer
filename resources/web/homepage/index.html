@@ -118,18 +118,23 @@
 				<div class="MenuDesc trans"  tid="t91">Download 3D Models</div>
 			</div>
 		</div>	-->	
+		<!-- ORCA the description stays on screen but out of the accessibility tree: it is a
+		     second block of text inside the button, which a screen reader rendered as a
+		     second button line ("button New Project", then "button Create new project",
+		     and a bare "button 3mf" under Open Project). Hidden, each card is one button
+		     named by its title line. -->
 		<button type="button" class="MenuItem" onClick="OnClickNewProject()">
 			<div class="MenuIcon"><img src="img/i4.png" alt="" /></div>
 			<div>
 				<div class="trans TextS1" tid="t31">new project</div>
-				<div class="MenuDesc trans"  tid="t32">create new project</div>
+				<div class="MenuDesc trans" tid="t32" aria-hidden="true">create new project</div>
 			</div>
 		</button>
 		<button type="button" class="MenuItem" onClick="OnClickOpenProject()">
 			<div class="MenuIcon"><img src="img/i5.png" alt="" /></div>
 			<div>
 				<div class="trans TextS1" tid="t33">open project</div>
-				<div class="MenuDesc">3mf</div>
+				<div class="MenuDesc" aria-hidden="true">3mf</div>
 			</div>
 		</button>
 	</div>

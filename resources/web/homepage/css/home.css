@@ -1093,6 +1093,9 @@ body
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: 14px;
+	/*----ORCA the title is a real <button> now (the card's only tab stop) - the card's
+	     hand cursor is the one thing the button chrome reset does not carry over----*/
+	cursor: pointer;
 }
 
 

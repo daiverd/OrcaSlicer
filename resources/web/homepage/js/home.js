@@ -8,6 +8,7 @@ function OnInit()
     TranslatePage();
 
 	Init_RecentFile_Events();
+	Init_StaffPick_Events();
 
 	SendMsg_GetLoginInfo();
 	SendMsg_GetBambuLoginInfo();
@@ -45,8 +46,11 @@ function Set_RecentFile_MouseRightBtn_Event()
 function Init_RecentFile_Events()
 {
 	// ORCA: opening on click rather than mousedown keeps the keyboard route working -
-	// Enter/Space on the filename <button> fires a native click that bubbles here
-	$("#FileList").on("click", ".FileItem", function () {
+	// Enter/Space on the filename <button> fires a native click that bubbles here.
+	// Delegated from the document rather than from #FileList: a click listener on the
+	// <ul> makes Chromium expose the list itself as clickable, and a screen reader
+	// announced "list clickable" on every pass over the recent files.
+	$(document).on("click", ".FileItem", function () {
 		OnOpenRecentFile( encodeURI($(this).attr('fpath')) );
 	});
 
@@ -367,10 +371,17 @@ function ShowRecentFileList( pList )
 		let sName=OneFile['project_name'];
 		let sPublished=OneFile['published'] == '1';
 		sImages[sPath] = sImg;
-		
-		//let index=sPath.lastIndexOf('\\')>0?sPath.lastIndexOf('\\'):sPath.lastIndexOf('\/');
-		//let sShortName=sPath.substring(index+1,sPath.length);
-		
+
+		// ORCA: an entry can arrive with no project_name - a model file opened directly, or
+		// a project saved before the field existed. The button text is the row's only name,
+		// so fall back to the file name from the path: those rows were blank on screen and
+		// read as "blank" lines in browse mode, with nothing to say which file they open.
+		if(!sName)
+		{
+			let nCut=Math.max(sPath.lastIndexOf('\\'),sPath.lastIndexOf('/'));
+			sName=sPath.substring(nCut+1);
+		}
+
 		let sBadge=sPublished? '<span class="FilePublishedBadge">PUB</span>':'';
 		let sLogoBadge=sPublished? '<img class="FileLogoBadge" src="../../images/OrcaSlicer_gradient_circle.svg" alt="" />':'';
 
@@ -624,6 +635,18 @@ function OpenWikiUrl( strUrl )
 
 //--------------Staff Pick-------
 var StaffPickSwiper=null;
+
+// ORCA: the whole card stays the mouse target, delegated from the document like the
+// recent-file cards - a click handler on the card itself would put it back in the
+// accessibility tree as a clickable element wrapping its own button. The title
+// button has no handler of its own: its activation, mouse or Enter/Space, bubbles here.
+function Init_StaffPick_Events()
+{
+	$(document).on("click", ".HotModelPiece", function () {
+		OpenOneStaffPickModel( $(this).attr("modelid") );
+	});
+}
+
 function InitStaffPick()
 {
 	if( StaffPickSwiper!=null )
@@ -679,14 +702,22 @@ function ShowStaffPick( ModelList )
 		let DesignerName=OnePickModel['design']['designCreator']['name'];
 		let DesignerAvatar=OnePickModel['design']['designCreator']['avatar']+'?image_process=resize,w_32/format,webp';
 		
-		strPickHtml+='<div class="HotModelPiece swiper-slide" tabindex="0" role="button" onClick="OpenOneStaffPickModel('+ModelID+')" >'+
-			    '<div class="HotModel_Designer_Info"><img src="'+DesignerAvatar+'" alt="" /><span class="TextS2">'+DesignerName+'</span></div>'+
-				'	<div class="HotModel_PrevBlock"><img class="HotModel_PrevImg" src="'+ModelCover+'" alt="" /></div>'+
-				'	<div  class="HotModel_NameText TextS1" title="'+ModelName+'">'+ModelName+'</div>'+
+		// ORCA: the same rework the recent-file cards got - the card was one role="button"
+		// with three block children, which a screen reader read as three "button" lines,
+		// and its accessible name ran the designer, the cover and the title together.
+		// Only the model title is interactive now, as a real <button>, so the name is the
+		// title alone; the designer line stays a plain line of the card and is handed to
+		// Tab users with aria-describedby. The card keeps the mouse click through the
+		// delegated handler in Init_StaffPick_Events. The slides make up a list, so the
+		// wrapper is the list and each card an item.
+		strPickHtml+='<div class="HotModelPiece swiper-slide" role="listitem" modelid="'+EscAttr(String(ModelID))+'">'+
+			    '<div class="HotModel_Designer_Info" id="HotModelBy'+a+'"><img src="'+EscAttr(String(DesignerAvatar))+'" alt="" /><span class="TextS2">'+EscAttr(DesignerName)+'</span></div>'+
+				'	<div class="HotModel_PrevBlock"><img class="HotModel_PrevImg" src="'+EscAttr(String(ModelCover))+'" alt="" /></div>'+
+				'	<button type="button" class="HotModel_NameText TextS1 FocusRingInset" title="'+EscAttr(ModelName)+'" aria-describedby="HotModelBy'+a+'">'+EscAttr(ModelName)+'</button>'+
 				'</div>';
 	}
-	
-	$('#HotModelList').html(strPickHtml);
+
+	$('#HotModelList').attr('role','list').html(strPickHtml);
 	InitStaffPick();
 	$('#HotModelArea').show();
 }
