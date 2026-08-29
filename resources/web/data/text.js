@@ -137,6 +137,13 @@ var LangText = {
     a11y_deselect_all_shown: "Clear all shown filaments",
     a11y_license: "License: {0}",
     a11y_preview: "{0} preview {1}",
+    a11y_printers_selected: "{0} of {1} printers selected",
+    a11y_filaments_selected: "{0} of {1} filaments selected",
+    a11y_filaments_shown: "{0} of {1} filaments selected, {2} shown",
+    a11y_heading_printers: "Printers",
+    a11y_heading_filament_types: "Filament types",
+    a11y_heading_vendors: "Vendors",
+    a11y_heading_filaments: "Filaments",
   },
   ca_ES: {
     t1: "Benvingut a Orca Slicer",

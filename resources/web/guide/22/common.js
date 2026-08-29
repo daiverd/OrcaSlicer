@@ -371,11 +371,20 @@ function UpdateStats()
 	let $visibleItems  = $i.find(".MItem:visible");
 	let $filteredItems = $visibleItems.filter(function() { return $(this).css('position') !== 'absolute'});
 	let visibleCount   = Math.min($filteredItems.length, $visibleItems.length);
-	
+	let nChecked       = $i.find("input:checked").length;
+	let nAll           = $allItems.length;
+	let bFiltered      = nAll > visibleCount;
+
 	$(".list-item-count").text(
-		$i.find("input:checked").length + " / " + 
-		$allItems.length +
-		($allItems.length > visibleCount ? (" [" + visibleCount + "]") : "") // filtered items
+		nChecked + " / " + nAll +
+		(bFiltered ? (" [" + visibleCount + "]") : "") // filtered items
+	);
+
+	// ORCA the same three numbers as a sentence for the clipped twin beside the count
+	$("#FilamentCountText").text(
+		(bFiltered ? GetTransText("a11y_filaments_shown", "{0} of {1} filaments selected, {2} shown").replace("{2}", visibleCount)
+		           : GetTransText("a11y_filaments_selected", "{0} of {1} filaments selected"))
+		.replace("{0}", nChecked).replace("{1}", nAll)
 	);
 }
 

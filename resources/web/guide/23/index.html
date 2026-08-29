@@ -31,6 +31,10 @@
 <!-- ORCA column browser -->
 <div class="cbr-browser-container">
 	<div class="cbr-column">
+		<!-- ORCA the column titles are the search fields' placeholders, so the page had no
+		     heading below the h1 and h-key navigation could not skim it. These name each
+		     column for that; A11yOnly (global.css) keeps them out of the layout. -->
+		<h2 class="A11yOnly trans" tid="a11y_heading_printers">Printers</h2>
 		<div class="cbr-column-title-container">
 			<div class="search-icon"></div>
 			<input type="text" class="cbr-search-bar FocusRingInset" placeholder=" " tabindex="0" aria-labelledby="MachineSearchLabel"/>
@@ -39,13 +43,18 @@
 		</div>
 		<div class="cbr-content thin-scroll" id="MachineList">
 			<div class="CValues">
-				<label><input type="checkbox" mode="all" onClick="ChooseAllMachine()"  /><span class="trans" tid="t11">all</span></label>
+				<!-- ORCA checked in the markup because SortUI only sets it once the profile
+				     reply arrives, which is after a screen reader has read the page: the
+				     first read reported the opposite of what the box was about to hold.
+				     The other two columns' "all" boxes are checked there for the same reason. -->
+				<label><input type="checkbox" mode="all" onClick="ChooseAllMachine()" checked /><span class="trans" tid="t11">all</span></label>
 			</div>
 			<div class="cbr-no-items">No items</div>
 		</div>
 	</div>
 
 	<div class="cbr-column">
+		<h2 class="A11yOnly trans" tid="a11y_heading_filament_types">Filament types</h2>
 		<div class="cbr-column-title-container">
 			<div class="search-icon"></div>
 			<input type="text" class="cbr-search-bar FocusRingInset" placeholder=" " tabindex="0" aria-labelledby="FilatypeSearchLabel"/>
@@ -54,13 +63,14 @@
 		</div>
 		<div class="cbr-content thin-scroll" id="FilatypeList">
 			<div class="CValues">
-				<label><input type="checkbox" class="trans" tid="t11" onClick="ChooseAllFilament()" /><span class="trans" tid="t11">all</span></label>	
+				<label><input type="checkbox" class="trans" tid="t11" onClick="ChooseAllFilament()" checked /><span class="trans" tid="t11">all</span></label>
 			</div>
 			<div class="cbr-no-items">No items</div>
 		</div>
 	</div>
 
 	<div class="cbr-column">
+		<h2 class="A11yOnly trans" tid="a11y_heading_vendors">Vendors</h2>
 		<div class="cbr-column-title-container">
 			<div class="search-icon"></div>
 			<input type="text" class="cbr-search-bar FocusRingInset" placeholder=" " tabindex="0" aria-labelledby="VendorSearchLabel"/>
@@ -69,13 +79,14 @@
 		</div>
 		<div class="cbr-content thin-scroll" id="VendorList">
 			<div class="CValues">
-				<label><input type="checkbox" class="trans" tid="t11" onClick="ChooseAllVendor()" /><span class="trans" tid="t11">all</span></label>
+				<label><input type="checkbox" class="trans" tid="t11" onClick="ChooseAllVendor()" checked /><span class="trans" tid="t11">all</span></label>
 			</div>
 			<div class="cbr-no-items">No items</div>
 		</div>
 	</div>
 
 	<div class="cbr-column">
+		<h2 class="A11yOnly trans" tid="a11y_heading_filaments">Filaments</h2>
 		<div class="cbr-column-title-container">
 			<div class="cbr-filter-box">
 				<div class="filter-icon"></div>
@@ -91,7 +102,10 @@
 					<option value="2">Unchecked</option>
 				</select>
 			</div>
-			<div class="list-item-count"></div>
+			<!-- ORCA the counts on their own read as bare numbers - "13 slash 289 16". The
+			     visible text is unchanged and the clipped twin beside it says what they count. -->
+			<div class="list-item-count" aria-hidden="true"></div>
+			<span class="A11yOnly" id="FilamentCountText"></span>
 			<div class="cbr-filter-btns">
 				<span class="cbr-filter-mode-filter  trans">Select filtered</span>
 				<span class="cbr-filter-mode-visible trans">Select visible</span>

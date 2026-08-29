@@ -2,7 +2,8 @@
 function OnInit()
 {
 	TranslatePage();
-	
+	FocusPageHeading();
+
 	SendStealthModeCheck();
 }
 

@@ -1,6 +1,7 @@
 function OnInit()
 {
 	TranslatePage();
+	FocusPageHeading();
     OnSelectMenu(1);
 	
 	RequestProfile();

@@ -24,6 +24,24 @@ function ShowNotice( nShow )
 	}
 }
 
+// ORCA every wizard step is a full document load, so after Get Started, Back or Next the
+// focus sits on the nameless <body>: arriving on a step announced nothing and the first Tab
+// read a context-free "button". Landing the focus on the step's own <h1> makes the arrival
+// announce the step. The heading is a target, not a control - tabindex="-1" keeps it out of
+// the Tab order and global.css keeps the ring off it, so nothing changes for a sighted user.
+// Called at the end of each page's OnInit, after TranslatePage, so the announced heading is
+// the translated one. Pages without a heading (the loading splash, the plugin download) have
+// nothing to land on and do not call it.
+function FocusPageHeading()
+{
+	let Heading = document.querySelector("h1");
+	if (!Heading)
+		return;
+
+	Heading.setAttribute("tabindex", "-1");
+	Heading.focus();
+}
+
 function ClosePage() {
 	var tSend = {};
 	tSend['sequence_id'] = Math.round(new Date() / 1000);

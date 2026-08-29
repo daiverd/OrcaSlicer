@@ -7,7 +7,8 @@ function OnInit()
 	//HandleStudio(strInput);
 	
 	TranslatePage();
-	
+	FocusPageHeading();
+
 	RequestProfile();
 }
 

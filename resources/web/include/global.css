@@ -77,6 +77,14 @@
 	outline-offset: -3px;
 }
 
+/* the page-transition landing spot (FocusPageHeading, guide/js/common.js, gives each
+   step's heading tabindex="-1" and focuses it on load). It is somewhere for the screen
+   reader to arrive, not a control the keyboard can reach, so it takes no ring and the
+   page looks the same as before to a sighted user. */
+h1[tabindex="-1"]:focus {
+	outline: none;
+}
+
 /*////////////////////////////*/
 /*           ICONS            */
 /*////////////////////////////*/

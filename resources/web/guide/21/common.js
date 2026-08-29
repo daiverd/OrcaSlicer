@@ -277,7 +277,10 @@ function CreateVendorBlock(vendorName)
 			'	<div class="BlockBanner">' +
 			`		<h2 id="${titleId}">` + alt + '</h2>' +
 			'		<label class="BannerBtns">'+
-			'			<div class="modelCount"></div>' +
+			// the "0 / 5" on its own read as "0 slash 5", two numbers with no unit. The
+			// visible text is unchanged and the clipped twin beside it says what they count.
+			'			<div class="modelCount" aria-hidden="true"></div>' +
+			'			<span class="A11yOnly modelCountText"></span>' +
 			// the row is the box's label, so the name belongs on the box - the label's own
 			// text is the "3 / 12" count, which is state rather than a name
 			`			<input type="checkbox" class="VendorCheckbox" aria-label="${GetTransText('a11y_select_all_printers','Select all {0} printers').replace('{0}',altAttr)}" onChange="ChooseVendor('${vendorName}')"/>`+
@@ -396,6 +399,9 @@ function UpdateVendorCheckbox(sVendor) {
 		$vcb.prop('indeterminate', mixed);
 
 	$vb.find(".modelCount").text(selCount + " / " + $cbs.length);
+	$vb.find(".modelCountText").text(
+		GetTransText('a11y_printers_selected', '{0} of {1} printers selected')
+			.replace('{0}', selCount).replace('{1}', $cbs.length));
 }
 
 function OnExit()

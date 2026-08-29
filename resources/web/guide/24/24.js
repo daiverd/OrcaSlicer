@@ -7,6 +7,7 @@ function OnInit()
 	//HandleModelList(cData);
 	
 	TranslatePage();
+	FocusPageHeading();
 	RequestProfile();
 }
 
