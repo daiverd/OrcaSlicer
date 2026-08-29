@@ -45,9 +45,17 @@ function HandleRegionlList(  pItem )
 function ChooseRegion( strRegion )
 {
 	m_Region=strRegion;
-	
-	$('.RegionItem').removeClass('RegionSelected').attr('aria-pressed','false');
-	$(".RegionItem[region='"+strRegion+"']").addClass('RegionSelected').attr('aria-pressed','true');
+
+	let $Chosen=$(".RegionItem[region='"+strRegion+"']");
+
+	$('.RegionItem').removeClass('RegionSelected');
+	$Chosen.addClass('RegionSelected');
+
+	// ORCA clearing every button and then setting the chosen one wrote aria-pressed twice
+	// on that button, and a screen reader read "pressed / pressed" - SetAriaState (a11y.js)
+	// writes only on a real change
+	SetAriaState($('.RegionItem').not($Chosen), 'aria-pressed', 'false');
+	SetAriaState($Chosen, 'aria-pressed', 'true');
 }
 
 function GotoPolicyPage()

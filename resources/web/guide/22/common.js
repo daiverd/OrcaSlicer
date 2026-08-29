@@ -42,8 +42,8 @@ function SortUI()
 		HtmlMode+='<label><input type="checkbox" mode="'+sModel['model']+'"  nozzle="'+sModel['nozzle_selected']+'"   onChange="MachineClick()" /><span>'+sModel['model']+'</span></label>';
 	}
 	
-	$('#MachineList .CValues').append(HtmlMode);	
-	$('#MachineList .CValues input').prop("checked",true);
+	$('#MachineList .CValues').append(HtmlMode);
+	SetCheckedState($('#MachineList .CValues input'), true);
 	//if(nMode<=1)
 	//{
 	//	$('#MachineList').hide();
@@ -187,8 +187,8 @@ function SortUI()
 	{
 		$("#FilatypeList .CValues").append( TypeHtmlArray[key] );
 	}
-	$("#FilatypeList .CValues input").prop("checked",true);
-	
+	SetCheckedState($("#FilatypeList .CValues input"), true);
+
 	//Sort VendorArray
 	let VendorAdvNum=VendorPriority.length;
 	for( let n=0;n<VendorAdvNum;n++ )
@@ -205,20 +205,23 @@ function SortUI()
 	{
 		$("#VendorList .CValues").append( VendorHtmlArray[key] );
 	}	
-	$("#VendorList .CValues input").prop("checked",true);
-	
+	SetCheckedState($("#VendorList .CValues input"), true);
+
 	if(SelectNumber==0)
 		ChooseDefaultFilament();
 	
 	UpdateStats();
 }
 
+// ORCA the "all" box and the rows it drives are kept in step by rewriting the whole
+// group, which included the box the user had just clicked - SetCheckedState (a11y.js)
+// writes only where the value differs, so that box is no longer announced twice
 function ChooseAllMachine()
 {
 	let bCheck=$("#MachineList input:first").prop("checked");
-	
-	$("#MachineList input").prop("checked",bCheck);
-	
+
+	SetCheckedState($("#MachineList input"), bCheck);
+
 	SortFilament();
 }
 
@@ -226,22 +229,17 @@ function MachineClick()
 {
 	let nChecked=$("#MachineList input:gt(0):checked").length
 	let nAll    =$("#MachineList input:gt(0)").length
-	
-	if(nAll==nChecked) {
-		$("#MachineList input:first").prop("checked",true);
-	}
-	else {
-		$("#MachineList input:first").prop("checked",false);
-	}
-	
+
+	SetCheckedState($("#MachineList input:first"), nAll==nChecked);
+
 	SortFilament();
 }
 
 function ChooseAllFilament()
 {
-	let bCheck=$("#FilatypeList input:first").prop("checked");	
-	$("#FilatypeList input").prop("checked",bCheck);	
-	
+	let bCheck=$("#FilatypeList input:first").prop("checked");
+	SetCheckedState($("#FilatypeList input"), bCheck);
+
 	SortFilament();
 }
 
@@ -250,22 +248,17 @@ function FilaClick()
 {
 	let nChecked=$("#FilatypeList input:gt(0):checked").length
 	let nAll    =$("#FilatypeList input:gt(0)").length
-	
-	if(nAll==nChecked) {
-		$("#FilatypeList input:first").prop("checked",true);
-	}
-	else {
-		$("#FilatypeList input:first").prop("checked",false);
-	}
-	
-	SortFilament();	
+
+	SetCheckedState($("#FilatypeList input:first"), nAll==nChecked);
+
+	SortFilament();
 }
 
 function ChooseAllVendor()
 {
-	let bCheck=$("#VendorList input:first").prop("checked");	
-	$("#VendorList input").prop("checked",bCheck);	
-	
+	let bCheck=$("#VendorList input:first").prop("checked");
+	SetCheckedState($("#VendorList input"), bCheck);
+
 	SortFilament();
 }
 
@@ -273,14 +266,9 @@ function VendorClick()
 {
 	let nChecked=$("#VendorList input:gt(0):checked").length
 	let nAll    =$("#VendorList input:gt(0)").length
-	
-	if(nAll==nChecked) {
-		$("#VendorList input:first").prop("checked",true);
-	}
-	else {
-		$("#VendorList input:first").prop("checked",false);
-	}
-	
+
+	SetCheckedState($("#VendorList input:first"), nAll==nChecked);
+
 	SortFilament();
 }
 
@@ -395,12 +383,11 @@ function SelectAllFilament( nShow )
 {
 	// ORCA add ability to only select / unselect filted items
 	if (document.querySelector('.cbr-filter-bar').value) {
-		$('#ItemBlockArea .MItem:visible input')
-		.filter(function() {return $(this).closest('.MItem').css('position') !== 'absolute'})
-		.prop("checked", nShow != 0);
+		SetCheckedState($('#ItemBlockArea .MItem:visible input')
+			.filter(function() {return $(this).closest('.MItem').css('position') !== 'absolute'}), nShow != 0);
 	}
 	else {
-		$('#ItemBlockArea .MItem:visible input').prop("checked",nShow!=0);
+		SetCheckedState($('#ItemBlockArea .MItem:visible input'), nShow != 0);
 	}
 
 	UpdateStats();
@@ -443,9 +430,8 @@ function ChooseDefaultFilament()
 	{
 		let OneNode=FilaNodes[m];
 		let OneFF=OneNode.getElementsByTagName("input")[0];
-		$(OneFF).prop("checked",false);
-		
-	    let filamentList=GetFilamentShortname(OneFF.getAttribute("filalist")); 
+
+	    let filamentList=GetFilamentShortname(OneFF.getAttribute("filalist"));
 		//alert(filamentList);
 		let filamentArray=filamentList.split(';')
 		
@@ -462,8 +448,9 @@ function ChooseDefaultFilament()
 			}
 		}
 			
-		if(HasModel)
-		    $(OneFF).prop("checked",true);
+		// ORCA one write rather than the clear-then-set pair this used to do: every box
+		// that ends up checked was written twice, and so announced twice
+		SetCheckedState(OneFF, HasModel);
 	}
 	
 	ShowNotice(0);

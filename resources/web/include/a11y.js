@@ -1,4 +1,5 @@
-// Shared keyboard-accessibility behavior for the packaged web pages.
+// Shared accessibility support for the packaged web pages: the keyboard behavior
+// below, plus the guarded state writes at the end of the file.
 // Self-contained: one <script> include per page, no init call needed. All
 // listeners are document-level and delegated, so include order does not matter;
 // page handlers on the elements themselves always run first.
@@ -95,3 +96,26 @@ document.addEventListener('contextmenu', function (e) {
 		return;
 	e.preventDefault();
 });
+
+// One state write per real change. Chromium raises an accessibility state-change event
+// for every write to `checked`, `aria-checked` or `aria-pressed` - including a write
+// that stores the value the element already held - and a screen reader reads each one.
+// The batch handlers on these pages re-stamp a whole group whenever any member changes,
+// so the control the user just toggled got written twice and was announced twice
+// ("checked / checked", "pressed / pressed"). These two write only where the value
+// actually differs. `nodes` is a single element or anything array-like: a jQuery
+// object, a NodeList, an array.
+function SetCheckedState(nodes, bChecked) {
+	var List = nodes.nodeType ? [nodes] : nodes;
+	for (var n = 0; n < List.length; n++)
+		if (List[n].checked !== bChecked)
+			List[n].checked = bChecked;
+}
+
+function SetAriaState(nodes, strName, value) {
+	var List = nodes.nodeType ? [nodes] : nodes;
+	var strValue = String(value);
+	for (var n = 0; n < List.length; n++)
+		if (List[n].getAttribute(strName) !== strValue)
+			List[n].setAttribute(strName, strValue);
+}

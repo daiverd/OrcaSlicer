@@ -206,9 +206,15 @@ function GotoMenu( strMenu )
 		
 		if( $(OneBtn).attr("menu")==strMenu )
 		{
-			$(".BtnItem[menu]").removeClass("BtnItemSelected").attr("aria-pressed", "false");
+			$(".BtnItem[menu]").removeClass("BtnItemSelected");
+			$(OneBtn).addClass("BtnItemSelected");
 
-			$(OneBtn).addClass("BtnItemSelected").attr("aria-pressed", "true");
+			// ORCA: clearing every button and then setting the target wrote aria-pressed
+			// twice on the target itself, and the app confirms the default menu with a
+			// studio_clickmenu on load - hence "Recent toggle button pressed" twice in the
+			// load announcement. SetAriaState (a11y.js) writes only on a real change.
+			SetAriaState($(".BtnItem[menu]").not(OneBtn), "aria-pressed", "false");
+			SetAriaState(OneBtn, "aria-pressed", "true");
 
 			$("[board]").hide();   // the boards are not all <div> - #ContentBoard is the <main>
 			$("[board=\'"+strMenu+"\']").show();

@@ -168,11 +168,14 @@ function GetModelSelect(vendor, model) {
 	return oVendor[model];
 }
 
-// ORCA the selection bar is the visual state, the card is the role="checkbox" - keep both in sync
+// ORCA the selection bar is the visual state, the card is the role="checkbox" - keep both in sync.
+// ChooseVendor runs this over every card in the vendor, so the aria-checked write goes through
+// SetAriaState (a11y.js): re-writing the value a card already carried made a screen reader
+// announce the card the user had just clicked twice.
 function SetModelChecked($cbs, checked)
 {
-	$cbs.toggleClass('ModelCheckBoxSelected', !!checked)
-	    .closest('.PrinterBlock').attr('aria-checked', !!checked);
+	$cbs.toggleClass('ModelCheckBoxSelected', !!checked);
+	SetAriaState($cbs.closest('.PrinterBlock'), 'aria-checked', !!checked);
 }
 
 function ChooseModel(vendor, ModelName)
@@ -385,8 +388,12 @@ function UpdateVendorCheckbox(sVendor) {
 	const nonSel   = selCount === 0;
 
 	// the native `indeterminate` property is the mixed state - the box maps it to
-	// aria-checked="mixed" itself, so there is nothing to mirror onto the row
-	$vcb.prop({checked: allSel , indeterminate: !allSel && !nonSel});
+	// aria-checked="mixed" itself, so there is nothing to mirror onto the row.
+	// Both halves are written only on a real change, for the reason in SetModelChecked.
+	const mixed = !allSel && !nonSel;
+	SetCheckedState($vcb, allSel);
+	if ($vcb.prop('indeterminate') !== mixed)
+		$vcb.prop('indeterminate', mixed);
 
 	$vb.find(".modelCount").text(selCount + " / " + $cbs.length);
 }
