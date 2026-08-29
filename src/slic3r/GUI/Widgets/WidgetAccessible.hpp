@@ -72,7 +72,10 @@ private:
 // and the OS proxy names the control after a preceding static label - which Orca's
 // custom-drawn parameter rows do not have, so the control ends up nameless.
 //
-// Every method other than GetName is deliberately left unimplemented, which makes
+// The same holds for a help text hint (wxWindow::SetHelpText), which only reaches MSAA
+// through wxWindowAccessible - a native control does not have one.
+//
+// Every method other than those two is deliberately left unimplemented, which makes
 // wxIAccessible fall back to the control's own standard accessible object (see
 // wxAccessible::GetIAccessibleStd), so role, value, caret, selection, the read-only
 // state and everything else keep coming from the native control exactly as before.
@@ -82,6 +85,7 @@ public:
     explicit NativeCtrlAccessible(wxWindow* win) : wxAccessible(win) {}
 
     wxAccStatus GetName(int childId, wxString* name) override;
+    wxAccStatus GetDescription(int childId, wxString* description) override;
 };
 
 #endif // wxUSE_ACCESSIBILITY

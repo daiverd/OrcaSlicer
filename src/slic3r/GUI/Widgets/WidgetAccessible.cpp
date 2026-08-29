@@ -21,6 +21,25 @@ wxString explicit_name(wxWindow* win)
             title = ctrl->GetLabelText();
     return title;
 }
+
+#if wxUSE_HELP
+// Hints attached with wxWindow::SetHelpText() - Preferences uses one to announce the F1
+// wiki shortcut - normally reach MSAA as the accessible description, but only through
+// wxWindowAccessible, which the accessibles here replace. Appended as a paragraph of its
+// own so a screen reader pauses between the tooltip text and the hint, the way it already
+// does between the paragraphs of a parameter tooltip.
+void append_help_text(wxWindow* win, wxString& description)
+{
+    const wxString help = win->GetHelpText();
+    if (help.empty())
+        return;
+    if (!description.empty())
+        description += "\n\n";
+    description += help;
+}
+#else
+void append_help_text(wxWindow*, wxString&) {}
+#endif // wxUSE_HELP
 } // namespace
 
 WidgetAccessible::WidgetAccessible(wxWindow* win, wxAccRole role, ExtraStateGetter extra_state)
@@ -71,14 +90,20 @@ wxAccStatus WidgetAccessible::GetDescription(int childId, wxString* description)
     // Only worth exposing as a separate description when the tooltip has the
     // "name paragraph + metadata" shape and GetName() above truncated it -
     // otherwise the name already says everything the tooltip does.
-    const wxString tip = win->GetToolTipText();
+    wxString       text;
+    const wxString tip        = win->GetToolTipText();
     const int      para_break = tip.Find("\n\n");
-    if (para_break == wxNOT_FOUND)
+    if (para_break != wxNOT_FOUND)
+        // A widget nobody named is announced by that first paragraph, so repeating it here
+        // has it spoken twice; a named one keeps the whole tooltip as its description.
+        text = explicit_name(win).empty() ? tip.Mid(para_break + 2) : tip;
+
+    append_help_text(win, text);
+
+    if (text.empty())
         return wxACC_NOT_IMPLEMENTED;
 
-    // A widget nobody named is announced by that first paragraph, so repeating it here
-    // has it spoken twice; a named one keeps the whole tooltip as its description.
-    *description = explicit_name(win).empty() ? tip.Mid(para_break + 2) : tip;
+    *description = text;
     return wxACC_OK;
 }
 
@@ -191,6 +216,26 @@ wxAccStatus NativeCtrlAccessible::GetName(int childId, wxString* name)
         return wxACC_NOT_IMPLEMENTED;
 
     *name = title;
+    return wxACC_OK;
+}
+
+wxAccStatus NativeCtrlAccessible::GetDescription(int childId, wxString* description)
+{
+    if (childId != wxACC_SELF)
+        return wxACC_NOT_IMPLEMENTED;
+
+    wxWindow* win = GetWindow();
+    if (!win)
+        return wxACC_FAIL;
+
+    // Focus lands on this inner control rather than on the TextInput/SpinInput around it,
+    // so the help text its container carries has to be announced from here as well.
+    wxString text;
+    append_help_text(win, text);
+    if (text.empty())
+        return wxACC_NOT_IMPLEMENTED;
+
+    *description = text;
     return wxACC_OK;
 }
 
