@@ -392,6 +392,18 @@ void TabCtrl::keyDown(wxKeyEvent& event)
             SelectItem(GetSelection() + 1);
         }
         break;
+    // ORCA: a tab strip is expected to jump to its first/last tab on Home/End. Unlike the
+    // arrows, these need nothing from WM_GETDLGCODE: wxMSW only turns Tab, Return and the
+    // arrows into dialog navigation, so Home/End arrive here as ordinary key events.
+    case WXK_HOME:
+    case WXK_NUMPAD_HOME:
+    case WXK_END:
+    case WXK_NUMPAD_END:
+        if (!btns.empty()) {
+            const bool home = event.GetKeyCode() == WXK_HOME || event.GetKeyCode() == WXK_NUMPAD_HOME;
+            SelectItem(home ? 0 : int(btns.size()) - 1);
+        }
+        break;
     }
 }
 
