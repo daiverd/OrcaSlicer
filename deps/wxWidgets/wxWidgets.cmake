@@ -25,6 +25,7 @@ endif ()
 set(_wx_patch_command
     ${GIT_EXECUTABLE} apply --verbose --ignore-space-change --whitespace=fix
             ${CMAKE_CURRENT_LIST_DIR}/0002-dataview-accessible-on-main-window.patch
+            ${CMAKE_CURRENT_LIST_DIR}/0003-dataview-no-keyboard-shortcut-hint.patch
 )
 if (APPLE)
     list(APPEND _wx_patch_command

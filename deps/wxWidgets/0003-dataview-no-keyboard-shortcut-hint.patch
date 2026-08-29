@@ -1,0 +1,61 @@
+Don't report the tree expand/collapse key as a keyboard shortcut.
+
+wxDataViewCtrlAccessible::GetKeyboardShortcut() returned the literal "Left" or
+"Right" for an expandable tree node, i.e. the arrow key which would collapse or
+expand it. The MSAA keyboard shortcut slot is meant for a real accelerator such
+as "ALT+K", and screen readers append its contents to every announcement of the
+element, so each row was read as e.g. "Plate 1 expanded Left". The
+expanded/collapsed state is already exposed by GetState() and read out
+immediately before the shortcut, so the hint adds nothing but noise.
+
+Report no shortcut for the rows, as was already the case for the control itself.
+
+ src/generic/datavgen.cpp | 37 +++++++++----------------------------
+ 1 file changed, 9 insertions(+), 28 deletions(-)
+
+diff --git a/src/generic/datavgen.cpp b/src/generic/datavgen.cpp
+index aca1b8e..4bd59b3 100644
+--- a/src/generic/datavgen.cpp
++++ b/src/generic/datavgen.cpp
+@@ -7129,32 +7129,13 @@ wxAccStatus wxDataViewCtrlAccessible::GetHelpText(int childId, wxString* helpTex
+ // Returns the keyboard shortcut for this object or child.
+ // Return e.g. ALT+K
+-wxAccStatus wxDataViewCtrlAccessible::GetKeyboardShortcut(int childId, wxString* shortcut)
+-{
+-    wxDataViewCtrl* dvCtrl = GetCtrl();
+-    wxCHECK( dvCtrl, wxACC_FAIL );
+-
+-    if ( childId != wxACC_SELF )
+-    {
+-        wxDataViewMainWindow* dvWnd = wxDynamicCast(dvCtrl->GetMainWindow(), wxDataViewMainWindow);
+-        if ( !dvWnd->IsList() )
+-        {
+-            wxDataViewTreeNode* node = dvWnd->GetTreeNodeByRow(childId-1);
+-            if ( node )
+-            {
+-                if ( node->HasChildren() )
+-                {
+-                    if ( node->IsOpen() )
+-                        /* TRANSLATORS: Keystroke for manipulating a tree control */
+-                        *shortcut = _("Left");
+-                    else
+-                        /* TRANSLATORS: Keystroke for manipulating a tree control */
+-                        *shortcut = _("Right");
+-
+-                    return wxACC_OK;
+-                }
+-            }
+-        }
+-    }
+-
++wxAccStatus
++wxDataViewCtrlAccessible::GetKeyboardShortcut(int WXUNUSED(childId),
++                                              wxString* WXUNUSED(shortcut))
++{
++    // This slot is meant for a real accelerator, e.g. "ALT+K", and screen
++    // readers append it to everything they announce. Returning the
++    // expand/collapse arrow key hint for a tree node made every row read as
++    // e.g. "Plate 1 expanded Left", and the expanded/collapsed state read just
++    // before it already conveys the same information, so report no shortcut.
+     return wxACC_FALSE;
+ }
