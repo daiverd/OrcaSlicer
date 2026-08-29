@@ -235,6 +235,10 @@ public:
 	void on_change_color_mode(bool is_dark);
 	// init is called after canvas3d is created. Notifications added before init are not showed or updated
 	void init() { m_initialized = true; }
+	// Speaks text through the screen reader immediately, bypassing the on-screen notification
+	// stack and its dedupe. For callers with no notification window of their own to update, such
+	// as a sidebar action whose only visible effect is a list changing off in the plater.
+	void announce(const wxString& text) { m_accessibility.announce(text); }
 	// Push a prefabricated notification from basic_notifications (see the table at the end of this file).
 	void push_notification(const NotificationType type, int timestamp = 0);
 	// Push a NotificationType::CustomNotification with NotificationLevel::RegularNotificationLevel and 10s fade out interval.
