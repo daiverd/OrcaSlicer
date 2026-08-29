@@ -63,6 +63,9 @@
 #include <wx/treebase.h>
 #include <wx/types.h>
 #include <wx/timer.h>
+#if wxUSE_HELP
+#include <wx/cshelp.h>
+#endif
 #include "NetworkTestDialog.hpp"
 #include "SceneBenchmark.hpp"
 #include "Widgets/StaticLine.hpp"
@@ -92,11 +95,27 @@ public:
     bool ShouldScrollToChildOnFocus(wxWindow* child) override { return false; }
 };
 
+#if wxUSE_ACCESSIBILITY
+class WikiLabelAccessible : public wxWindowAccessible
+{
+public:
+    explicit WikiLabelAccessible(wxWindow *win) : wxWindowAccessible(win) {}
+
+    wxAccStatus GetRole(int childId, wxAccRole *role) override
+    {
+        if (childId > 0)
+            return wxACC_NOT_IMPLEMENTED;
+        *role = wxROLE_SYSTEM_STATICTEXT;
+        return wxACC_OK;
+    }
+};
+#endif // wxUSE_ACCESSIBILITY
+
 // TODO before replacing with HyperLink class
 // make Wrap(-1) and Wrap(width) functional
 // ellipsize_end on wrap(-1)
 // add SetUnderlined() for allowing always highlighted while using as HyperLink
-class WikiLabel : public wxPanel {
+class WikiLabel : public wxWindow {
 private:
     wxString      m_label;
     wxString      m_url;
@@ -113,16 +132,21 @@ public:
         const wxPoint&  pos     = wxDefaultPosition,
         const wxSize&   size    = wxDefaultSize
     )
-        : wxPanel(parent, wxID_ANY, pos, size, wxFULL_REPAINT_ON_RESIZE)
+        : wxWindow(parent, wxID_ANY, pos, size, wxFULL_REPAINT_ON_RESIZE)
         , m_label(label)
         , m_url(url)
     {
-#ifndef __WXOSX__ 
+#ifndef __WXOSX__
         SetDoubleBuffered(true);// SetDoubleBuffered exists on Win and Linux/GTK, but is missing on OSX
 #endif
         SetBackgroundColour(parent->GetBackgroundColour());
 
         SetFont(Label::Body_14);
+
+        SetName(m_label); // the title is painted, so only the name keeps it readable to a screen reader
+#if wxUSE_ACCESSIBILITY
+        SetAccessible(new WikiLabelAccessible(this));
+#endif
 
         Bind(wxEVT_PAINT,        &WikiLabel::OnPaint, this);
         Bind(wxEVT_SIZE,         &WikiLabel::OnSize, this);
@@ -134,14 +158,20 @@ public:
     void SetLabel(const wxString& label) override
     {
         m_label = label;
+        SetName(m_label);
         m_last_wrap_width = -1; // force re-wrap
         ReflowText();
         Refresh();
     }
 
+    // wxPanel answers AcceptsFocus() from its wxNavigationEnabled container instead of from
+    // the window itself, which turns every childless label panel into a Tab stop of its own.
+    // Deriving from wxWindow lets the label opt out, leaving one Tab stop per settings row.
+    bool AcceptsFocus() const override { return false; }
+
     bool SetFont(const wxFont& font) override
     {
-        const bool changed = wxPanel::SetFont(font);
+        const bool changed = wxWindow::SetFont(font);
         m_font = font;
         m_last_wrap_width = -1; // force re-wrap
         if (IsShownOnScreen()) {
@@ -292,6 +322,55 @@ private:
         evt.Skip();
     } 
 };
+
+// The label and the controls of a settings row are siblings in the sizer that
+// create_item_label() returns, so the row a control belongs to can be resolved without
+// every create_item_*() helper having to register its controls against a wiki URL.
+static WikiLabel *linked_label_of(wxSizer *sizer)
+{
+    if (sizer)
+        for (const wxSizerItem *item : sizer->GetChildren())
+            if (auto *label = dynamic_cast<WikiLabel *>(item->GetWindow()); label && !label->GetURL().IsEmpty())
+                return label;
+
+    return nullptr;
+}
+
+#if wxUSE_HELP
+// wxWindowAccessible reports a window's help text as its accessible description, but only
+// through a help provider. wxSimpleHelpProvider would also pop a tip window on F1 and
+// consume the event, so suppress that and let F1 reach PreferencesDialog::on_help().
+class SilentHelpProvider : public wxSimpleHelpProvider
+{
+public:
+    bool ShowHelp(wxWindowBase *) override { return false; }
+};
+
+static void set_help_text_recursively(wxWindow *win, const wxString &text)
+{
+    win->SetHelpText(text);
+    for (wxWindow *child : win->GetChildren()) // focus lands on the inner control of TextInput/SpinInput
+        set_help_text_recursively(child, text);
+}
+
+// Announce the F1 affordance on every control of a row whose label carries a wiki link.
+// It rides on the accessible description, so nothing changes on screen.
+static void add_wiki_help_hints(wxSizer *sizer, const wxString &hint)
+{
+    if (!sizer)
+        return;
+
+    const WikiLabel *label = linked_label_of(sizer);
+
+    for (const wxSizerItem *item : sizer->GetChildren()) {
+        if (wxWindow *win = item->GetWindow()) {
+            if (label && win != label)
+                set_help_text_recursively(win, hint);
+        } else
+            add_wiki_help_hints(item->GetSizer(), hint);
+    }
+}
+#endif // wxUSE_HELP
 
 wxBoxSizer *PreferencesDialog::create_item_title(wxString title)
 {
@@ -1591,6 +1670,13 @@ void PreferencesDialog::create()
     Layout();
     Fit();
     CenterOnParent();
+
+#if wxUSE_HELP
+    if (!wxHelpProvider::Get())
+        wxHelpProvider::Set(new SilentHelpProvider());
+    add_wiki_help_hints(m_parent->GetSizer(), _L("Press F1 to open the wiki page for this setting."));
+    Bind(wxEVT_HELP, &PreferencesDialog::on_help, this);
+#endif // wxUSE_HELP
 }
 
 PreferencesDialog::~PreferencesDialog()
@@ -1608,6 +1694,19 @@ void PreferencesDialog::select_tab(PreferencesTab tab, const std::string& option
     m_parent->GetScrollPixelsPerUnit(nullptr, &unit);
     m_parent->Scroll(wxDefaultCoord, (m_parent->CalcUnscrolledPosition(control->GetPosition()).y - FromDIP(10)) / unit);
     control->SetFocus();   // the focused tint marks the row
+}
+
+// The label of a row is clickable with the mouse only, so F1 gives the keyboard the same
+// wiki page while any control of that row has the focus.
+void PreferencesDialog::on_help(wxHelpEvent &event)
+{
+    for (wxWindow *win = FindFocus(); win && win != this; win = win->GetParent())
+        if (const WikiLabel *label = linked_label_of(win->GetContainingSizer())) {
+            wxLaunchDefaultBrowser(label->GetURL());
+            return;
+        }
+
+    event.Skip();
 }
 
 void PreferencesDialog::on_dpi_changed(const wxRect &suggested_rect) {

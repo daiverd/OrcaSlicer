@@ -60,6 +60,8 @@ public:
     bool recreate_GUI() const { return m_recreate_GUI; }
     const std::string& pending_language() const { return m_pending_language; }
     void on_dpi_changed(const wxRect &suggested_rect) override;
+    // F1 on any control of a settings row opens that row's wiki page
+    void on_help(wxHelpEvent &event);
 
 public:
     PreferencesDialog(wxWindow *      parent,
