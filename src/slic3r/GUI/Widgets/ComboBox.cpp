@@ -142,6 +142,12 @@ void ComboBox::SetSelection(int n)
         SetStaticTips(wxEmptyString, wxNullBitmap);
     }
 
+#if wxUSE_ACCESSIBILITY
+    // ORCA: every selection change - arrow keys, mouse wheel, the popup, callers -
+    // funnels through here, and the early return above keeps it to one event per real
+    // change. Without it a screen reader has nothing telling it to re-read the value.
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_VALUECHANGE, this, wxOBJID_CLIENT, wxACC_SELF);
+#endif
 }
 
 void ComboBox::SelectAndNotify(int n) {

@@ -46,6 +46,7 @@ public:
     wxAccStatus GetState(int childId, long* state) override;
     wxAccStatus GetDescription(int childId, wxString* description) override;
     wxAccStatus GetValue(int childId, wxString* strValue) override;
+    wxAccStatus GetKeyboardShortcut(int childId, wxString* shortcut) override;
     wxAccStatus GetDefaultAction(int childId, wxString* actionName) override;
     wxAccStatus DoDefaultAction(int childId) override;
 

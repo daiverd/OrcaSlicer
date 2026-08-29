@@ -6,6 +6,23 @@
 #include <wx/window.h>
 #include <utility>
 
+#include "ComboBox.hpp"
+
+namespace {
+// The name somebody actually gave the widget, empty when the tooltip has to stand in
+// for one. Real wxControls (e.g. ScalableButton) route through this class because wx's
+// stock button accessible ignores SetName() - keep their visible label working as the
+// name, exactly as the stock accessible did.
+wxString explicit_name(wxWindow* win)
+{
+    wxString title = win->GetName();
+    if (title.empty())
+        if (const wxControl* ctrl = wxDynamicCast(win, wxControl))
+            title = ctrl->GetLabelText();
+    return title;
+}
+} // namespace
+
 WidgetAccessible::WidgetAccessible(wxWindow* win, wxAccRole role, ExtraStateGetter extra_state)
     : wxWindowAccessible(win)
     , m_role(role)
@@ -21,13 +38,7 @@ wxAccStatus WidgetAccessible::GetName(int childId, wxString* name)
     if (!win)
         return wxACC_FAIL;
 
-    wxString title = win->GetName();
-    // Real wxControls (e.g. ScalableButton) route through this class because
-    // wx's stock button accessible ignores SetName() - keep their visible
-    // label working as the name, exactly as the stock accessible did.
-    if (title.empty())
-        if (const wxControl* ctrl = wxDynamicCast(win, wxControl))
-            title = ctrl->GetLabelText();
+    wxString title = explicit_name(win);
     if (title.empty()) {
         // Many icon-only buttons never call SetName() but already have a
         // tooltip with a perfectly good label - fall back to that rather
@@ -60,11 +71,14 @@ wxAccStatus WidgetAccessible::GetDescription(int childId, wxString* description)
     // Only worth exposing as a separate description when the tooltip has the
     // "name paragraph + metadata" shape and GetName() above truncated it -
     // otherwise the name already says everything the tooltip does.
-    wxString tip = win->GetToolTipText();
-    if (tip.empty() || tip.Find("\n\n") == wxNOT_FOUND)
+    const wxString tip = win->GetToolTipText();
+    const int      para_break = tip.Find("\n\n");
+    if (para_break == wxNOT_FOUND)
         return wxACC_NOT_IMPLEMENTED;
 
-    *description = tip;
+    // A widget nobody named is announced by that first paragraph, so repeating it here
+    // has it spoken twice; a named one keeps the whole tooltip as its description.
+    *description = explicit_name(win).empty() ? tip.Mid(para_break + 2) : tip;
     return wxACC_OK;
 }
 
@@ -75,11 +89,30 @@ wxAccStatus WidgetAccessible::GetValue(int childId, wxString* strValue)
 
     // A button or a tab carries no value. Left to the standard accessible, the value
     // repeats the label, and NVDA reads a tab as "Prepare Prepare".
-    if (m_role != wxROLE_SYSTEM_PUSHBUTTON && m_role != wxROLE_SYSTEM_PAGETAB)
+    if (m_role == wxROLE_SYSTEM_PUSHBUTTON || m_role == wxROLE_SYSTEM_PAGETAB) {
+        strValue->clear();
+        return wxACC_OK;
+    }
+
+    // A combo box is announced as label plus current value, and its name is the label,
+    // so the selection is only ever spoken if it comes through here.
+    if (m_role != wxROLE_SYSTEM_COMBOBOX)
         return wxACC_NOT_IMPLEMENTED;
 
-    strValue->clear();
+    const ComboBox* combo = dynamic_cast<const ComboBox*>(GetWindow());
+    if (!combo)
+        return wxACC_NOT_IMPLEMENTED;
+
+    *strValue = combo->GetValue();
     return wxACC_OK;
+}
+
+wxAccStatus WidgetAccessible::GetKeyboardShortcut(int childId, wxString* shortcut)
+{
+    // None of these widgets has an accelerator of its own. Left unimplemented, the
+    // standard accessible parses the window text for a mnemonic instead and announces
+    // a bogus one for any value holding an '&' (see wxIAccessible::get_accKeyboardShortcut).
+    return wxACC_FALSE;
 }
 
 wxAccStatus WidgetAccessible::GetRole(int childId, wxAccRole* role)
