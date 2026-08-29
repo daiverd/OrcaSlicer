@@ -136,6 +136,11 @@ public:
 ObjectList::ObjectList(wxWindow* parent) :
     wxDataViewCtrl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxDV_MULTIPLE | wxNO_BORDER | wxDV_NO_HEADER) // ORCA: Remove border and header
 {
+    // wxDataViewCtrlAccessible reports the window name as the accessible name and
+    // reuses it for the "%s (%d items)" description, so without this the list
+    // announces as the wx default "dataviewCtrl".
+    SetName(_L("Object list"));
+
     wxGetApp().UpdateDVCDarkUI(this, true);
 
 #ifdef __linux__
