@@ -315,7 +315,8 @@ void GuideFrame::load_url(wxString &url)
 {
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__<< " enter, url=" << url.ToStdString();
     WebView::LoadUrl(m_browser, url);
-    m_browser->SetFocus();
+    // The browser is still hidden and sized 0x0 here, so focusing it now is a no-op;
+    // OnNavigationComplete does it once the view is actually shown.
     UpdateState();
 
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< " exit";
@@ -491,6 +492,7 @@ void GuideFrame::OnNavigationComplete(wxWebViewEvent &evt)
 
     m_browser->Show();
     Layout();
+    m_browser->SetFocus();
 
     wxString NewUrl = evt.GetURL();
 

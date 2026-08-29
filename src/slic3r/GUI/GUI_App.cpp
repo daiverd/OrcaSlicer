@@ -9966,7 +9966,11 @@ bool GUI_App::run_wizard(RunReason reason, StartPage start_page)
     //const bool res = wizard_t->run(reason, start_page);
 
     std::string strFinish = wxGetApp().app_config->get("firstguide", "finish");
-    long        pStyle    = wxCAPTION | wxCLOSE_BOX | wxSYSTEM_MENU;
+    // ORCA: wxTAB_TRAVERSAL belongs in both branches - without it wx assigns no initial
+    // focus and runs no dialog navigation, which is why the wizard was keyboard-navigable
+    // on first run but the same frame reopened later (from "Set filaments to use", say)
+    // was completely dead.
+    long        pStyle    = wxCAPTION | wxCLOSE_BOX | wxSYSTEM_MENU | wxTAB_TRAVERSAL;
     if (strFinish == "false" || strFinish.empty())
         pStyle = wxCAPTION | wxTAB_TRAVERSAL;
 
