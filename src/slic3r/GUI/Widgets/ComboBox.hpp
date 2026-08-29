@@ -131,6 +131,8 @@ protected:
 private:
 
     void keyMoveSelection(int keycode);
+    bool isKeyBrowsable(int n) const;
+    int  keyPageSize();
 
     // some useful events
     void mouseDown(wxMouseEvent &event);

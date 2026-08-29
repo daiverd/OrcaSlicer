@@ -461,18 +461,41 @@ void ComboBox::keyDown(wxKeyEvent& event)
     }
 }
 
+// Rows that key browsing on the collapsed combo must step over: the separators and
+// disabled entries the open popup also refuses, plus whatever IsItemKeySelectable()
+// rules out. Both stay clickable and Enter-activatable in the open popup.
+bool ComboBox::isKeyBrowsable(int n) const
+{
+    if (n < 0 || n >= (int) items.size())
+        return false;
+    if (items[n].style & (DD_ITEM_STYLE_SPLIT_ITEM | DD_ITEM_STYLE_DISABLED))
+        return false;
+    return IsItemKeySelectable(n);
+}
+
+// How far PageUp and PageDown move: the rows the popup shows at once, which
+// messureSize() caps at 15 and autoPosition() may shrink further on a short screen.
+// A grouped list shows one row per group there, a count that says nothing about the
+// presets inside the groups this browses, so those fall back to the 15 row cap.
+int ComboBox::keyPageSize()
+{
+    drop.messureSize(); // drop.count, drop.rowSize and the popup size are stale until this runs
+    const int page = drop.rowSize.y > 0 ? drop.GetSize().y / drop.rowSize.y : 0;
+    return drop.count == items.size() && page > 0 ? page : 15;
+}
+
 // Browse the list with the popup closed. The change commits at once, the native
-// Windows convention, so it must only ever land on a row the open popup would let
-// the keyboard select: group headers, separators, disabled entries and the rows
-// IsItemKeySelectable() refuses are stepped over rather than counted.
+// Windows convention, so it must only ever land on a row the keyboard is allowed to
+// select. Movement runs over the raw item indices GetSelection() and SetSelection()
+// use, not the popup's top level rows: that top level collapses each group to a
+// single header, so stepping through it would leave every preset inside a group
+// unreachable from the keyboard.
 void ComboBox::keyMoveSelection(int keycode)
 {
-    drop.messureSize(); // drop.count and drop.rowSize are stale until this runs
-    const int last = (int) drop.count - 1;
-    const int cur  = drop.selectedItem();
-    // A page is what the popup shows at once, which messureSize() caps at 15 rows.
-    int page = drop.rowSize.y > 0 ? drop.GetSize().y / drop.rowSize.y : 1;
-    if (page < 1) page = 1;
+    const int last = (int) items.size() - 1;
+    if (last < 0)
+        return;
+    const int cur = GetSelection();
 
     int dir = 1, from = 0, steps = 1;
     switch (keycode) {
@@ -486,11 +509,11 @@ void ComboBox::keyMoveSelection(int keycode)
         break;
     case WXK_PAGEUP:
     case WXK_NUMPAD_PAGEUP:
-        dir = -1; from = cur < 0 ? last : cur - 1; steps = page;
+        dir = -1; from = cur < 0 ? last : cur - 1; steps = keyPageSize();
         break;
     case WXK_PAGEDOWN:
     case WXK_NUMPAD_PAGEDOWN:
-        dir = 1; from = cur < 0 ? 0 : cur + 1; steps = page;
+        dir = 1; from = cur < 0 ? 0 : cur + 1; steps = keyPageSize();
         break;
     case WXK_HOME:
     case WXK_NUMPAD_HOME:
@@ -500,19 +523,22 @@ void ComboBox::keyMoveSelection(int keycode)
     case WXK_NUMPAD_END:
         dir = -1; from = last;
         break;
+    default:
+        return;
     }
 
+    // Nothing wraps, and a page that runs out of list keeps the last row it reached,
+    // so both ends clamp onto a real entry instead of moving nowhere.
     int selection = -1;
     for (int i = 0; i < steps; ++i) {
-        int hover = drop.findSelectable(from, dir);
-        while (hover >= 0 && !IsItemKeySelectable(drop.itemIndex(hover)))
-            hover = drop.findSelectable(hover + dir, dir);
-        if (hover < 0)
+        while (from >= 0 && from <= last && !isKeyBrowsable(from))
+            from += dir;
+        if (from < 0 || from > last)
             break;
-        selection = drop.itemIndex(hover);
-        from      = hover + dir;
+        selection = from;
+        from += dir;
     }
-    if (selection >= 0 && selection != GetSelection())
+    if (selection >= 0 && selection != cur)
         SelectAndNotify(selection);
 }
 
