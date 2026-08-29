@@ -129,6 +129,18 @@ protected:
 
 private:
 
+#if wxUSE_ACCESSIBILITY
+    // The value a screen reader has already been told this combo holds.
+    wxString m_known_value;
+
+    // Raise wxACC_EVENT_OBJECT_VALUECHANGE, but only when the value the accessible
+    // reports really did change.
+    void NotifyValueChanged();
+
+    // Take note of a value change nothing announces, so the next real one still is.
+    void SyncKnownValue();
+#endif
+
     // some useful events
     void mouseDown(wxMouseEvent &event);
     void mouseWheelMoved(wxMouseEvent &event);

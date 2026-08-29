@@ -144,9 +144,9 @@ void ComboBox::SetSelection(int n)
 
 #if wxUSE_ACCESSIBILITY
     // ORCA: every selection change - arrow keys, mouse wheel, the popup, callers -
-    // funnels through here, and the early return above keeps it to one event per real
-    // change. Without it a screen reader has nothing telling it to re-read the value.
-    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_VALUECHANGE, this, wxOBJID_CLIENT, wxACC_SELF);
+    // funnels through here. Without an event a screen reader has nothing telling it to
+    // re-read the value.
+    NotifyValueChanged();
 #endif
 }
 
@@ -188,6 +188,10 @@ void ComboBox::SetValue(const wxString &value)
     } else {
         SetStaticTips(wxEmptyString, wxNullBitmap);
     }
+
+#if wxUSE_ACCESSIBILITY
+    SyncKnownValue();
+#endif
 }
 
 void ComboBox::SetLabel(const wxString &value)
@@ -366,7 +370,12 @@ void ComboBox::SetString(unsigned int n, wxString const &value)
     if (n >= items.size()) return;
     items[n].text = value;
     drop.Invalidate();
-    if (n == drop.GetSelection()) SetLabel(value);
+    if (n == drop.GetSelection()) {
+        SetLabel(value);
+#if wxUSE_ACCESSIBILITY
+        SyncKnownValue();
+#endif
+    }
 }
 
 wxString ComboBox::GetItemTooltip(unsigned int n) const
@@ -431,6 +440,30 @@ void ComboBox::DoSetItemClientData(unsigned int n, void *data)
     if (n < items.size())
         items[n].data = data;
 }
+
+#if wxUSE_ACCESSIBILITY
+
+void ComboBox::NotifyValueChanged()
+{
+    // The index alone cannot say whether what a screen reader reads out has changed:
+    // choosing a preset repopulates the combo, and since Clear() resets the selection the
+    // same item is selected again afterwards, reaching SetSelection three times for one
+    // arrow press. Announce on the value instead, which is the thing being spoken.
+    const wxString value = GetValue();
+    if (value == m_known_value)
+        return;
+    m_known_value = value;
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_VALUECHANGE, this, wxOBJID_CLIENT, wxACC_SELF);
+}
+
+void ComboBox::SyncKnownValue()
+{
+    // Left unrecorded, a value change that announces nothing would be taken for the
+    // announced one, and a later selection back to it swallowed as a repeat.
+    m_known_value = GetValue();
+}
+
+#endif // wxUSE_ACCESSIBILITY
 
 void ComboBox::mouseDown(wxMouseEvent &event)
 {

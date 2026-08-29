@@ -115,7 +115,15 @@ void TextInput::SetCornerRadius(double radius)
 
 void TextInput::SetLabel(const wxString& label)
 {
-    wxWindow::SetLabel(label);
+    // ORCA: on Windows this is a SetWindowText call, from which Windows raises an MSAA
+    // name change even when the text is identical - a combo reselected during a preset
+    // apply has its value read out again for each one. Rewriting the same text is a no-op
+    // for a widget that draws its own label in render(), and wxWindowMac::SetLabel already
+    // returns early on it, so skipping it only brings the other platforms in line. The
+    // measure and repaint stay unconditional: SetLabel(GetLabel()) is used elsewhere to
+    // force exactly those, and nothing else re-measures after a font change.
+    if (label != wxWindow::GetLabel())
+        wxWindow::SetLabel(label);
     messureSize();
     Refresh();
 }
