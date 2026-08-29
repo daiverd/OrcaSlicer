@@ -9989,6 +9989,16 @@ bool GUI_App::run_wizard(RunReason reason, StartPage start_page)
         // BBS: remove SLA related message
     }
 
+    // ORCA: nothing takes focus on the way out of the wizard, and on first run it opened
+    // before any main frame control had ever held it, so wx has no previous focus to
+    // restore and a screen reader is left on a nameless pane. Deferred because the frame
+    // is only destroyed when this scope ends.
+    CallAfter([this] {
+        if (plater_ && plater_->IsShownOnScreen())
+            if (GLCanvas3D *canvas = plater_->get_current_canvas3D())
+                canvas->force_set_focus();
+    });
+
     return res;
 }
 
