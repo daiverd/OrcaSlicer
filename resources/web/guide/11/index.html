@@ -22,12 +22,18 @@
 </div>
 <main id="Content">
 	<div id="EarthIcon"><img src="earth.png" alt=""/></div>
-	<div id="RegionList">
-		<button type="button" class="trans RegionItem RegionSelected TextS1" tid="t48" region="Asia-Pacific" onclick="ChooseRegion('Asia-Pacific')" aria-pressed="true">Asia-Pacific</button>
-		<button type="button" class="trans RegionItem" tid="t49" region="China" onclick="ChooseRegion('China')" aria-pressed="false">China</button>
-		<button type="button" class="trans RegionItem" tid="t60" region="Europe" onclick="ChooseRegion('Europe')" aria-pressed="false">Europe</button>
-		<button type="button" class="trans RegionItem" tid="t61" region="North America" onclick="ChooseRegion('North America')" aria-pressed="false">North America</button>
-		<button type="button" class="trans RegionItem" tid="t62" region="Others" onclick="ChooseRegion('Others')" aria-pressed="false">Others</button>
+	<!-- ORCA one exclusive choice, not five independent toggles: as toggle buttons each
+	     region announced on its own, nothing said the others were alternatives, and
+	     choosing one never said the previous one had cleared. A radiogroup says
+	     "North America, radio button, checked, 4 of 5" and carries the exclusivity for
+	     free. The group is one Tab stop - the checked region holds the tabindex and the
+	     arrow keys move the choice (11.js) - which is what a radio group promises. -->
+	<div id="RegionList" role="radiogroup" aria-label="Login region" label-tid="a11y_login_region">
+		<button type="button" class="trans RegionItem RegionSelected TextS1" tid="t48" region="Asia-Pacific" onclick="ChooseRegion('Asia-Pacific')" role="radio" aria-checked="true" tabindex="0">Asia-Pacific</button>
+		<button type="button" class="trans RegionItem" tid="t49" region="China" onclick="ChooseRegion('China')" role="radio" aria-checked="false" tabindex="-1">China</button>
+		<button type="button" class="trans RegionItem" tid="t60" region="Europe" onclick="ChooseRegion('Europe')" role="radio" aria-checked="false" tabindex="-1">Europe</button>
+		<button type="button" class="trans RegionItem" tid="t61" region="North America" onclick="ChooseRegion('North America')" role="radio" aria-checked="false" tabindex="-1">North America</button>
+		<button type="button" class="trans RegionItem" tid="t62" region="Others" onclick="ChooseRegion('Others')" role="radio" aria-checked="false" tabindex="-1">Others</button>
 	</div>
 <!--	<div id="ChangeTip">
 		<div><img class="TipIcon" src="tip.png" /></div>

@@ -133,6 +133,7 @@ var LangText = {
     a11y_home_title: "Home",
     a11y_model_title: "Model",
     a11y_recent_file_menu: "Recent file actions",
+    a11y_login_region: "Login region",
     a11y_select_all_shown: "Select all shown filaments",
     a11y_deselect_all_shown: "Clear all shown filaments",
     a11y_license: "License: {0}",
