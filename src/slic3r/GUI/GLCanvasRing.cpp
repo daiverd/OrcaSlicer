@@ -213,8 +213,9 @@ void GLCanvasKeyboardRing::render_focus_ring(const GLGizmosManager& gizmos) cons
 
 #if wxUSE_ACCESSIBILITY
 // A toolbar tooltip is "Label [Shortcut]", with one more line per variant of the same
-// command where there is one. The label alone is the accessible name, the bracket is the
-// keyboard shortcut, and what is left over is detail for the description.
+// command where there is one, and a disabled gizmo names itself "Label:" with the reason
+// it is unavailable on the next line. The label alone is the accessible name, the bracket
+// is the keyboard shortcut, and what is left over is detail for the description.
 static void split_tooltip(const std::string& tooltip, wxString& name, wxString& shortcut, wxString& detail)
 {
     const wxString text = from_u8(tooltip);
@@ -229,6 +230,8 @@ static void split_tooltip(const std::string& tooltip, wxString& name, wxString& 
         }
     }
     name.Trim();
+    if (name.EndsWith(":"))
+        name.RemoveLast();
 }
 
 int GLCanvasKeyboardRing::child_count() const
@@ -268,6 +271,7 @@ bool GLCanvasKeyboardRing::child_info(int child_id, ChildInfo& info) const
     const Entry& entry = stop.entries[index];
     info = ChildInfo();
     info.description = stop.name;
+    wxString detail;
 
     if (entry.toolbar == nullptr) {
         const GLGizmosManager& gizmos = m_canvas.get_gizmos_manager();
@@ -275,35 +279,36 @@ bool GLCanvasKeyboardRing::child_info(int child_id, ChildInfo& info) const
         if (gizmo == nullptr)
             return false;
 
-        info.name = from_u8(gizmo->get_name(false));
+        split_tooltip(gizmo->get_name(false), info.name, info.shortcut, detail);
         if (const std::optional<Shortcut> shortcut = gizmo->shortcut(); shortcut.has_value())
             info.shortcut = from_u8(wxGetApp().shortcuts().display(*shortcut));
         info.enabled = gizmo->is_activable();
         info.pressed = gizmos.get_current_type() == entry.gizmo;
-        return true;
+    }
+    else {
+        const GLToolbarItem* item = entry.toolbar->get_item(entry.toolbar->get_item_id(entry.item_name));
+        if (item == nullptr)
+            return false;
+
+        split_tooltip(item->get_tooltip(), info.name, info.shortcut, detail);
+        if (info.name.empty())
+            // nothing to take a label from; the internal name is at least an identifier
+            info.name = from_u8(item->get_name());
+        if (!item->get_additional_tooltip().empty()) {
+            if (!detail.empty())
+                detail += "\n";
+            detail += from_u8(item->get_additional_tooltip());
+        }
+
+        info.enabled = item->is_enabled();
+        info.pressed = item->is_pressed();
     }
 
-    const GLToolbarItem* item = entry.toolbar->get_item(entry.toolbar->get_item_id(entry.item_name));
-    if (item == nullptr)
-        return false;
-
-    wxString detail;
-    split_tooltip(item->get_tooltip(), info.name, info.shortcut, detail);
-    if (info.name.empty())
-        // nothing to take a label from; the internal name is at least an identifier
-        info.name = from_u8(item->get_name());
-    if (!item->get_additional_tooltip().empty()) {
-        if (!detail.empty())
-            detail += "\n";
-        detail += from_u8(item->get_additional_tooltip());
-    }
     if (!detail.empty()) {
         info.description += ". ";
         info.description += detail;
     }
 
-    info.enabled = item->is_enabled();
-    info.pressed = item->is_pressed();
     return true;
 }
 
