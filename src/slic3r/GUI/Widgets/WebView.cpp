@@ -1,4 +1,5 @@
 #include "WebView.hpp"
+#include "WidgetAccessible.hpp"
 #include "slic3r/GUI/Widgets/StateColor.hpp"
 #include "slic3r/GUI/GUI_App.hpp"
 #include "slic3r/Utils/MacDarkMode.hpp"
@@ -310,7 +311,17 @@ static wxString linux_user_agent()
 }
 #endif
 
-wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url)
+void WebView::SetupAccessibility(wxWebView * webView, wxString const & name)
+{
+    if (!webView)
+        return;
+    webView->SetName(name);
+#if wxUSE_ACCESSIBILITY
+    webView->SetAccessible(new WidgetAccessible(webView, wxROLE_SYSTEM_DOCUMENT));
+#endif
+}
+
+wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url, wxString const & name)
 {
 #if wxUSE_WEBVIEW_EDGE
     // Check if a fixed version of edge is present in
@@ -411,6 +422,7 @@ wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url)
         webView = new FakeWebView;
     }
     webView->SetRefData(new WebViewRef(webView));
+    SetupAccessibility(webView, name);
     g_webviews.push_back(webView);
     return webView;
 }

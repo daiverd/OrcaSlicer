@@ -78,7 +78,7 @@ constexpr char PLUGIN_PAGE_BRIDGE_JS[] = R"JS(
 } // namespace
 
 PluginPage::PluginPage(wxWindow* parent, std::shared_ptr<PagesPluginCapability> capability)
-    : GUI::WebPanel(parent, PLUGIN_PAGE_BRIDGE_JS)
+    : GUI::WebPanel(parent, PLUGIN_PAGE_BRIDGE_JS, wxString::FromUTF8(capability->name()))
     , m_cap(std::move(capability))
     , m_lifetime(std::make_shared<std::atomic<PluginPage*>>(this))
 {

@@ -181,7 +181,7 @@ PrinterWebView::~PrinterWebView()
 
 void PrinterWebView::create_browser()
 {
-    m_browser = WebView::CreateWebView(this, "");
+    m_browser = WebView::CreateWebView(this, "", _L("Printer Web Interface"));
     add_page_strings(m_browser);
 
 #ifdef __linux__

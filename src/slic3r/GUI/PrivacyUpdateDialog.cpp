@@ -141,7 +141,7 @@ PrivacyUpdateDialog::PrivacyUpdateDialog(wxWindow* parent, wxWindowID id, const 
 
 wxWebView* PrivacyUpdateDialog::CreateTipView(wxWindow* parent)
 {
-	wxWebView* tipView = WebView::CreateWebView(parent, "");
+	wxWebView* tipView = WebView::CreateWebView(parent, "", _L("Privacy Policy"));
 	return tipView;
 }
 

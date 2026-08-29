@@ -22,7 +22,8 @@ namespace Slic3r { namespace GUI {
 class WebPanel : public wxPanel
 {
 public:
-    WebPanel(wxWindow* parent, const char* bridge_script);
+    // name is the web view's accessible name, see WebView::CreateWebView().
+    WebPanel(wxWindow* parent, const char* bridge_script, const wxString& name);
 
 protected:
     wxWebView* browser() const { return m_browser; }

@@ -175,7 +175,7 @@ ZUserLogin::ZUserLogin(std::shared_ptr<ICloudServiceAgent> cloud_agent)
         m_bbl_user_agent = wxString::Format("BBL-Slicer/v%s", wxGetApp().get_bbl_client_version());
 
         // Create the webview
-        m_browser = WebView::CreateWebView(this, TargetUrl);
+        m_browser = WebView::CreateWebView(this, TargetUrl, _L("Login"));
         if (m_browser == nullptr) {
             wxLogError("Could not init m_browser");
             return;

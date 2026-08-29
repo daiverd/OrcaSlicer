@@ -14,7 +14,16 @@ wxDECLARE_EVENT(EVT_WEBVIEW_RECREATED, wxCommandEvent);
 class WebView
 {
 public:
-    static wxWebView *CreateWebView(wxWindow *parent, wxString const &url);
+    // name is what assistive technology announces for the host - pass the tab, page or
+    // dialog the view serves, translated. See SetupAccessibility() for why it matters.
+    static wxWebView *CreateWebView(wxWindow *parent, wxString const &url, wxString const &name);
+
+    // wx installs no wxAccessible on any of its web view backends, so a host is announced
+    // as an unnamed "pane" carrying wx's default window name, "wxWebView". Name it and
+    // report the document role instead. CreateWebView() does this for every view it makes;
+    // this is public only for the few hosts that build their wxWebView directly.
+    static void SetupAccessibility(wxWebView *webView, wxString const &name);
+
 #if wxUSE_WEBVIEW_EDGE
     static bool CheckWebViewRuntime();
     static bool DownloadAndInstallWebViewRuntime();

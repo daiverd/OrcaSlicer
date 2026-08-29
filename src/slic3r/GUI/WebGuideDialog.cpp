@@ -238,7 +238,7 @@ GuideFrame::GuideFrame(GUI_App *pGUI, long style)
 
     // Created empty and loaded by SetStartPage(BBL_REGION) below, after the strings are added, so the
     // first load already has them.
-    m_browser = WebView::CreateWebView(this, wxEmptyString);
+    m_browser = WebView::CreateWebView(this, wxEmptyString, _L("Setup Wizard"));
     if (m_browser == nullptr) {
         wxLogError("Could not init m_browser");
         return;

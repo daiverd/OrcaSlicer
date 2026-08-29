@@ -11,6 +11,7 @@
 #include "Button.hpp"
 #include "Label.hpp"
 #include "ComboBox.hpp"
+#include "WebView.hpp"
 #include "StaticBox.hpp"
 #include <nlohmann/json.hpp>
 #include "libslic3r/PresetBundle.hpp"
@@ -669,6 +670,7 @@ void HotEndTable::OnPaint(wxPaintEvent& evt)
 NozzleListTable::NozzleListTable(wxWindow* parent) : wxPanel(parent,wxID_ANY,wxDefaultPosition,wxDefaultSize ,wxNO_BORDER)
 {
     m_web_view = wxWebView::New(this, wxID_ANY, wxEmptyString, wxDefaultPosition,wxDefaultSize,wxString::FromAscii(wxWebViewBackendDefault),wxNO_BORDER);
+    WebView::SetupAccessibility(m_web_view, _L("Nozzle Selection"));
     m_web_view->AddScriptMessageHandler("nozzleListTable");
     m_web_view->EnableContextMenu(false);
     fs::path filepath = fs::path(resources_dir()) / "web/flush/NozzleListTable.html";

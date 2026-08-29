@@ -22,8 +22,9 @@ public:
     using CloseHandler   = std::function<void()>;
 
     // on_close fires once, on a user or page close. on_destroyed runs on every destruction and must
-    // touch host-side state only.
+    // touch host-side state only. title is the pane's caption, reused as the web view's accessible name.
     DockPanel(wxWindow*          parent,
+              const wxString&    title,
               const std::string& html,
               MessageHandler     on_message,
               CloseHandler       on_close,

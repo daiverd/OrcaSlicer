@@ -36,6 +36,7 @@
 #include "Widgets/DialogButtons.hpp"
 #include "libslic3r/Config.hpp"
 #include "Widgets/Label.hpp"
+#include "Widgets/WebView.hpp"
 #include "MainFrame.hpp"
 #include "libslic3r/PresetBundle.hpp"
 #include "libslic3r/Preset.hpp"
@@ -496,6 +497,7 @@ WipingDialog::WipingDialog(wxWindow* parent, const int max_flush_volume) :
         applied_size,
         wxWebViewBackendDefault,
         wxNO_BORDER);
+    WebView::SetupAccessibility(m_webview, _L("Flushing Volumes"));
 
     m_webview->AddScriptMessageHandler("wipingDialog");
     // The page's strings (resources/web/flush/WipingDialog.html), keyed by their T() ids.

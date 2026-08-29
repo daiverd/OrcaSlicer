@@ -517,7 +517,7 @@ py::object ui_create_dock_panel(const std::string& html, const std::string& titl
         }
 
         auto  on_destroyed = [new_id]() { UiRegistry::instance().remove(new_id); };
-        auto* panel = new GUI::DockPanel(plater, html, std::move(msg_adapter), make_close_adapter(close_holder),
+        auto* panel = new GUI::DockPanel(plater, wxString::FromUTF8(title), html, std::move(msg_adapter), make_close_adapter(close_holder),
                                          std::move(on_destroyed));
         UiRegistry::instance().bind(new_id, panel, plugin_key);
         plater->add_dock_pane(panel, GUI::plugin_pane_name(plugin_key, title), wxString::FromUTF8(title), dock,
