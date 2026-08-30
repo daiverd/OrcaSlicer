@@ -1,49 +1,52 @@
-Move the focus into and out of the web content when navigating by keyboard.
+Move the focus out of the web content, and keep the traversal from moving it in.
 
-The Edge backend asked WebView2 to move the focus with
-COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC in all cases, which focuses the web
-content window without giving the focus to any element of the document and
-without saying in which direction the focus is travelling. Nothing handled
-ICoreWebView2Controller::MoveFocusRequested either, so the focus could never
-leave the web view again: Tab moved the focus into a wxWebView and left it
-there until the user clicked somewhere else.
+Nothing handled ICoreWebView2Controller::MoveFocusRequested, the only
+notification WebView2 gives when the user tabs past the last, or before the
+first, focusable element of the page. Its default action looks for the next tab
+stop among the native child windows of the application, which knows nothing
+about the order in which wx navigates its windows, and cycles the focus inside
+the page when it doesn't find one. The focus could therefore never leave a
+wxWebView again: it went in, by Tab or by a mouse click, and stayed there until
+the user clicked somewhere else.
 
-Pass _NEXT or _PREVIOUS when the focus arrives while Tab is pressed, so that
-WebView2 puts the DOM focus on the first (or, for Shift+Tab, the last)
-focusable element of the page. The key state is what tells us the direction:
-neither wxFocusEvent nor SetFocusFromKbd(), which is not even called when the
-focus is moved by the native dialog navigation code, carries it. PROGRAMMATIC
-is still used when the focus doesn't come from Tab, e.g. on a mouse click, so
-nothing changes there.
+Handle the request by continuing the keyboard traversal in the window
+containing the control with wxWindow::Navigate(), and ask the windows further
+up in turn when the parent has nowhere to move the focus to, just as
+wxControlContainer does when it runs out of children of its own. Navigate()
+returning true only says that some window handled the navigation event and not
+that the focus really moved: a window whose only tab stop is the web view gives
+the focus straight back to it, which is exactly what the user is trying to
+leave, so check where the focus actually is before stopping. Always claim the
+request as handled, so that the default action can't cycle the focus inside the
+page.
 
-Handle MoveFocusRequested, which WebView2 raises when the user tabs past the
-last (or before the first) focusable element of the page, by continuing the
-traversal in the window containing the control with wxWindow::Navigate(), so
-that the focus leaves the web view instead of cycling inside it forever.
+Leave the control out of the keyboard traversal of its window with
+DisableFocusFromKeyboard(). Tabbing into the web content is only worth doing if
+tabbing out of it works every single time, and that round trip can't be relied
+on yet: MoveFocusRequested is the only boundary WebView2 reports, a page which
+doesn't raise it strands the focus in the web content, and MoveFocus() being
+asynchronous means the answer to our own request can't always be told apart
+from a genuine one. A web view which can't be reached with Tab is an
+inconvenience; one which can't be left with Tab is a trap for a keyboard-only
+user, so prefer the former until the latter is ruled out. The focus still
+arrives from a mouse click, from SetFocus() and from wxSetFocusToChild()
+restoring it, and the handler above still moves it back out of the page in all
+of those cases.
 
-MoveFocus() is asynchronous, so a flag set around the call itself can't tell
-the answer to our own request from a genuine request to leave the web view:
-depending on the timing it either misses the answer or swallows the genuine
-request, in both cases leaving the focus somewhere the user didn't ask for.
-Remember the direction we asked for instead and clear it when the web content
-takes the focus, which GotFocus tells us about, or when MoveFocusRequested
-arrives, i.e. always from an event and never after some delay. A page which
-refuses the focus is asked for it once more without a direction before giving
-up on it: not all pages take the focus when they're asked to start at their
-first or last focusable element, and passing the traversal on in that case
-would make their content unreachable from the keyboard.
-
-Finally, always claim the request as handled. Its default action is to look
-for the next tab stop among the native child windows of the application, which
-knows nothing about the order in which wx navigates its windows, and to cycle
-the focus inside the page when it doesn't find one, trapping the user in the
-web content. Asking the parents of the control in turn, as wxControlContainer
-does when it runs out of children of its own, is a better last resort when
-wxWindow::Navigate() finds nowhere to move the focus to.
+The rest is the machinery which puts the DOM focus on the first, or last,
+focusable element of the page when the focus arrives from a Tab: it asks
+WebView2 for a direction instead of for a plain PROGRAMMATIC focus, remembers
+that direction until GotFocus or MoveFocusRequested resolves it, and asks a
+page which refuses a directional focus once more without one before passing the
+traversal on, so that a page which won't start at its first or last focusable
+element still gets the focus instead of being skipped. It is kept because it is
+what the opt-out above is holding back, but with the control out of the
+traversal the focus no longer arrives with Tab held down, so it stays inert
+until that opt-out is lifted.
 
  include/wx/msw/private/webview_edge.h |  26 +++++
- src/msw/webview_edge.cpp              | 181 +++++++++++++++++++++++++++++++++-
- 2 files changed, 205 insertions(+), 2 deletions(-)
+ src/msw/webview_edge.cpp              | 205 +++++++++++++++++++++++++++++++++-
+ 2 files changed, 229 insertions(+), 2 deletions(-)
 
 diff --git a/include/wx/msw/private/webview_edge.h b/include/wx/msw/private/webview_edge.h
 index 9f98c28..f576c7c 100644
@@ -104,7 +107,7 @@ index 9f98c28..f576c7c 100644
      HRESULT OnWebViewCreated(HRESULT result, ICoreWebView2Controller* webViewController);
  
 diff --git a/src/msw/webview_edge.cpp b/src/msw/webview_edge.cpp
-index cf6f80e..dd9e0cb 100644
+index cf6f80e..7331bca 100644
 --- a/src/msw/webview_edge.cpp
 +++ b/src/msw/webview_edge.cpp
 @@ -24,6 +24,7 @@
@@ -128,7 +131,7 @@ index cf6f80e..dd9e0cb 100644
  }
  
  bool wxWebViewEdgeImpl::Create()
-@@ -747,6 +754,135 @@ HRESULT wxWebViewEdgeImpl::OnWindowCloseRequested(ICoreWebView2* WXUNUSED(sender
+@@ -747,6 +754,143 @@ HRESULT wxWebViewEdgeImpl::OnWindowCloseRequested(ICoreWebView2* WXUNUSED(sender
      return S_OK;
  }
  
@@ -165,7 +168,15 @@ index cf6f80e..dd9e0cb 100644
 +         win && !win->IsTopNavigationDomain(wxWindow::Navigation_Tab);
 +         win = win->GetParent())
 +    {
-+        if (win->Navigate(flags | wxNavigationKeyEvent::FromTab))
++        // Navigate() returning true only means that some window handled the
++        // navigation event and not that the focus really moved: a window whose
++        // only tab stop is this control gives the focus straight back to it,
++        // which is exactly what the user is trying to leave. Check where the
++        // focus actually is and keep asking the windows further up while it is
++        // still in the web content, HasFocus() being true for it as the
++        // windows used by WebView2 are children of this control.
++        if (win->Navigate(flags | wxNavigationKeyEvent::FromTab) &&
++                !m_ctrl->HasFocus())
 +            break;
 +    }
 +
@@ -264,7 +275,7 @@ index cf6f80e..dd9e0cb 100644
  HRESULT wxWebViewEdgeImpl::OnDocumentTitleChanged(ICoreWebView2* WXUNUSED(sender), IUnknown* WXUNUSED(args))
  {
      wxWebViewEvent event(wxEVT_WEBVIEW_TITLE_CHANGED,
-@@ -944,6 +1080,17 @@ HRESULT wxWebViewEdgeImpl::OnWebViewCreated(HRESULT result, ICoreWebView2Control
+@@ -944,6 +1088,17 @@ HRESULT wxWebViewEdgeImpl::OnWebViewCreated(HRESULT result, ICoreWebView2Control
              this, &wxWebViewEdgeImpl::OnWindowCloseRequested).Get(),
          &m_windowCloseRequestedToken);
  
@@ -282,7 +293,30 @@ index cf6f80e..dd9e0cb 100644
      // Register handlers
      for (const auto& kv : m_handlers)
      {
-@@ -1168,10 +1315,40 @@ void wxWebViewEdge::OnSize(wxSizeEvent& event)
+@@ -1154,6 +1309,22 @@ bool wxWebViewEdge::Create(wxWindow* parent,
+         return false;
+     Bind(wxEVT_SIZE, &wxWebViewEdge::OnSize, this);
+     Bind(wxEVT_SET_FOCUS, &wxWebViewEdge::OnSetFocus, this);
++
++    // Leave the control out of the keyboard traversal of its window. Tabbing
++    // into the web content is only worth doing if tabbing past its last
++    // element brings the focus back out of it every time, and that round trip
++    // can't be relied on yet: MoveFocusRequested is the only notification
++    // WebView2 gives at the boundary of the page, a page which doesn't raise
++    // it leaves the focus in the web content with no way out short of a mouse
++    // click, and the answer to our own MoveFocus() can't always be told apart
++    // from it. A web view which can't be reached with Tab is an inconvenience;
++    // one which can't be left with Tab is a trap for a keyboard-only user, so
++    // prefer the former until the latter is ruled out. The focus still comes
++    // here from a mouse click, from SetFocus() and from wxSetFocusToChild()
++    // restoring it, and MoveFocusRequested still takes it back out of the page
++    // in all of these cases.
++    DisableFocusFromKeyboard();
++
+     wxWindow* topLevelParent = wxGetTopLevelParent(this);
+     if (topLevelParent)
+         topLevelParent->Bind(wxEVT_ICONIZE, &wxWebViewEdge::OnTopLevelParentIconized, this);
+@@ -1168,10 +1339,40 @@ void wxWebViewEdge::OnSize(wxSizeEvent& event)
      event.Skip();
  }
  
