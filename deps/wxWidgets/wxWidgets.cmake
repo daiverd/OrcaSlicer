@@ -21,10 +21,14 @@ else ()
     set(_wx_edge "-DwxUSE_WEBVIEW_EDGE=OFF")
 endif ()
 
-set(_wx_patch_command "")
+# ORCA: accessibility patches to the wxWidgets source, applied on every platform.
+set(_wx_patch_command
+    ${GIT_EXECUTABLE} apply --verbose --ignore-space-change --whitespace=fix
+            ${CMAKE_CURRENT_LIST_DIR}/0005-accessible-iolewindow.patch
+)
 if (APPLE)
-    set(_wx_patch_command
-        ${GIT_EXECUTABLE} checkout -f -- src/osx/cocoa/colour.mm
+    list(APPEND _wx_patch_command
+        COMMAND ${GIT_EXECUTABLE} checkout -f -- src/osx/cocoa/colour.mm
         COMMAND ${GIT_EXECUTABLE} apply --verbose
                 ${CMAKE_CURRENT_LIST_DIR}/0001-macos-use-srgb-colour-components.patch
     )

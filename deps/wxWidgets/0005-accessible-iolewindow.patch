@@ -1,0 +1,156 @@
+Implement IOleWindow in wxIAccessible.
+
+WindowFromAccessibleObject() finds the window of an IAccessible by asking it
+for IOleWindow and, when the object doesn't implement it, by repeating the
+question up the get_accParent() chain. wxIAccessible only implemented
+IAccessible, so the lookup always ended at the first object above it that did,
+which in practice is the standard accessible object of an ancestor window.
+Every wx accessible object of a child window was therefore reported as
+belonging to its parent's HWND.
+
+The most visible consequence is in UI Automation clients (Narrator,
+Accessibility Insights, axe-windows), which see MSAA servers through a proxy:
+the proxy lists the container's IAccessible children and the child HWNDs
+separately unless it can tell that a child object belongs to a child window, so
+every child window carrying a wxAccessible appeared twice in the UIA tree, once
+as the HWND and once as a nameless-id copy, and a selected page tab, for
+instance, was flagged as having a selected sibling. Screen readers using
+IAccessible directly did not see the duplicate.
+
+Derive wxIAccessible from IOleWindow as well and return the HWND of the
+associated wxWindow from GetWindow(). QueryInterface() is written out instead
+of using IMPLEMENT_IUNKNOWN_METHODS() because with two base interfaces it has
+to hand out the pointer to the requested subobject rather than "this"; AddRef()
+and Release() are the macro's bodies verbatim.
+
+Submitted upstream as a pull request against wxWidgets master, where the file
+is identical to 3.3.2; drop this patch once Orca picks up a wx release that
+contains it.
+
+ src/msw/ole/access.cpp | 92 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 90 insertions(+), 2 deletions(-)
+
+diff --git a/src/msw/ole/access.cpp b/src/msw/ole/access.cpp
+index d2e9f9b..189f4c4 100644
+--- a/src/msw/ole/access.cpp
++++ b/src/msw/ole/access.cpp
+@@ -169,7 +169,10 @@ STDMETHODIMP wxIEnumVARIANT::Clone(IEnumVARIANT **ppenum)
+ // wxIAccessible implementation of IAccessible interface
+ // ----------------------------------------------------------------------------
+ 
+-class wxIAccessible : public IAccessible
++// IOleWindow is implemented too so that WindowFromAccessibleObject() can
++// find the window of this object directly instead of walking up the parent
++// chain until it reaches an object that does implement it.
++class wxIAccessible : public IAccessible, public IOleWindow
+ {
+ public:
+     wxIAccessible(wxAccessible *pAccessible);
+@@ -313,6 +316,16 @@ public:
+                         VARIANT *pVarResult, EXCEPINFO *pExcepInfo,
+                         unsigned int *puArgErr ) override;
+ 
++// IOleWindow
++
++        // Retrieves the handle of the window this object belongs to.
++
++    STDMETHODIMP GetWindow(HWND* phwnd) override;
++
++        // Context-sensitive help mode is not supported.
++
++    STDMETHODIMP ContextSensitiveHelp(BOOL fEnterMode) override;
++
+ // Helpers
+ 
+     // Gets the standard IAccessible interface for the given child or object.
+@@ -343,7 +356,54 @@ BEGIN_IID_TABLE(wxIAccessible)
+   ADD_IID(Dispatch)
+ END_IID_TABLE;
+ 
+-IMPLEMENT_IUNKNOWN_METHODS(wxIAccessible)
++// Not IMPLEMENT_IUNKNOWN_METHODS() because the object has two base
++// interfaces, so QueryInterface() must return a pointer to the subobject of
++// the requested one, while the generic macro always returns "this": IUnknown,
++// IDispatch and IAccessible all resolve to the IAccessible subobject,
++// IOleWindow to the other one.
++STDMETHODIMP wxIAccessible::QueryInterface(REFIID riid, void **ppv)
++{
++    wxLogQueryInterface(wxT("wxIAccessible"), riid);
++
++    if ( IsIidFromList(riid, ms_aIids, WXSIZEOF(ms_aIids)) )
++    {
++        *ppv = static_cast<IAccessible*>(this);
++    }
++    else if ( riid == IID_IOleWindow )
++    {
++        *ppv = static_cast<IOleWindow*>(this);
++    }
++    else
++    {
++        *ppv = nullptr;
++        return (HRESULT) E_NOINTERFACE;
++    }
++
++    AddRef();
++    return S_OK;
++}
++
++STDMETHODIMP_(ULONG) wxIAccessible::AddRef()
++{
++    wxLogAddRef(wxT("wxIAccessible"), m_cRef);
++
++    return ++m_cRef;
++}
++
++STDMETHODIMP_(ULONG) wxIAccessible::Release()
++{
++    wxLogRelease(wxT("wxIAccessible"), m_cRef);
++
++    if ( --m_cRef == wxAutoULong(0) )
++    {
++        delete this;
++        return 0;
++    }
++    else
++    {
++        return m_cRef;
++    }
++}
+ 
+ wxIAccessible::wxIAccessible(wxAccessible *pAccessible)
+ {
+@@ -361,6 +421,34 @@ void wxIAccessible::Quiesce()
+     m_pAccessible = nullptr;
+ }
+ 
++// Retrieves the handle of the window this object belongs to.
++
++STDMETHODIMP wxIAccessible::GetWindow(HWND* phwnd)
++{
++    wxLogTrace(wxT("access"), wxT("GetWindow"));
++    wxASSERT( ( m_pAccessible != nullptr ) || ( m_bQuiescing == true ) );
++    if (!phwnd)
++        return E_INVALIDARG;
++
++    *phwnd = nullptr;
++    if (!m_pAccessible)
++        return E_FAIL;
++
++    wxWindow* const window = m_pAccessible->GetWindow();
++    if (!window || !window->GetHWND())
++        return E_FAIL;
++
++    *phwnd = (HWND) window->GetHWND();
++    return S_OK;
++}
++
++// Context-sensitive help mode is not supported.
++
++STDMETHODIMP wxIAccessible::ContextSensitiveHelp(BOOL WXUNUSED(fEnterMode))
++{
++    return E_NOTIMPL;
++}
++
+ // Retrieves the child element or child object at a given point on the screen.
+ // All visual objects support this method; sound objects do not support it.
+ 
