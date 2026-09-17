@@ -68,9 +68,14 @@ ComboBox::ComboBox(wxWindow *parent,
     // The EXPANDED/COLLAPSED state is what screen readers announce for the popup being
     // open or shut, and a non-null default action is what makes the control operable
     // from assistive tech (Windows' MSAA-to-UIA proxy grants InvokePattern from it).
-    // The proxy cannot synthesize a UIA ExpandCollapse *pattern* from MSAA - that
-    // would need a native IAccessibleEx provider - but it does map the state to the
-    // ExpandCollapseState property.
+    // The proxy does NOT carry the open/shut state over to UIA at all: an axe-windows
+    // scan of every combo here reports InvokePattern, ValuePattern and
+    // LegacyIAccessiblePattern and no ExpandCollapse pattern or ExpandCollapseState
+    // property, with the COLLAPSED state and the "Open" verb readable only through
+    // LegacyIAccessiblePattern.State / .DefaultAction. MSAA clients - NVDA, Narrator,
+    // Inspect in MSAA mode - do get both. Giving a UIA-only client the pattern needs a
+    // native provider (IAccessibleEx / IRawElementProviderSimple), which wx has no
+    // support for, so axe-windows keeps flagging every combo here for it.
     SetAccessibleRole(wxROLE_SYSTEM_COMBOBOX, [this] {
         return drop_down ? wxACC_STATE_SYSTEM_EXPANDED : wxACC_STATE_SYSTEM_COLLAPSED;
     });
