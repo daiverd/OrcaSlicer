@@ -1361,9 +1361,13 @@ size_t PublishSettingsDialog::category_index_for(const wxString& title,
             // its text.
             const DynamicPrintConfig full_cfg = wxGetApp().preset_bundle->full_config();
             const wxBitmap tab_bmp = mixed_filament_tab_bitmap(full_cfg, source_index, FromDIP(20), target->GetBackgroundColour());
-            if (tab_bmp.IsOk())
-                target->AppendItem(wxString(), tab_bmp);
-            else
+            if (tab_bmp.IsOk()) {
+                const int tab = target->AppendItem(wxString(), tab_bmp);
+                // The empty text leaves the tab with nothing to be named from, so give it the
+                // same composition the bitmap paints, plus the slot it belongs to.
+                target->SetItemName(static_cast<unsigned int>(tab),
+                                    wxString::Format(_L("Mixed filament %d: %s"), int(source_index + 1), title));
+            } else
                 target->AppendItem(title);
         } else if (wxBitmap* chip = get_extruder_color_icon(hex, chip_label, FromDIP(20), FromDIP(20))) {
             target->AppendItem(title, *chip);

@@ -197,6 +197,13 @@ void TabCtrl::SetItemBitmap(unsigned int item, const wxBitmap& bitmap)
     relayout();
 }
 
+void TabCtrl::SetItemName(unsigned int item, wxString const& name)
+{
+    if (item >= btns.size())
+        return;
+    btns[item]->SetName(name);
+}
+
 void TabCtrl::SetItemIndicator(unsigned int item, bool on)
 {
     if (item >= btns.size())
