@@ -300,12 +300,27 @@ function OpenAccountMenu(strProvider) {
   $(".AccountRow").removeClass("MenuOpen").attr("aria-expanded", "false");
   row.addClass("MenuOpen").attr("aria-expanded", "true");
   m_OpenAccountMenu = strProvider;
+
+  /*----ORCA the focus follows the menu in, the way the recent-file context menu does:
+        a role="menu" that opens behind the focus is unreachable by keyboard and silent
+        to a screen reader, whichever gesture opened it----*/
+  $("#AccountMenu [role=menuitem]:first").focus();
 }
 
-function CloseAccountMenu() {
+/*----ORCA bRestoreFocus is false where the closing gesture decides the focus itself
+      (a click elsewhere, folding the section away)----*/
+function CloseAccountMenu(bRestoreFocus) {
+  var strProvider = m_OpenAccountMenu;
+
   $("#AccountMenu").removeClass("Open");
   $(".AccountRow").removeClass("MenuOpen").attr("aria-expanded", "false");
   m_OpenAccountMenu = null;
+
+  /*----ORCA the menu item the focus sits on is about to be hidden - hand the focus back
+        to the row that opened it, or it falls to the document and the next Tab restarts
+        from the top of the page----*/
+  if (strProvider !== null && bRestoreFocus !== false)
+    $(AccountRows[strProvider].row).focus();
 }
 
 function OnAccountMenuLogout() {
@@ -319,7 +334,7 @@ function SetBambuSectionExpanded(bExpanded, bPersist) {
   $("#BambuCloudBody").toggleClass("Expanded", bExpanded);
   $("#BambuAccount").attr("tabindex", bExpanded ? "0" : "-1");  /*----keep the folded row out of the tab order----*/
   $("#BambuCloudHeader").toggleClass("Expanded", bExpanded).attr("aria-expanded", bExpanded ? "true" : "false");
-  if (!bExpanded && m_OpenAccountMenu === "bambu") CloseAccountMenu();
+  if (!bExpanded && m_OpenAccountMenu === "bambu") CloseAccountMenu(false);  /*----the row it would restore to is being hidden----*/
   // Best effort: the fold is a per-machine convenience, not a synced preference.
   if (bPersist) { try { localStorage.setItem(BAMBU_FOLD_KEY, bExpanded ? "1" : "0"); } catch (e) {} }
 }
@@ -335,19 +350,24 @@ function Set_AccountMenu_Event() {
 
   $(document).mousedown(function (e) {
     if (m_OpenAccountMenu === null) return;
-    if ($(e.target).closest("#AccountMenu, .AccountRow").length === 0) CloseAccountMenu();
+    if ($(e.target).closest("#AccountMenu, .AccountRow").length === 0) CloseAccountMenu(false);  /*----the click places the focus----*/
   });
 
   $(document).keydown(function (e) {
     if (m_OpenAccountMenu !== null && e.key === "Escape") CloseAccountMenu();
   });
 
-  /*----Enter and Space activate the div-based buttons of this panel----*/
-  $(document).on("keydown", "#LoginArea [role=button], #LoginArea [role=menuitem]", function (e) {
-    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
-    e.preventDefault();
-    this.click();
+  /*----ORCA Tab must not walk out of an open menu: close it and put the focus back on
+        the row first, so the browser's own move carries on from the row and not from
+        wherever the hidden menu item was. Same shape as the recent-file menu----*/
+  $("#AccountMenu").on("keydown", function (e) {
+    if (e.key === "Tab") CloseAccountMenu();
   });
+
+  /*----ORCA the Enter/Space delegate that used to sit here was a second activation on
+        top of the shared one in include/a11y.js, which covers every [role=button] and
+        [role=menuitem] on the page: both fired and the menu opened and closed again on
+        one key press----*/
 }
 
 function SetMallUrl( strUrl )

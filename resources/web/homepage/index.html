@@ -24,8 +24,12 @@
 <div id="LeftBoard">
 	<div id="LoginArea">
 
+		<!-- The panel has no visible title, so the heading is clipped: it is what
+		     heading navigation lands on before the account rows. -->
+		<h2 class="A11yOnly trans" tid="a11y_heading_accounts">Accounts</h2>
+
 		<!-- Orca Cloud account -->
-		<div id="OrcaAccount" class="AccountRow" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"
+		<div id="OrcaAccount" class="AccountRow FocusRingInset" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"
 			 onClick="OnAccountRowClick('orca')">
 			<span class="AccountAvatar">
 				<img id="UserAvatarIcon" class="AccountAvatarImg" alt="" onerror="OnAvatarLoadError(this)" />
@@ -42,7 +46,7 @@
 
 		<!-- Bambu Cloud, a secondary provider folded away under the main account -->
 		<div id="BambuCloudSection">
-			<button type="button" id="BambuCloudHeader" aria-expanded="false" aria-controls="BambuCloudBody"
+			<button type="button" id="BambuCloudHeader" class="FocusRingInset" aria-expanded="false" aria-controls="BambuCloudBody"
 				 onClick="ToggleBambuSection()">
 				<svg class="SectionChevron" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 					<path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -52,7 +56,7 @@
 			</button>
 
 			<div id="BambuCloudBody">
-				<div id="BambuAccount" class="AccountRow AccountRowCompact" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"
+				<div id="BambuAccount" class="AccountRow AccountRowCompact FocusRingInset" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"
 					 onClick="OnAccountRowClick('bambu')">
 					<span class="AccountAvatar">
 						<img id="BambuAvatarIcon" class="AccountAvatarImg" alt="" onerror="OnAvatarLoadError(this)" />
@@ -78,7 +82,7 @@
 		     adds the account handle. -->
 		<div id="AccountMenu" role="menu">
 			<div id="AccountMenuHandle" role="presentation"></div>
-			<div id="AccountMenuLogout" role="menuitem" tabindex="0" onClick="OnAccountMenuLogout()">
+			<div id="AccountMenuLogout" class="FocusRingInset" role="menuitem" tabindex="0" onClick="OnAccountMenuLogout()">
 				<span id="AccountMenuLogoutIcon"></span>
 				<span class="trans" tid="t50">Log out</span>
 			</div>
