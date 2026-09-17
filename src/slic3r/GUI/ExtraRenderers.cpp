@@ -215,6 +215,11 @@ wxWindow* BitmapTextRenderer::CreateEditorCtrl(wxWindow* parent, wxRect labelRec
 
     wxTextCtrl* text_editor = new wxTextCtrl(parent, wxID_ANY, data.GetText(),
                                              position, labelRect.GetSize(), wxTE_PROCESS_ENTER);
+    // Give the in-place rename editor an accessible name: the generic
+    // wxDataViewCtrl editor otherwise exposes as an unnamed "Edit" to
+    // screen readers (a11y backlog §8 "Object list polish behind the wx
+    // patch", item (b)). Match the "Name" column header it edits.
+    text_editor->SetName(_L("Name"));
     text_editor->SetInsertionPointEnd();
     text_editor->SelectAll();
     text_editor->SetBackgroundColour(parent->GetBackgroundColour());
