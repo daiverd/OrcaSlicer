@@ -90,9 +90,11 @@ function ChooseRegion( strRegion )
 	SetAriaState($Rest, 'aria-checked', 'false');
 	SetAriaState($Chosen, 'aria-checked', 'true');
 
-	// the group is a single tab stop, and it is the checked region the Tab lands on
-	$Rest.attr('tabindex', '-1');
-	$Chosen.attr('tabindex', '0');
+	// the group is a single tab stop, and it is the checked region the Tab lands on.
+	// Guarded like the state above: every arrow press re-stamps the whole group, and an
+	// attribute write is a DOM mutation whether or not it changes anything
+	SetAriaState($Rest, 'tabindex', '-1');
+	SetAriaState($Chosen, 'tabindex', '0');
 }
 
 function GotoPolicyPage()

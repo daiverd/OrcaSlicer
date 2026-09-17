@@ -104,7 +104,9 @@ document.addEventListener('contextmenu', function (e) {
 // so the control the user just toggled got written twice and was announced twice
 // ("checked / checked", "pressed / pressed"). These two write only where the value
 // actually differs. `nodes` is a single element or anything array-like: a jQuery
-// object, a NodeList, an array.
+// object, a NodeList, an array. SetAriaState guards any attribute it is given, not
+// only the ARIA ones: the roving `tabindex` of a radio group is re-stamped by the
+// same batch handlers and is worth the same guard.
 function SetCheckedState(nodes, bChecked) {
 	var List = nodes.nodeType ? [nodes] : nodes;
 	for (var n = 0; n < List.length; n++)
