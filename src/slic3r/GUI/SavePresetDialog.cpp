@@ -110,6 +110,12 @@ SavePresetDialog::Item::Item(Preset::Type type, const std::string &suffix, wxBox
     m_input_ctrl = new ::TextInput(parent, from_u8(preset_name), wxEmptyString, wxEmptyString, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
     StateColor input_bg(std::pair<wxColour, int>(wxColour("#F0F0F1"), StateColor::Disabled), std::pair<wxColour, int>(*wxWHITE, StateColor::Enabled));
     m_input_ctrl->SetBackgroundColor(input_bg);
+    // ORCA: the "Save ... as" heading above is a separate wxStaticText that MSAA does not
+    // associate with this field, so the field was announced unnamed - and it is the one
+    // control in the dialog that has to be understood to use it. Name it for what it holds
+    // rather than repeating the heading, which already gives the context.
+    // TextInput::SetName() forwards the name to the inner EDIT, which is what takes focus.
+    m_input_ctrl->SetName(_L("Preset name"));
     m_input_ctrl->Bind(wxEVT_TEXT, [this](wxCommandEvent &) { update(); });
     m_input_ctrl->SetMinSize(wxSize(SAVE_PRESET_DIALOG_INPUT_SIZE));
     m_input_ctrl->SetMaxSize(wxSize(SAVE_PRESET_DIALOG_INPUT_SIZE));

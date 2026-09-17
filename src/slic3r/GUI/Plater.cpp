@@ -3591,6 +3591,10 @@ Sidebar::Sidebar(Plater *parent)
 
     p->m_search_item = new TextInput(p->m_search_bar, wxEmptyString, wxEmptyString, "", wxDefaultPosition, wxDefaultSize, 0 | wxBORDER_NONE);
     p->m_search_item->SetIcon(*BitmapCache().load_svg("search", FromDIP(16), FromDIP(16))); // ORCA: Add search icon to search box
+    // ORCA: the only thing that says what this field is for is the placeholder hint below,
+    // and a hint is drawn text, not an accessible name - the field was announced unnamed.
+    // TextInput::SetName() forwards the name to the inner EDIT, which is what takes focus.
+    p->m_search_item->SetName(_L("Search the object list"));
 
     wxTextCtrl* text_ctrl = p->m_search_item->GetTextCtrl();
     text_ctrl->SetHint(_L("Search plate, object and part."));
