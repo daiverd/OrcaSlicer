@@ -2,6 +2,7 @@
 #include "Label.hpp"
 #include "Button.hpp"
 #include "TextCtrl.h"
+#include "../I18N.hpp"
 
 #include "slic3r/GUI/Widgets/StaticBox.hpp"
 #include <utility>
@@ -254,6 +255,9 @@ Button *SpinInput::createButton(bool inc)
     auto btn = new Button(this, "", inc ? "spin_inc" : "spin_dec", wxBORDER_NONE, 6);
     btn->SetCornerRadius(0);
     btn->DisableFocusFromKeyboard();
+    // ORCA: icon-only arrow, no visible label of its own; the field it steps is named
+    // separately (see create_item_spinctrl's SetName(title)), so a generic verb is enough.
+    btn->SetName(inc ? _L("Increase value") : _L("Decrease value"));
     btn->Bind(wxEVT_LEFT_DOWN, [=](auto &e) {
         delta = inc ? 1 : -1;
         SetValue(val + delta * step);
