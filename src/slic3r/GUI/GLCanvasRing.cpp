@@ -337,16 +337,28 @@ bool GLCanvasKeyboardRing::child_rect(int child_id, wxRect& rect) const
     int slider = 0;
     if (slider_at(child_id, slider)) {
         IMSlider* im_slider = slider_of(slider);
-        wxRect window_rect;
-        // there is nothing to report before ImGui has laid the slider out
-        if (im_slider == nullptr || !im_slider->get_render_rect(window_rect))
+        if (im_slider == nullptr)
             return false;
 
-        // the ImGui layout is already in canvas pixels from the top left corner
-        left = (float)window_rect.GetLeft();
-        top = (float)window_rect.GetTop();
-        right = left + (float)window_rect.GetWidth();
-        bottom = top + (float)window_rect.GetHeight();
+        wxRect window_rect;
+        if (im_slider->get_render_rect(window_rect)) {
+            // the ImGui layout is already in canvas pixels from the top left corner
+            left = (float)window_rect.GetLeft();
+            top = (float)window_rect.GetTop();
+            right = left + (float)window_rect.GetWidth();
+            bottom = top + (float)window_rect.GetHeight();
+        }
+        else {
+            // ImGui has not laid the slider out yet (no context, the window is not found,
+            // or it is zero sized), but the slider is still a real, announced child. A
+            // screen reader that gets no rectangle for an existing child drops it from
+            // navigation and axe-windows flags it, so fall back to the whole canvas rather
+            // than report nothing; the rect is refined again once a frame has rendered.
+            left = 0.0f;
+            top = 0.0f;
+            right = cnv_w;
+            bottom = cnv_h;
+        }
     }
     else {
         Stop   stop;
