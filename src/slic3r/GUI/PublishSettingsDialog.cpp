@@ -2357,6 +2357,14 @@ void PublishSettingsDialog::refresh_tab_indicators()
                     section.variant_switch->SetOptionText(static_cast<unsigned int>(p), text);
                     section.page->Layout();
                 }
+#if wxUSE_ACCESSIBILITY
+                // ORCA: keep the bullet out of the accessible name and say what it means in the
+                // description instead, as the tab strips' indicator dot does (Button::SetIndicator).
+                if (Button* btn = section.variant_switch->GetButton(static_cast<unsigned int>(p))) {
+                    btn->SetName(category.title);
+                    btn->SetAccessibleDescription(on ? _L("Has selected settings") : wxString());
+                }
+#endif
             }
         if (section.page_tabs != nullptr)
             for (size_t j = 0; j < section.page_inners.size(); ++j)

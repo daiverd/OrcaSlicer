@@ -6,10 +6,14 @@
 #include <wx/window.h>
 #include <utility>
 
-WidgetAccessible::WidgetAccessible(wxWindow* win, wxAccRole role, ExtraStateGetter extra_state)
+WidgetAccessible::WidgetAccessible(wxWindow*              win,
+                                   wxAccRole              role,
+                                   ExtraStateGetter       extra_state,
+                                   ExtraDescriptionGetter extra_description)
     : wxWindowAccessible(win)
     , m_role(role)
     , m_extra_state(std::move(extra_state))
+    , m_extra_description(std::move(extra_description))
 {}
 
 wxAccStatus WidgetAccessible::GetName(int childId, wxString* name)
@@ -60,11 +64,24 @@ wxAccStatus WidgetAccessible::GetDescription(int childId, wxString* description)
     // Only worth exposing as a separate description when the tooltip has the
     // "name paragraph + metadata" shape and GetName() above truncated it -
     // otherwise the name already says everything the tooltip does.
+    wxString text;
     wxString tip = win->GetToolTipText();
-    if (tip.empty() || tip.Find("\n\n") == wxNOT_FOUND)
+    if (!tip.empty() && tip.Find("\n\n") != wxNOT_FOUND)
+        text = tip;
+
+    if (m_extra_description) {
+        const wxString extra = m_extra_description();
+        if (!extra.empty()) {
+            if (!text.empty())
+                text += "\n";
+            text += extra;
+        }
+    }
+
+    if (text.empty())
         return wxACC_NOT_IMPLEMENTED;
 
-    *description = tip;
+    *description = text;
     return wxACC_OK;
 }
 

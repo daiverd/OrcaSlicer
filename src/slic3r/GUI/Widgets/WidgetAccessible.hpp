@@ -38,8 +38,14 @@ public:
     // Windows' UIA proxy builds its ExpandCollapse and Invoke patterns on top of it,
     // so a widget that reports an expandable state needs one to be operable at all.
     using DefaultActionHandler = std::function<void()>;
+    // Extra sentence appended to the description, for painted state that has no
+    // MSAA state bit of its own. Queried on demand so it follows the widget.
+    using ExtraDescriptionGetter = std::function<wxString()>;
 
-    WidgetAccessible(wxWindow* win, wxAccRole role, ExtraStateGetter extra_state = nullptr);
+    WidgetAccessible(wxWindow*              win,
+                     wxAccRole              role,
+                     ExtraStateGetter       extra_state       = nullptr,
+                     ExtraDescriptionGetter extra_description = nullptr);
 
     wxAccStatus GetName(int childId, wxString* name) override;
     wxAccStatus GetRole(int childId, wxAccRole* role) override;
@@ -59,10 +65,11 @@ public:
     }
 
 private:
-    wxAccRole            m_role;
-    ExtraStateGetter     m_extra_state;
-    wxString             m_default_action_name;
-    DefaultActionHandler m_default_action;
+    wxAccRole              m_role;
+    ExtraStateGetter       m_extra_state;
+    ExtraDescriptionGetter m_extra_description;
+    wxString               m_default_action_name;
+    DefaultActionHandler   m_default_action;
 };
 
 #endif // wxUSE_ACCESSIBILITY

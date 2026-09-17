@@ -1,5 +1,6 @@
 #include "Button.hpp"
 #include "Label.hpp"
+#include "../I18N.hpp"
 
 #include "slic3r/GUI/Widgets/StaticBox.hpp"
 #include <utility>
@@ -212,6 +213,12 @@ void Button::SetIndicator(bool on)
     if (m_show_indicator == on)
         return;
     m_show_indicator = on;
+#if wxUSE_ACCESSIBILITY
+    // ORCA: the dot is painted only, so a screen reader user has no way to tell
+    // the tab apart from its unmarked siblings. Say what the dot means in the
+    // description rather than the name, which has to stay stable.
+    SetAccessibleDescription(on ? _L("Has selected settings") : wxString());
+#endif
     messureSize();
     Refresh();
 }

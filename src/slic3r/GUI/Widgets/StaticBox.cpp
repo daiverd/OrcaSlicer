@@ -71,9 +71,19 @@ void StaticBox::SetAccessibleDefaultAction(wxString name, WidgetAccessible::Defa
         SetAccessible(CreateAccessible());
 }
 
+void StaticBox::SetAccessibleDescription(const wxString& description)
+{
+    if (m_a11y_description == description)
+        return;
+    m_a11y_description = description;
+    // The accessible reads m_a11y_description on demand, so there is nothing to
+    // rebuild - only the clients to tell that the answer changed.
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_DESCRIPTIONCHANGE, this, wxOBJID_CLIENT, wxACC_SELF);
+}
+
 wxAccessible* StaticBox::CreateAccessible()
 {
-    auto* acc = new WidgetAccessible(this, m_a11y_role, m_a11y_extra_state);
+    auto* acc = new WidgetAccessible(this, m_a11y_role, m_a11y_extra_state, [this] { return m_a11y_description; });
     if (m_a11y_default_action)
         acc->SetDefaultAction(m_a11y_default_action_name, m_a11y_default_action);
     return acc;

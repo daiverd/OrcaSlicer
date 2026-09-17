@@ -65,6 +65,14 @@ public:
     // verb MSAA reports for the action (e.g. "Open"); handler runs it in process, on the
     // UI thread, and must go through the widget's normal code path.
     void SetAccessibleDefaultAction(wxString name, WidgetAccessible::DefaultActionHandler handler);
+
+    // ORCA: extra sentence appended to the accessible description, for state a
+    // sighted user reads straight off the painting (a badge, an indicator dot)
+    // and that has no MSAA state bit of its own. Deliberately not part of the
+    // name: a name that changes under the user destroys the control's identity,
+    // while a description is re-read on demand. Raises
+    // wxACC_EVENT_OBJECT_DESCRIPTIONCHANGE on a real change.
+    void SetAccessibleDescription(const wxString& description);
 #endif
 
 protected:
@@ -98,6 +106,7 @@ protected:
     WidgetAccessible::ExtraStateGetter     m_a11y_extra_state;
     wxString                               m_a11y_default_action_name;
     WidgetAccessible::DefaultActionHandler m_a11y_default_action;
+    wxString                               m_a11y_description;
 #endif
 
     DECLARE_EVENT_TABLE()
