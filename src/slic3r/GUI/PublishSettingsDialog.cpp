@@ -680,6 +680,12 @@ PublishSettingsDialog::PublishSettingsDialog(wxWindow* parent,
     m_filter_ctrl->SetFont(Label::Body_13);
     m_filter_ctrl->SetSize(wxSize(-1, FromDIP(16))); // centers text vertically
     m_filter_ctrl->SetHint(_L("Type to filter..."));
+    // ORCA: the field is otherwise nameless - its only visible cue is the magnifier icon and a
+    // hint that disappears as soon as anything is typed. Name both halves of the composite: the
+    // TextInput itself (read through its WidgetAccessible) and the inner native EDIT, which is
+    // the window that actually takes focus.
+    m_filter_box->SetName(_L("Filter settings"));
+    m_filter_ctrl->SetName(_L("Filter settings"));
     m_filter_ctrl->Bind(wxEVT_TEXT, [this](auto&) { apply_filter(m_filter_ctrl->GetValue()); });
     m_filter_ctrl->Bind(wxEVT_TEXT_ENTER, [this](auto&) { apply_filter(m_filter_ctrl->GetValue()); });
     m_filter_ctrl->Bind(wxEVT_LEFT_DOWN, [this](auto& e) {
