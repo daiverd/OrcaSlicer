@@ -146,6 +146,7 @@ var LangText = {
     a11y_heading_filament_types: "Filament types",
     a11y_heading_vendors: "Vendors",
     a11y_heading_filaments: "Filaments",
+    a11y_published: "Published",
   },
   ca_ES: {
     t1: "Benvingut a Orca Slicer",

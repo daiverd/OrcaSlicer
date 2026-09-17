@@ -382,7 +382,11 @@ function ShowRecentFileList( pList )
 			sName=sPath.substring(nCut+1);
 		}
 
-		let sBadge=sPublished? '<span class="FilePublishedBadge">PUB</span>':'';
+		// ORCA: "PUB" is an abbreviation only the eye can read - a screen reader spells it
+		// out or says "pub". The badge is decorative now and the word it stands for rides
+		// inside the button instead, so the row reads "<file name> published".
+		let sBadge=sPublished? '<span class="FilePublishedBadge" aria-hidden="true">PUB</span>':'';
+		let sPubText=sPublished? '<span class="A11yOnly"> '+EscAttr(GetTransText("a11y_published","Published"))+'</span>':'';
 		let sLogoBadge=sPublished? '<img class="FileLogoBadge" src="../../images/OrcaSlicer_gradient_circle.svg" alt="" />':'';
 
 		// ORCA: only the filename is focusable - a real <button>, so its accessible name
@@ -394,7 +398,7 @@ function ShowRecentFileList( pList )
 		let TmpHtml='<li class="FileItem" fpath="'+EscAttr(sPath)+'">'+
 				'<a class="FileTip" title="'+EscAttr(sPath)+'" aria-hidden="true"></a>'+
 				'<div class="FileImg"><img src="'+EscAttr(String(sImg))+'" onerror="this.onerror=null;this.src=\'img/d.png\';" alt="" />'+sLogoBadge+'</div>'+
-				'<div class="FileNamePack">'+sBadge+'<button type="button" class="FileName TextS1 FocusRingInset" aria-describedby="RecentPath'+n+' RecentDate'+n+'">'+EscAttr(sName)+'</button></div>'+
+				'<div class="FileNamePack">'+sBadge+'<button type="button" class="FileName TextS1 FocusRingInset" aria-describedby="RecentPath'+n+' RecentDate'+n+'">'+EscAttr(sName)+sPubText+'</button></div>'+
 				'<span class="A11yOnly" id="RecentPath'+n+'">'+EscAttr(sPath)+'</span>'+
 				'<div class="FileDate" id="RecentDate'+n+'">'+EscAttr(sTime)+'</div>'+
 			    '</li>';
