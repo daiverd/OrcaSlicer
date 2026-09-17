@@ -74,6 +74,14 @@ wxStaticText* add_checkbox_label(wxWindow* parent,
                                  int label_width = 0)
 {
     check->SetToolTip(tooltip);
+    // ORCA: the visible label is a separate wxStaticText, so the checkbox itself has nothing to
+    // be named from - WidgetAccessible would otherwise fall back to the tooltip (a description,
+    // not a name) or, for the setting rows, to nothing at all. Name it after the label it
+    // belongs to, minus the row label's trailing colon.
+    wxString acc_name = label;
+    if (acc_name.EndsWith(":"))
+        acc_name.RemoveLast();
+    check->SetName(acc_name);
     sizer->Add(check, 0, wxALIGN_CENTER_VERTICAL | wxTOP | wxBOTTOM, parent->FromDIP(2));
 
     auto* text = new wxStaticText(parent, wxID_ANY, label);
