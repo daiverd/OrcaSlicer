@@ -75,14 +75,22 @@ private:
 // The same holds for a help text hint (wxWindow::SetHelpText), which only reaches MSAA
 // through wxWindowAccessible - a native control does not have one.
 //
-// Every method other than those two is deliberately left unimplemented, which makes
-// wxIAccessible fall back to the control's own standard accessible object (see
-// wxAccessible::GetIAccessibleStd), so role, value, caret, selection, the read-only
-// state and everything else keep coming from the native control exactly as before.
-class NativeCtrlAccessible : public wxAccessible
+// Every method other than those two is left to the base class, which for a wxControl
+// answers wxACC_NOT_IMPLEMENTED for role, state, value and the default action, so
+// wxIAccessible falls back to the control's own standard accessible object (see
+// wxAccessible::GetIAccessibleStd) and role, value, caret, selection and the
+// read-only state keep coming from the native control exactly as before.
+//
+// The base is wxWindowAccessible rather than wxAccessible because
+// wxAccessible's GetChildCount()/GetChild()/GetParent()/Navigate() are no-ops, and
+// wxIAccessible answers that by taking the child count from the child HWNDs while failing
+// get_accChild() for every one of them, so the window advertises children no client can
+// resolve. Latent on these controls today - a native EDIT has no child HWNDs - but the
+// class is generic and the next window given one may.
+class NativeCtrlAccessible : public wxWindowAccessible
 {
 public:
-    explicit NativeCtrlAccessible(wxWindow* win) : wxAccessible(win) {}
+    explicit NativeCtrlAccessible(wxWindow* win) : wxWindowAccessible(win) {}
 
     wxAccStatus GetName(int childId, wxString* name) override;
     wxAccStatus GetDescription(int childId, wxString* description) override;
