@@ -407,9 +407,13 @@ public:
             // the wxObject* casts are required to avoid MinGW GCC 2.95.3 ICE
             const bool isFromParent = event.GetEventObject() == (wxObject*)parent;
             const bool isFromSelf = event.GetEventObject() == (wxObject*)this;
+            // ORCA: our tab strip is a child window of its own rather than a part of this
+            // control, so everything wxNotebook deals with as coming from its tab area
+            // reaches us as a from-child event and has to be told apart from a page's.
+            const bool isFromBtns = IsFromTabStrip(event);
             const bool isForward = event.GetDirection();
 
-            if (isFromSelf && !isForward)
+            if ((isFromSelf || isFromBtns) && !isForward)
             {
                 // focus is currently on notebook tab and should leave
                 // it backwards (Shift-TAB)
@@ -422,7 +426,7 @@ public:
                 if (!parent || !parent->HandleWindowEvent(event))
                     event.Skip();
             }
-            else if (isFromParent || isFromSelf)
+            else if (isFromParent || isFromSelf || isFromBtns)
             {
                 // no, it doesn't come from child, case (b) or (c): forward to a
                 // page but only if entering notebook page (i.e. direction is
@@ -436,7 +440,8 @@ public:
                 // calls plain SetFocus() and consults no focus predicate at all, so the focus
                 // would land in the web content, which Tab cannot yet be relied on to leave.
                 wxWindow* const page = m_selection == wxNOT_FOUND ? nullptr : m_pages[m_selection];
-                if (page && page->CanAcceptFocusFromKeyboard() && (!isForward || isFromSelf))
+                if (page && page->CanAcceptFocusFromKeyboard() &&
+                    (!isForward || isFromSelf || isFromBtns))
                 {
                     // so that the page knows that the event comes from it's parent
                     // and is being propagated downwards
@@ -448,7 +453,7 @@ public:
                     }
                     //else: page manages focus inside it itself
                 }
-                else if (isFromSelf && isForward)
+                else if ((isFromSelf || isFromBtns) && isForward)
                 {
                     // ORCA: leaving the tab strip forwards with no page to enter - carry on
                     // past the notebook, exactly as case (a) below does, instead of stopping.
@@ -528,6 +533,24 @@ protected:
     }
 
 private:
+    // ORCA: a Tab press leaving the strip reaches us still stamped with the window it
+    // started from, never with the strip itself: wxWindow::Navigate() makes the focused
+    // window the event object, and wxControlContainer::HandleOnNavigationKey()'s
+    // escalate-to-parent loop rewrites only the event's *current focus* on the way up.
+    // Comparing against the strip by identity therefore missed every tab button and every
+    // side tool reparented into it, so their Tab was treated as a page's and never entered
+    // one. Ask for membership instead; pages are siblings of the strip rather than
+    // descendants of it, so they still take the from-a-page branch.
+    bool IsFromTabStrip(const wxNavigationKeyEvent& event) const
+    {
+        const wxWindow* const btns = GetBtnsListCtrl();
+        for (const wxWindow* win = wxDynamicCast(event.GetEventObject(), wxWindow);
+             win != nullptr && win != this; win = win->GetParent())
+            if (win == btns)
+                return true;
+        return false;
+    }
+
     void Init();
 
     std::vector<wxString> m_pageNames; // index-parallel to wxBookCtrlBase::m_pages
