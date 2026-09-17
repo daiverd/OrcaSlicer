@@ -66,7 +66,7 @@ void StateHandler::update_binds()
             } else {
                 Unbind(events[i], &StateHandler::changed, this);
                 if (events2[i])
-                    owner_->Unbind(events2[i], &StateHandler::changed, this);
+                    Unbind(events2[i], &StateHandler::changed, this);
             }
         }
     }
