@@ -25,6 +25,11 @@ document.addEventListener('keydown', function (e) {
 	var el = t.closest('[role="button"], [role="checkbox"], [role="menuitem"], [role="link"]');
 	if (!el)
 		return;
+	if (el.getAttribute('aria-disabled') === 'true')
+		return;   // aria-disabled keeps a widget focusable and announced, unlike native
+		          // `disabled` - it does not stop a click() call on its own, so this delegate
+		          // (the only thing that turns Enter/Space into a click for a non-native
+		          // control here) has to honor it explicitly
 	if (el.getAttribute('role') === 'link' && !enter)
 		return;   // links activate on Enter only
 	e.preventDefault();

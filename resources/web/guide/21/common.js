@@ -39,9 +39,11 @@ function HandleStudio( pVal )
 	}
 	else if(strCmd=='check_new_printers_result')
 	{
+		// ORCA: aria-disabled (24.js) never took the button out of the tab order, so focus is
+		// still on it here - nothing to restore, just clear the busy state.
 		let button = document.getElementById("CheckNewPrintersBtn");
 		if (button) {
-			button.disabled = false;
+			SetAriaState(button, "aria-disabled", false);
 			button.style.opacity = "1";
 		}
 
