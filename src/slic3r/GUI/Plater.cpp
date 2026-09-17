@@ -3648,6 +3648,30 @@ Sidebar::Sidebar(Plater *parent)
     if (params_panel) {
         params_panel->Reparent(p->scrolled);
         scrolled_sizer->Add(params_panel, 3, wxEXPAND);
+
+        // ORCA: a PageUp/PageDown pressed on a focused sidebar control (a settings
+        // toggle, a preset combo, an object list row...) which does not claim the key
+        // for itself is turned into a window-change wxNavigationKeyEvent, same as
+        // Ctrl-Tab (see GUI_App::FilterEvent, which lets that one through on purpose).
+        // p->scrolled is the first ancestor above every one of those controls that
+        // still has wxTAB_TRAVERSAL, so nothing catches the event before it reaches
+        // here, and from here wxControlContainer forwards it straight to the main
+        // Notebook, which switches the whole tab (Prepare -> Preview) instead of
+        // paging the settings list it looks like it belongs to. Page that list here
+        // instead and swallow the event, without touching how PageUp/PageDown behaves
+        // anywhere outside the sidebar.
+        p->scrolled->Bind(wxEVT_NAVIGATION_KEY, [this, params_panel](wxNavigationKeyEvent& evt) {
+            if (!evt.IsWindowChange() || evt.GetEventObject() == p->scrolled->GetParent()) {
+                // a plain Tab escape, or a navigation key pushed down onto us from our
+                // own parent (entering the container) - let the normal traversal handle it
+                evt.Skip();
+                return;
+            }
+
+            if (wxScrolledWindow* page_view = params_panel->get_paged_view())
+                evt.GetDirection() ? page_view->PageDown() : page_view->PageUp();
+            // handled: no Skip(), so the event goes no further up
+        });
     }
 #endif
     }
