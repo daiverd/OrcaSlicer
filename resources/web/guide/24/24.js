@@ -44,9 +44,12 @@ function CheckForNewPrinters()
 	tSend['command']="check_for_new_printers";
 	tSend['data']={};
 
+	// ORCA: pointer-events only stopped the mouse - Enter/Space on the focused button still
+	// sent a second request, and nothing told a screen reader the button was busy. The
+	// native disabled state does both; the opacity stays as the visual.
 	var button = document.getElementById("CheckNewPrintersBtn");
 	if (button) {
-		button.style.pointerEvents = "none";
+		button.disabled = true;
 		button.style.opacity = "0.6";
 	}
 

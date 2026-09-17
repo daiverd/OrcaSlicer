@@ -118,6 +118,7 @@ var LangText = {
     orca10: "Not connected",
     orca11: "Connected",
     orca12: "Note: When Stealth Mode is enabled, your user profiles will not be backed up to Orca Cloud.",
+    orca13: "Check for new printers",
     a11y_open_sidebar: "Open sidebar",
     a11y_view_compact_list: "Compact list view",
     a11y_view_compact_cover: "Compact cover view",

@@ -41,7 +41,7 @@ function HandleStudio( pVal )
 	{
 		let button = document.getElementById("CheckNewPrintersBtn");
 		if (button) {
-			button.style.pointerEvents = "auto";
+			button.disabled = false;
 			button.style.opacity = "1";
 		}
 
