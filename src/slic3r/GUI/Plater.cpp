@@ -2940,6 +2940,9 @@ Sidebar::Sidebar(Plater *parent)
         p->btn_edit_printer->SetToolTip(_L("Click to edit preset"));
         p->btn_edit_printer->Hide(); // hide for first launch
         p->btn_edit_printer->Bind(wxEVT_BUTTON, [this, panel_color, printer_preset_hovered](wxCommandEvent){
+            // ORCA: the button hides itself below; park keyboard focus on the combo so it has somewhere to return when the settings close
+            if (p->btn_edit_printer->HasFocus())
+                p->combo_printer->SetFocus();
             p->editing_filament = -1;
             if (p->combo_printer->switch_to_tab())
                 p->editing_filament = 0;
