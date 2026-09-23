@@ -164,6 +164,15 @@ private:
     void sendDropDownEvent();
     void sendDropDownActionEvent(int index);
 
+    // The row a screen reader treats as focused: the highlighted one, else the selected one
+    int      focusedRow();
+    void     notifyFocusedRow();
+    wxString rowText(int row) const;
+
+#if wxUSE_ACCESSIBILITY
+    friend class DropDownAccessible;
+    wxAccessible *CreateAccessible() override;
+#endif
 
     DECLARE_EVENT_TABLE()
 };

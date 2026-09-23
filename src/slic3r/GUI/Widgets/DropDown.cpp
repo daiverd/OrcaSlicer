@@ -1,5 +1,6 @@
 #include "DropDown.hpp"
 #include "Label.hpp"
+#include "../I18N.hpp"
 
 #include <cassert>
 #include <algorithm>
@@ -20,6 +21,9 @@
 #include <wx/gdicmn.h>
 #include <wx/window.h>
 #include <wx/utils.h>
+#if wxUSE_ACCESSIBILITY
+#include <wx/access.h>
+#endif
 
 #ifdef __WXGTK__
 #include <gtk/gtk.h>
@@ -211,6 +215,9 @@ void DropDown::Popup(wxWindow *focus)
     }
 #endif
     PopupWindow::Popup(focus);
+    // ORCA: the native focus event only names the window; follow it with the row
+    if (focus == this)
+        CallAfter([this] { notifyFocusedRow(); });
 }
 
 void DropDown::paintEvent(wxPaintEvent& evt)
@@ -975,6 +982,7 @@ void DropDown::charHook(wxKeyEvent &event)
     // state, which is otherwise fed by enter/leave events from the mouse.
     state_handler.set_state(StateHandler::Hovered, StateHandler::Hovered);
     paintNow();
+    notifyFocusedRow();
 }
 
 // currently unused events
@@ -1000,6 +1008,198 @@ void DropDown::sendDropDownActionEvent(int index)
     event.SetString(items[index].text);
     GetEventHandler()->ProcessEvent(event);
 }
+
+int DropDown::focusedRow() { return hover_item >= 0 ? hover_item : selectedItem(); }
+
+// The text render() draws for a row: a group header shows its group's label
+wxString DropDown::rowText(int row) const
+{
+    const int index = itemIndex(row);
+    if (index >= 0)
+        return items[index].text;
+    if (index < -1)
+        return items[-index - 2].group_label;
+    return {};
+}
+
+void DropDown::notifyFocusedRow()
+{
+#if wxUSE_ACCESSIBILITY
+    if (!IsShown() || wxWindow::FindFocus() != this)
+        return;
+    const int row = focusedRow();
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, this, wxOBJID_CLIENT, row >= 0 ? row + 1 : wxACC_SELF);
+#endif
+}
+
+#if wxUSE_ACCESSIBILITY
+
+// ORCA: the popup is custom drawn, so a screen reader would otherwise see one nameless
+// pane. Expose it as a list whose children are the rows it draws, group headers
+// included, with the highlighted row (else the selected one) reported as focused.
+class DropDownAccessible : public wxWindowAccessible
+{
+public:
+    explicit DropDownAccessible(DropDown *drop) : wxWindowAccessible(drop), drop(drop) {}
+
+    wxAccStatus GetChildCount(int *count) override
+    {
+        *count = int(drop->count);
+        return wxACC_OK;
+    }
+
+    wxAccStatus GetChild(int childId, wxAccessible **child) override
+    {
+        if (childId == wxACC_SELF) {
+            *child = this;
+            return wxACC_OK;
+        }
+        if (!valid(childId))
+            return wxACC_FAIL;
+        *child = nullptr; // a simple element, answered by this object
+        return wxACC_OK;
+    }
+
+    wxAccStatus GetRole(int childId, wxAccRole *role) override
+    {
+        if (childId == wxACC_SELF)
+            *role = wxROLE_SYSTEM_LIST;
+        else if (!valid(childId))
+            return wxACC_FAIL;
+        else
+            *role = (style(childId) & DD_ITEM_STYLE_SPLIT_ITEM) ? wxROLE_SYSTEM_SEPARATOR : wxROLE_SYSTEM_LISTITEM;
+        return wxACC_OK;
+    }
+
+    wxAccStatus GetName(int childId, wxString *name) override
+    {
+        if (childId != wxACC_SELF) {
+            if (!valid(childId))
+                return wxACC_FAIL;
+            *name = drop->rowText(childId - 1);
+            return wxACC_OK;
+        }
+        // A group's list is named after its header, the main list after the combo that owns it
+        if (!drop->group.IsEmpty()) {
+            for (const auto &item : drop->items)
+                if (item.group_key == drop->group) {
+                    *name = item.group_label;
+                    return wxACC_OK;
+                }
+        }
+        wxWindow     *owner = drop->GetParent();
+        wxAccessible *acc   = owner ? owner->GetOrCreateAccessible() : nullptr;
+        if (acc && acc->GetName(wxACC_SELF, name) == wxACC_OK)
+            return wxACC_OK;
+        return wxACC_NOT_IMPLEMENTED;
+    }
+
+    wxAccStatus GetState(int childId, long *state) override
+    {
+        const bool has_focus = wxWindow::FindFocus() == drop;
+        const int  focused   = has_focus ? drop->focusedRow() : -1;
+        if (childId == wxACC_SELF) {
+            *state = wxACC_STATE_SYSTEM_FOCUSABLE | (has_focus && focused < 0 ? wxACC_STATE_SYSTEM_FOCUSED : 0);
+            return wxACC_OK;
+        }
+        if (!valid(childId))
+            return wxACC_FAIL;
+        const int row   = childId - 1;
+        const int index = drop->itemIndex(row);
+        long      s     = selectable(childId) ? wxACC_STATE_SYSTEM_SELECTABLE | wxACC_STATE_SYSTEM_FOCUSABLE : wxACC_STATE_SYSTEM_UNAVAILABLE;
+        if (index < -1) { // a group header, whose presets open in a second list
+            const DropDown *sub = drop->subDropDown;
+            const bool open = sub && sub->IsShown() && sub->group == drop->items[-index - 2].group_key;
+            s |= open ? wxACC_STATE_SYSTEM_EXPANDED : wxACC_STATE_SYSTEM_COLLAPSED;
+        }
+        if (row == drop->selectedItem())
+            s |= wxACC_STATE_SYSTEM_SELECTED;
+        if (row == focused)
+            s |= wxACC_STATE_SYSTEM_FOCUSED;
+        if (!drop->GetClientRect().Intersects(rowRect(row)))
+            s |= wxACC_STATE_SYSTEM_OFFSCREEN;
+        *state = s;
+        return wxACC_OK;
+    }
+
+    wxAccStatus GetLocation(wxRect &rect, int elementId) override
+    {
+        if (elementId == wxACC_SELF)
+            return wxACC_NOT_IMPLEMENTED;
+        if (!valid(elementId))
+            return wxACC_FAIL;
+        rect = rowRect(elementId - 1);
+        rect.SetPosition(drop->ClientToScreen(rect.GetPosition()));
+        return wxACC_OK;
+    }
+
+    wxAccStatus HitTest(const wxPoint &pt, int *childId, wxAccessible **childObject) override
+    {
+        const wxPoint p = drop->ScreenToClient(pt);
+        if (!drop->GetClientRect().Contains(p) || drop->rowSize.y <= 0)
+            return wxACC_NOT_IMPLEMENTED;
+        const int row = (p.y - drop->offset.y) / drop->rowSize.y;
+        *childId      = valid(row + 1) ? row + 1 : wxACC_SELF;
+        *childObject  = nullptr;
+        return wxACC_OK;
+    }
+
+    wxAccStatus GetFocus(int *childId, wxAccessible **child) override
+    {
+        if (wxWindow::FindFocus() != drop)
+            return wxACC_NOT_IMPLEMENTED;
+        const int row = drop->focusedRow();
+        *childId      = valid(row + 1) ? row + 1 : wxACC_SELF;
+        *child        = nullptr;
+        return wxACC_OK;
+    }
+
+    wxAccStatus GetDefaultAction(int childId, wxString *action) override
+    {
+        if (!selectable(childId))
+            return wxACC_NOT_IMPLEMENTED;
+        *action = drop->itemIndex(childId - 1) < -1 ? _L("Open") : _L("Select");
+        return wxACC_OK;
+    }
+
+    wxAccStatus DoDefaultAction(int childId) override
+    {
+        if (!selectable(childId))
+            return wxACC_NOT_IMPLEMENTED;
+        // Act the way a click on the row does, once the screen reader's call has returned
+        drop->CallAfter([drop = drop, row = childId - 1] {
+            if (!drop->IsShown())
+                return;
+            drop->setHoverItem(row);
+            drop->selectHoverItem();
+        });
+        return wxACC_OK;
+    }
+
+private:
+    bool valid(int childId) const { return childId >= 1 && childId <= int(drop->count); }
+
+    // Style of the item behind a row; group headers carry none of their own
+    int style(int childId) const
+    {
+        const int index = drop->itemIndex(childId - 1);
+        return index >= 0 ? drop->items[index].style : 0;
+    }
+
+    bool selectable(int childId) const
+    {
+        return valid(childId) && drop->itemIndex(childId - 1) != -1 &&
+               (style(childId) & (DD_ITEM_STYLE_SPLIT_ITEM | DD_ITEM_STYLE_DISABLED)) == 0;
+    }
+
+    wxRect rowRect(int row) const { return {0, drop->offset.y + row * drop->rowSize.y, drop->rowSize.x, drop->rowSize.y}; }
+
+    DropDown *drop;
+};
+
+wxAccessible *DropDown::CreateAccessible() { return new DropDownAccessible(this); }
+
+#endif // wxUSE_ACCESSIBILITY
 
 void DropDown::Dismiss()
 {
