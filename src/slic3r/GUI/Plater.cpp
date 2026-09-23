@@ -3038,6 +3038,7 @@ Sidebar::Sidebar(Plater *parent)
         p->label_nozzle_title->SetFont(Label::Body_10);
 
         p->combo_nozzle_dia = new ComboBox(p->panel_nozzle_dia, wxID_ANY, wxString(""), wxDefaultPosition, wxDefaultSize, 0, nullptr, wxCB_READONLY);
+        p->combo_nozzle_dia->SetName(p->label_nozzle_title->GetLabel()); // ORCA: the "Variant" label above isn't linked to it, so it was announced by its value alone
         p->combo_nozzle_dia->SetBorderWidth(0);
         p->combo_nozzle_dia->GetDropDown().SetUseContentWidth(true);
         p->combo_nozzle_dia->SetMinSize(FromDIP(wxSize(PRINTER_PANEL_SIZE.GetWidth() - 4, 26))); // requires a static value in here
