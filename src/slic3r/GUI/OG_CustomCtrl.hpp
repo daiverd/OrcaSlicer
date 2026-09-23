@@ -102,6 +102,13 @@ class OG_CustomCtrl :public wxPanel
     std::vector<CtrlLine> ctrl_lines;
     const OptionStateRegistry* m_option_state_registry{nullptr};
 
+    int  m_icon_focus { -1 }; // index into icon_actions() while an icon bar has the focus
+    const CtrlLine* icon_line() const;
+    Field*          icon_field() const;
+    void            notify_icon_focus();
+    void            OnIconNavigation(wxNavigationKeyEvent& event);
+    void            OnIconKey(wxKeyEvent& event);
+
 public:
     OG_CustomCtrl(  wxWindow* parent,
                     OptionsGroup* og,
@@ -140,11 +147,29 @@ public:
     wxAccessible* CreateAccessible() override;
 #endif
 
+    // ORCA: a group whose only field sits outside this panel (the full-width G-code and
+    // notes boxes) leaves it painting nothing but that field's buttons. The keyboard then
+    // reaches each button that would do something as a Tab stop of its own. (The reset
+    // to system value button is compiled out, see DISABLE_UNDO_SYS.)
+    enum class IconAction { Undo, Edit };
+    bool                    is_icon_bar() const { return GetChildren().empty(); }
+    std::vector<IconAction> icon_actions() const;
+    wxString                icon_name(IconAction action) const;
+    wxString                icon_description(IconAction action) const;
+    wxRect                  icon_rect(IconAction action) const;
+    int                     focused_icon() const { return m_icon_focus; }
+    void                    activate_icon(IconAction action);
+
+    bool AcceptsFocus() const override { return is_icon_bar() ? !icon_actions().empty() : wxPanel::AcceptsFocus(); }
+    bool AcceptsFocusFromKeyboard() const override { return is_icon_bar() ? !icon_actions().empty() : wxPanel::AcceptsFocusFromKeyboard(); }
+
     wxPoint get_pos(const Line& line, Field* field = nullptr);
     int     get_height(const Line& line);
 
     OptionsGroup*  opt_group;
 
+private:
+    void activate_icon(const CtrlLine& line, const std::string& opt_key, IconAction action);
 };
 
 }}

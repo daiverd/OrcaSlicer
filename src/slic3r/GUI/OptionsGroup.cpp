@@ -64,7 +64,8 @@ static wxString get_option_label(const ConfigOptionDef& opt)
 // label, the per option sublabel that tells the fields of a multi option row apart, and
 // the unit sidetext drawn next to (or inside) the field. The tooltip is left to
 // WidgetAccessible::GetDescription.
-static void set_field_accessible_name(const Line& line, const Option& opt, bool is_multioption_line, Field* field)
+static void set_field_accessible_name(const Line& line, const Option& opt, bool is_multioption_line, Field* field,
+                                      const wxString& group_title = {})
 {
     if (!field)
         return;
@@ -77,6 +78,10 @@ static void set_field_accessible_name(const Line& line, const Option& opt, bool 
         // Full width fields are drawn without a label of their own, so the option's
         // name from the config definition is the best that is left.
         name = get_option_label(opt.opt);
+    if (name.IsEmpty())
+        // ...and a field alone in its group (the G-code and notes boxes) has none either:
+        // the group's title is the label it is drawn under
+        name = group_title;
     if (name.IsEmpty())
         return; // nothing to say that the tooltip fallback doesn't already say
     if (!opt.opt.sidetext.empty())
@@ -395,7 +400,7 @@ void OptionsGroup::activate_line(Line& line)
         option_set.front().side_widget == nullptr && line.get_extra_widgets().size() == 0) {
         const auto& option = option_set.front();
         const auto& field  = build_field(option);
-        set_field_accessible_name(line, option, /*is_multioption_line*/ false, field.get());
+        set_field_accessible_name(line, option, /*is_multioption_line*/ false, field.get(), title.IsEmpty() ? wxString() : _(title));
 
         // BBS: new layout
         const auto h_sizer = new wxBoxSizer(wxHORIZONTAL);
