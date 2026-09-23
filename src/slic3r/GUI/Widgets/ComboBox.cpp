@@ -421,7 +421,16 @@ void ComboBox::mouseWheelMoved(wxMouseEvent &event)
 
 void ComboBox::keyDown(wxKeyEvent& event)
 {
-    switch (event.GetKeyCode()) {
+    int code = event.GetKeyCode();
+    // Alt+Down, Alt+Up and F4 open the list like Enter, as on a native combo box. Any
+    // other Alt chord belongs to the window: Alt+Space opens its system menu.
+    if (code == WXK_F4 || (event.AltDown() && (code == WXK_DOWN || code == WXK_UP || code == WXK_NUMPAD_DOWN || code == WXK_NUMPAD_UP)))
+        code = WXK_RETURN;
+    else if (event.AltDown()) {
+        event.Skip();
+        return;
+    }
+    switch (code) {
         case WXK_RETURN:
         case WXK_SPACE:
             if (drop_down) {
