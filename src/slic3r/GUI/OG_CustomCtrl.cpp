@@ -334,12 +334,39 @@ void OG_CustomCtrl::OnIconKey(wxKeyEvent& event)
 {
     const int  code    = event.GetKeyCode();
     const auto actions = icon_actions();
-    if (HasFocus() && m_icon_focus >= 0 && m_icon_focus < int(actions.size()) && !event.HasAnyModifiers() &&
-        (code == WXK_RETURN || code == WXK_NUMPAD_ENTER || code == WXK_SPACE)) {
-        activate_icon(actions[m_icon_focus]);
+    if (!HasFocus() || m_icon_focus < 0 || m_icon_focus >= int(actions.size()) || event.HasAnyModifiers()) {
+        event.Skip();
         return;
     }
-    event.Skip();
+    switch (code) {
+    case WXK_RETURN:
+    case WXK_NUMPAD_ENTER:
+    case WXK_SPACE:
+        activate_icon(actions[m_icon_focus]);
+        return;
+    // As on a native tool bar, Left and Right walk the buttons and stop at either end.
+    // Unhandled, the arrows became dialog navigation and left for the page's scroll bar.
+    case WXK_LEFT:
+    case WXK_NUMPAD_LEFT:
+    case WXK_RIGHT:
+    case WXK_NUMPAD_RIGHT: {
+        const bool right = code == WXK_RIGHT || code == WXK_NUMPAD_RIGHT;
+        const int  next  = m_icon_focus + (right ? 1 : -1);
+        if (next >= 0 && next < int(actions.size())) {
+            m_icon_focus = next;
+            Refresh();
+            notify_icon_focus();
+        }
+        return;
+    }
+    case WXK_UP:
+    case WXK_NUMPAD_UP:
+    case WXK_DOWN:
+    case WXK_NUMPAD_DOWN:
+        return;
+    default:
+        event.Skip();
+    }
 }
 
 void OG_CustomCtrl::init_ctrl_lines()

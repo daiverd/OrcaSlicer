@@ -42,6 +42,7 @@
 #include "Plater.hpp"
 
 #include "Widgets/DialogButtons.hpp"
+#include "Widgets/WidgetAccessible.hpp"
 
 #include "libslic3r/Preset.hpp"
 
@@ -80,6 +81,15 @@ EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const
     m_search_bar->SetForegroundColour(*wxBLACK);
     m_search_bar->SetBackgroundColour(*wxWHITE);
     wxGetApp().UpdateDarkUI(m_search_bar);
+#if wxUSE_ACCESSIBILITY
+    // ORCA: the hint text is no accessible name; the generic search control focuses an inner
+    // EDIT, which, being native, needs NativeCtrlAccessible for its name to be published
+    for (wxWindow* child : m_search_bar->GetChildren())
+        if (wxDynamicCast(child, wxTextCtrl)) {
+            child->SetName(_L("Search G-code placeholders"));
+            child->SetAccessible(new NativeCtrlAccessible(child));
+        }
+#endif
 
     m_search_bar->Bind(wxEVT_SET_FOCUS, [](wxFocusEvent&) {
 //        this->on_search_update();
@@ -92,6 +102,7 @@ EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const
 
     m_params_list = new ParamsViewCtrl(this, wxDefaultSize);
     m_params_list->SetBackgroundColour(*wxWHITE);
+    m_params_list->SetName(_L("Placeholders")); // ORCA: otherwise announced as wx's default "dataviewCtrl"
     m_params_list->SetFont(wxGetApp().code_font());
     wxGetApp().UpdateDarkUI(m_params_list);
     param_sizer->Add(m_params_list, 1, wxEXPAND | wxALL, border);
@@ -107,6 +118,10 @@ EditGCodeDialog::EditGCodeDialog(wxWindow* parent, const std::string& key, const
 
     m_gcode_editor->SetFont(wxGetApp().code_font());
     m_gcode_editor->SetBackgroundColour(*wxWHITE);
+#if wxUSE_ACCESSIBILITY
+    m_gcode_editor->SetName(_L("Custom G-code"));
+    m_gcode_editor->SetAccessible(new NativeCtrlAccessible(m_gcode_editor)); // a native EDIT ignores SetName() alone
+#endif
     m_gcode_editor->SetInsertionPointEnd();
     wxGetApp().UpdateDarkUI(m_gcode_editor);
 
