@@ -774,11 +774,11 @@ void DropDown::autoPosition()
     }
 }
 
-void DropDown::setHoverItem(int hover)
+void DropDown::setHoverItem(int hover, bool open_group)
 {
     hover_item = hover;
     int index  = hoverIndex();
-    if (index < -1) {
+    if (index < -1 && open_group) {
         auto & drop = *subDropDown;
         drop.group  = items[-index - 2].group_key;
         drop.need_sync = true;
@@ -794,13 +794,14 @@ void DropDown::setHoverItem(int hover)
         drop.paintNow();
         if (!drop.IsShown())
             drop.Popup(&drop);
-    } else if (index >= 0) {
+    } else if (index != -1) { // an item, or a group header the keys only highlight
         if (subDropDown) {
             subDropDown->group.clear();
             if (subDropDown->IsShown())
                 subDropDown->Dismiss();
         }
-        SetToolTip(items[index].tip);
+        if (index >= 0)
+            SetToolTip(items[index].tip);
     }
 }
 
@@ -808,11 +809,55 @@ int DropDown::findSelectable(int hover, int delta) const
 {
     for (; hover >= 0 && hover < (int) count; hover += delta) {
         int index = itemIndex(hover);
-        // Group headers (negative index), separators and disabled items are not selectable
-        if (index >= 0 && (items[index].style & (DD_ITEM_STYLE_SPLIT_ITEM | DD_ITEM_STYLE_DISABLED)) == 0)
+        // Group headers (index < -1) open their group's list; separators and disabled items are not selectable
+        if (index < -1 || (index >= 0 && (items[index].style & (DD_ITEM_STYLE_SPLIT_ITEM | DD_ITEM_STYLE_DISABLED)) == 0))
             return hover;
     }
     return -1;
+}
+
+// Highlight a row from the keyboard: headers stay closed until Right or Enter opens them
+void DropDown::moveHighlight(int hover)
+{
+    setHoverItem(hover, false);
+    // The mouse can only hover visible rows, but arrows walk the whole list,
+    // so scroll the new row into view the way autoPosition() does for selection.
+    wxSize size = GetSize();
+    if (offset.y + rowSize.y * (hover + 1) > size.y)
+        offset.y = size.y - rowSize.y * (hover + 1);
+    else if (offset.y + rowSize.y * hover < 0)
+        offset.y = -rowSize.y * hover;
+    // render() draws the highlight only while the window carries the hovered
+    // state, which is otherwise fed by enter/leave events from the mouse.
+    state_handler.set_state(StateHandler::Hovered, StateHandler::Hovered);
+    paintNow();
+    notifyFocusedRow();
+}
+
+// Show the highlighted header's group in the second list and move into it
+void DropDown::openHoverGroup()
+{
+    setHoverItem(hover_item); // positions and shows the second list, which takes the focus
+    DropDown &sub = *subDropDown;
+    if (wxWindow::FindFocus() != &sub)
+        sub.SetFocus();
+    int start = sub.selectedItem();
+    if (start < 0)
+        start = sub.findSelectable(0, 1);
+    if (start >= 0)
+        sub.moveHighlight(start);
+}
+
+// Leave a group's list for the header that opened it, keeping the main list open
+void DropDown::closeToMain()
+{
+    Dismiss(); // not DismissAndNotify: OnDismiss closes the main list unless the pointer is over it
+    group.clear();
+#ifdef __WIN32__
+    SetActiveWindow(mainDropDown->GetHandle());
+#endif
+    mainDropDown->SetFocus();
+    mainDropDown->notifyFocusedRow();
 }
 
 void DropDown::selectHoverItem()
@@ -934,9 +979,18 @@ void DropDown::mouseWheelMoved(wxMouseEvent &event)
 
 void DropDown::charHook(wxKeyEvent &event)
 {
-    int base  = hover_item >= 0 ? hover_item : selectedItem();
+    const int code = event.GetKeyCode();
+    // Alt+Up, Alt+Down and F4 close the whole list, as they do a native combo box's
+    if (code == WXK_F4 || (event.AltDown() && (code == WXK_UP || code == WXK_DOWN || code == WXK_NUMPAD_UP || code == WXK_NUMPAD_DOWN))) {
+        DropDown *top = mainDropDown ? mainDropDown : this;
+        if (mainDropDown)
+            Dismiss();
+        top->DismissAndNotify();
+        return;
+    }
+    int base  = focusedRow();
     int hover = -1;
-    switch (event.GetKeyCode()) {
+    switch (code) {
     case WXK_DOWN:
     case WXK_NUMPAD_DOWN:
         hover = findSelectable(base < 0 ? 0 : base + 1, 1);
@@ -953,36 +1007,38 @@ void DropDown::charHook(wxKeyEvent &event)
     case WXK_NUMPAD_END:
         hover = findSelectable((int) count - 1, -1);
         break;
+    case WXK_RIGHT:
+    case WXK_NUMPAD_RIGHT:
+        if (hover_item >= 0 && hoverIndex() < -1)
+            openHoverGroup();
+        return;
+    case WXK_LEFT:
+    case WXK_NUMPAD_LEFT:
+        if (mainDropDown)
+            closeToMain();
+        return;
     case WXK_RETURN:
     case WXK_NUMPAD_ENTER:
     case WXK_SPACE:
         if (hover_item < 0)
             DismissAndNotify(); // nothing highlighted, keep the current selection
+        else if (hoverIndex() < -1)
+            openHoverGroup();
         else
             selectHoverItem();
         return;
     case WXK_ESCAPE:
-        DismissAndNotify();
+        if (mainDropDown)
+            closeToMain(); // a group's list closes back to its header
+        else
+            DismissAndNotify();
         return;
     default:
         event.Skip();
         return;
     }
-    if (hover < 0 || hover == hover_item)
-        return;
-    setHoverItem(hover);
-    // The mouse can only hover visible rows, but arrows walk the whole list,
-    // so scroll the new row into view the way autoPosition() does for selection.
-    wxSize size = GetSize();
-    if (offset.y + rowSize.y * (hover + 1) > size.y)
-        offset.y = size.y - rowSize.y * (hover + 1);
-    else if (offset.y + rowSize.y * hover < 0)
-        offset.y = -rowSize.y * hover;
-    // render() draws the highlight only while the window carries the hovered
-    // state, which is otherwise fed by enter/leave events from the mouse.
-    state_handler.set_state(StateHandler::Hovered, StateHandler::Hovered);
-    paintNow();
-    notifyFocusedRow();
+    if (hover >= 0 && hover != hover_item)
+        moveHighlight(hover);
 }
 
 // currently unused events
@@ -1009,7 +1065,18 @@ void DropDown::sendDropDownActionEvent(int index)
     GetEventHandler()->ProcessEvent(event);
 }
 
-int DropDown::focusedRow() { return hover_item >= 0 ? hover_item : selectedItem(); }
+int DropDown::focusedRow()
+{
+    if (hover_item >= 0)
+        return hover_item;
+    if (int row = selectedItem(); row >= 0 || selection < 0 || !group.IsEmpty())
+        return row;
+    // The selection sits inside a group, so this list shows it only as its group's header
+    for (int row = 0; row < (int) count; ++row)
+        if (int index = itemIndex(row); index < -1 && items[-index - 2].group_key == items[selection].group_key)
+            return row;
+    return -1;
+}
 
 // The text render() draws for a row: a group header shows its group's label
 wxString DropDown::rowText(int row) const
@@ -1089,15 +1156,16 @@ public:
         }
         wxWindow     *owner = drop->GetParent();
         wxAccessible *acc   = owner ? owner->GetOrCreateAccessible() : nullptr;
-        if (acc && acc->GetName(wxACC_SELF, name) == wxACC_OK)
-            return wxACC_OK;
-        return wxACC_NOT_IMPLEMENTED;
+        if (!acc || acc->GetName(wxACC_SELF, name) != wxACC_OK)
+            name->clear(); // an unnamed list beats the popup window's own name, "panel"
+        return wxACC_OK;
     }
 
     wxAccStatus GetState(int childId, long *state) override
     {
         const bool has_focus = wxWindow::FindFocus() == drop;
-        const int  focused   = has_focus ? drop->focusedRow() : -1;
+        const int  current   = drop->focusedRow();
+        const int  focused   = has_focus ? current : -1;
         if (childId == wxACC_SELF) {
             *state = wxACC_STATE_SYSTEM_FOCUSABLE | (has_focus && focused < 0 ? wxACC_STATE_SYSTEM_FOCUSED : 0);
             return wxACC_OK;
@@ -1112,7 +1180,8 @@ public:
             const bool open = sub && sub->IsShown() && sub->group == drop->items[-index - 2].group_key;
             s |= open ? wxACC_STATE_SYSTEM_EXPANDED : wxACC_STATE_SYSTEM_COLLAPSED;
         }
-        if (row == drop->selectedItem())
+        // Like a native drop-down list, selection follows the highlight: the row Enter would pick
+        if (row == current)
             s |= wxACC_STATE_SYSTEM_SELECTED;
         if (row == focused)
             s |= wxACC_STATE_SYSTEM_FOCUSED;
@@ -1170,8 +1239,11 @@ public:
         drop->CallAfter([drop = drop, row = childId - 1] {
             if (!drop->IsShown())
                 return;
-            drop->setHoverItem(row);
-            drop->selectHoverItem();
+            drop->setHoverItem(row, false);
+            if (drop->hoverIndex() < -1)
+                drop->openHoverGroup();
+            else
+                drop->selectHoverItem();
         });
         return wxACC_OK;
     }
