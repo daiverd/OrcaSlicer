@@ -44,7 +44,30 @@ public:
         return wxACC_OK;
     }
 #endif // wxUSE_VARIANT
+
+    // A native tab control puts the focus on its current tab, and that is what a screen
+    // reader announces; the strip holds the real focus here, so report the tab instead.
+    wxAccStatus GetFocus(int* childId, wxAccessible** child) override
+    {
+        auto* ctrl = static_cast<TabCtrl*>(GetWindow());
+        wxWindow* btn = ctrl && wxWindow::FindFocus() == ctrl ? ctrl->GetSelectedItemButton() : nullptr;
+        wxAccessible* btn_acc = btn ? btn->GetOrCreateAccessible() : nullptr;
+        if (!btn_acc)
+            return wxACC_NOT_IMPLEMENTED;
+        *childId = wxACC_SELF;
+        *child   = btn_acc;
+        return wxACC_OK;
+    }
 };
+
+// Announce the current tab as focused, while the strip itself holds the keyboard focus
+void notify_focused_tab(TabCtrl* ctrl)
+{
+    if (wxWindow::FindFocus() != ctrl)
+        return;
+    if (wxWindow* btn = ctrl->GetSelectedItemButton())
+        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, btn, wxOBJID_CLIENT, wxACC_SELF);
+}
 } // namespace
 #endif // wxUSE_ACCESSIBILITY
 
@@ -86,6 +109,13 @@ TabCtrl::TabCtrl(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSi
     Bind(wxEVT_COMMAND_BUTTON_CLICKED, &TabCtrl::buttonClicked, this);
     // ORCA: the tab list role, and which tab is current, come from TabCtrlAccessible
     // (see CreateAccessible), so no SetAccessibleRole call here
+#if wxUSE_ACCESSIBILITY
+    // After the strip's own focus event, so the current tab is announced when it is reached
+    Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent& e) {
+        e.Skip();
+        CallAfter([this] { notify_focused_tab(this); });
+    });
+#endif
     // wxString reason;
     // IsTransparentBackgroundSupported(&reason);
 }
@@ -128,9 +158,11 @@ void TabCtrl::SelectItem(int item)
     Refresh();
 #if wxUSE_ACCESSIBILITY
     // ORCA: the tab buttons are not focusable, so without this a screen reader is never
-    // told that an arrow key (or a click) moved to another page.
+    // told that an arrow key (or a click) moved to another page. The selection event alone
+    // is ignored by NVDA for anything outside the focus, hence the focus event as well.
     if (wxWindow* btn = GetSelectedItemButton())
         wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_SELECTION, btn, wxOBJID_CLIENT, wxACC_SELF);
+    notify_focused_tab(this);
 #endif
 }
 
@@ -166,7 +198,10 @@ int TabCtrl::AppendItem(const wxString& item, int image, int selImage, void* cli
     // ORCA: this Button is a tab, not a plain pushbutton - override Button's default role
     btn->SetAccessibleRole(wxROLE_SYSTEM_PAGETAB, [this, btn] {
         auto it = std::find(btns.begin(), btns.end(), btn);
-        return (it != btns.end() && int(it - btns.begin()) == sel) ? wxACC_STATE_SYSTEM_SELECTED : 0;
+        if (it == btns.end() || int(it - btns.begin()) != sel)
+            return 0L;
+        // The current tab stands in for the strip's focus (see TabCtrlAccessible::GetFocus)
+        return wxACC_STATE_SYSTEM_SELECTED | (wxWindow::FindFocus() == this ? wxACC_STATE_SYSTEM_FOCUSED : 0L);
     });
 #endif
     btns.push_back(btn);
