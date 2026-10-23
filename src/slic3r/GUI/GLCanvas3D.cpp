@@ -4492,11 +4492,15 @@ void GLCanvas3D::on_key(wxKeyEvent& evt)
                 // through the toolbar stops of the canvas, then out of it past either end. The scene is
                 // the first stop, so Shift+Tab leaves the canvas only from there. The canvas is created
                 // with wxWANTS_CHARS, so wx never turns Tab into a navigation event on its own and
-                // evt.Skip() alone would not move the focus out of the canvas.
+                // evt.Skip() alone would not move the focus out of the canvas. FromTab says this is a
+                // real Tab escape, which the app-wide arrow-key policy (GUI_App::FilterEvent) requires:
+                // it drops navigation events without the flag. Navigate() replaces the event's default
+                // flags with the ones passed here, so it has to be spelled out.
                 if (keyCode == WXK_TAB && !evt.ControlDown() && !evt.AltDown()) {
                     const bool backward = evt.ShiftDown();
                     if (!(backward ? m_keyboard_ring.focus_previous_stop() : m_keyboard_ring.focus_next_stop()))
-                        m_canvas->Navigate(backward ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward);
+                        m_canvas->Navigate(wxNavigationKeyEvent::FromTab |
+                                           (backward ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward));
                     return;
                 }
                 if (keyCode == WXK_SHIFT) {
