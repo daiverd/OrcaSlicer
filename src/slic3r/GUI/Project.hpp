@@ -94,6 +94,11 @@ public:
     ~ProjectPanel();
     void shutdown();
 
+    // ORCA: a page holding nothing but a web view is not a Tab stop, see
+    // WebView::HostAcceptsFocusFromKeyboard(). The auxiliary panel, which replaces the web
+    // view rather than sharing the page with it, still answers for itself.
+    bool AcceptsFocusFromKeyboard() const override;
+
     
     void onWebNavigating(wxWebViewEvent& evt);
     void on_reload(wxCommandEvent& evt);

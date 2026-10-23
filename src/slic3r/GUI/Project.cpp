@@ -132,6 +132,11 @@ ProjectPanel::~ProjectPanel()
     shutdown();
 }
 
+bool ProjectPanel::AcceptsFocusFromKeyboard() const
+{
+    return WebView::HostAcceptsFocusFromKeyboard(this);
+}
+
 void ProjectPanel::shutdown()
 {
     m_reload_cancel_token->store(true, std::memory_order_release);

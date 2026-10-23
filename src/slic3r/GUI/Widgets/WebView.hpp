@@ -24,6 +24,11 @@ public:
     // this is public only for the few hosts that build their wxWebView directly.
     static void SetupAccessibility(wxWebView *webView, wxString const &name);
 
+    // What a web view host should answer from AcceptsFocusFromKeyboard(): whether any of
+    // its children will take the focus from a Tab. See the definition for why a host has
+    // to be asked this explicitly.
+    static bool HostAcceptsFocusFromKeyboard(wxWindow const *host);
+
 #if wxUSE_WEBVIEW_EDGE
     static bool CheckWebViewRuntime();
     static bool DownloadAndInstallWebViewRuntime();

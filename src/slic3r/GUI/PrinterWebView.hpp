@@ -43,6 +43,10 @@ public:
     PrinterWebView(wxWindow *parent);
     virtual ~PrinterWebView();
 
+    // ORCA: a page holding nothing but a web view is not a Tab stop, see
+    // WebView::HostAcceptsFocusFromKeyboard().
+    bool AcceptsFocusFromKeyboard() const override;
+
     void load_url(wxString& url, wxString apikey = "");
     void UpdateState();
     void OnClose(wxCloseEvent& evt);

@@ -321,6 +321,29 @@ void WebView::SetupAccessibility(wxWebView * webView, wxString const & name)
 #endif
 }
 
+bool WebView::HostAcceptsFocusFromKeyboard(wxWindow const * host)
+{
+    // A host is a wxPanel, i.e. a wxNavigationEnabled container, and the container answers
+    // AcceptsFocusFromKeyboard() from AcceptsFocusRecursively(), which is true for any panel
+    // whether or not a single one of its children will take the focus from a Tab (wx
+    // include/wx/containr.h, src/common/containr.cpp). A host therefore stayed a Tab stop
+    // even where the web view itself is out of the keyboard traversal, and the traversal that
+    // landed on it was handed straight on to the web content: wxSetFocusToChild() restores the
+    // child that had the focus last with a plain SetFocus() and consults no focus predicate at
+    // all, so the web view's own opt-out never came into it.
+    //
+    // Answer for the children instead. A host holding nothing but a web view which declines
+    // the keyboard is passed over; a host showing real controls, like the Project tab with its
+    // file editor open, is entered as before, and so is one whose backend does take the focus
+    // from a Tab, which keeps the platform policy where it belongs, in the backend.
+    if (!host)
+        return false;
+    for (wxWindow * child : host->GetChildren())
+        if (child->CanAcceptFocusFromKeyboard())
+            return true;
+    return false;
+}
+
 wxWebView* WebView::CreateWebView(wxWindow * parent, wxString const & url, wxString const & name)
 {
 #if wxUSE_WEBVIEW_EDGE

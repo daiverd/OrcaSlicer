@@ -414,7 +414,13 @@ public:
                 // focus is currently on notebook tab and should leave
                 // it backwards (Shift-TAB)
                 event.SetCurrentFocus(this);
-                parent->HandleWindowEvent(event);
+                // ORCA: our parent is MainFrame, and a wxFrame - unlike a wxDialog - is not a
+                // wxNavigationEnabled container, so nothing there handles the event. Leave it
+                // skipped in that case: the container that raised it otherwise reads
+                // "processed" off our return value, stops escalating and stops looking for a
+                // control to focus, which is a Shift-TAB that moves nothing at all.
+                if (!parent || !parent->HandleWindowEvent(event))
+                    event.Skip();
             }
             else if (isFromParent || isFromSelf)
             {
@@ -422,19 +428,33 @@ public:
                 // page but only if entering notebook page (i.e. direction is
                 // backwards (Shift-TAB) comething from out-of-notebook, or
                 // direction is forward (TAB) from ourselves),
-                if (m_selection != wxNOT_FOUND &&
-                    (!event.GetDirection() || isFromSelf))
+                //
+                // ORCA: and only if the page takes the focus from a Tab at all. A web view
+                // host does not (see WebView::HostAcceptsFocusFromKeyboard()) and must be
+                // passed over rather than handed the focus anyway: SetFocus() below goes
+                // through wxSetFocusToChild(), whose restore-the-child-that-had-it-last branch
+                // calls plain SetFocus() and consults no focus predicate at all, so the focus
+                // would land in the web content, which Tab cannot yet be relied on to leave.
+                wxWindow* const page = m_selection == wxNOT_FOUND ? nullptr : m_pages[m_selection];
+                if (page && page->CanAcceptFocusFromKeyboard() && (!isForward || isFromSelf))
                 {
                     // so that the page knows that the event comes from it's parent
                     // and is being propagated downwards
                     event.SetEventObject(this);
 
-                    wxWindow* page = m_pages[m_selection];
                     if (!page->HandleWindowEvent(event))
                     {
                         page->SetFocus();
                     }
                     //else: page manages focus inside it itself
+                }
+                else if (isFromSelf && isForward)
+                {
+                    // ORCA: leaving the tab strip forwards with no page to enter - carry on
+                    // past the notebook, exactly as case (a) below does, instead of stopping.
+                    event.SetCurrentFocus(this);
+                    if (!parent || !parent->HandleWindowEvent(event))
+                        event.Skip();
                 }
                 else // otherwise set the focus to the notebook itself
                 {
@@ -454,7 +474,8 @@ public:
                 else if (parent)
                 {
                     event.SetCurrentFocus(this);
-                    parent->HandleWindowEvent(event);
+                    if (!parent->HandleWindowEvent(event))
+                        event.Skip();
                 }
             }
         }

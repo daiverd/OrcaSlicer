@@ -302,6 +302,10 @@ WebViewPanel::~WebViewPanel()
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__ << " End";
 }
 
+bool WebViewPanel::AcceptsFocusFromKeyboard() const
+{
+    return WebView::HostAcceptsFocusFromKeyboard(this);
+}
 
 void WebViewPanel::create_browser()
 {

@@ -222,6 +222,11 @@ static PrintHostType active_host_type()
     return wxGetApp().preset_bundle->printers.get_edited_preset().config.option<ConfigOptionEnum<PrintHostType>>("host_type")->value;
 }
 
+bool PrinterWebView::AcceptsFocusFromKeyboard() const
+{
+    return WebView::HostAcceptsFocusFromKeyboard(this);
+}
+
 void PrinterWebView::load_url(wxString& url, wxString apikey)
 {
 //    this->Show();
