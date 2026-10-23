@@ -70,9 +70,7 @@ function OnInit() {
       const row = cloudLink.closest(".row");
       if (!row) return;
 
-      selectTopRow(row);
-      selectedBundleId = String(row.dataset.id || "");
-      renderBottomForBundle(selectedBundleId);
+      selectBundleRow(row);
       sendOpenBundleOnCloud(selectedBundleId);
       return;
     }
@@ -85,9 +83,7 @@ function OnInit() {
       const row = updateBtn.closest(".row");                                                                                                                                                                                                                                                                                                                     
       if (!row) return;                                                                                                                                                                                                                                                                                                                                          
                                                                                                                                                                                                                                                                                                                                                                  
-      selectTopRow(row);                                                                                                                                                                                                                                                                                                                                         
-      selectedBundleId = String(row.dataset.id || "");                                                                                                                                                                                                                                                                                                           
-      renderBottomForBundle(selectedBundleId);                                                                                                                                                                                                                                                                                                                   
+      selectBundleRow(row);
       sendUpdateBundleCommand(selectedBundleId);                                                                                                                                                                                                                                                                                                                 
       return;                                                                                                                                                                                                                                                                                                                                                    
     }                                                                                                                                                                                                                                                                                                                                                            
@@ -95,9 +91,7 @@ function OnInit() {
     const row = e.target.closest(".row");                                                                                                                                                                                                                                                                                                                        
     if (!row) return;                                                                                                                                                                                                                                                                                                                                            
                                                                                                                                                                                                                                                                                                                                                                  
-    selectTopRow(row);                                                                                                                                                                                                                                                                                                                                           
-    selectedBundleId = String(row.dataset.id || "");                                                                                                                                                                                                                                                                                                             
-    renderBottomForBundle(selectedBundleId);                                                                                                                                                                                                                                                                                                                     
+    selectBundleRow(row);
   });
 
   // for top list rows if right click open context menu
@@ -105,27 +99,17 @@ function OnInit() {
     const row = e.target.closest(".row");
     if (!row) return; // top rows only
 
-    const bundleType = String(row.dataset.bundleType || "").toLowerCase();
-    if (bundleType !== "subscribed") return;
-
     e.preventDefault();
-    selectTopRow(row);
-    contextRow = row;
-    showSubscribedMenu(e.clientX, e.clientY);
+    openRowMenu(row, e.clientX, e.clientY);
   });
 
-  // for top list rows except subscribed if right click open regular context menu
-  topList.addEventListener("contextmenu", (e) => {
+  // Enter/Space on a focused row selects it, like a click; its button and link keep their own keys
+  topList.addEventListener("keydown", (e) => {
     const row = e.target.closest(".row");
-    if (!row) return; // top rows only
-    const bundleType = String(row.dataset.bundleType || "").toLowerCase();
-    if (bundleType === "subscribed") return;
+    if (!row || e.target !== row || (e.key !== "Enter" && e.key !== " ")) return;
 
     e.preventDefault();
-
-    selectTopRow(row);
-    contextRow = row;
-    showMenu(e.clientX, e.clientY);
+    selectBundleRow(row);
   });
 
   ctxMenu?.addEventListener("click", (e) => {
@@ -139,7 +123,6 @@ function OnInit() {
       bundle_id: String(contextRow.dataset.id || "")
     };
     SendWXMessage(JSON.stringify(tSend));
-    hideMenu();
   });
 
   closeBtn?.addEventListener("click", () => {
@@ -156,13 +139,6 @@ function OnInit() {
       command: "export_page"
     };
     SendWXMessage(JSON.stringify(tSend));
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".ctx")) hideMenu();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hideMenu();
   });
 }
 // ========= wx bridge requests =========
@@ -225,29 +201,30 @@ function unpackPayload(payload) {
 // ========= Render: top =========
 function renderTop() {                                                                                                                                                                                                                                                                                                                                         
     const bundles = Array.from(bundlesById.values());                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                 
+
+    // rows are tab stops without a widget role: option/button would hide the Update button and link
     topList.innerHTML = bundles.map(b => `                                                                                                                                                                                                                                                                                                                       
-      <div class="row" data-id="${escapeAttr(b.id)}" data-bundle-type="${escapeAttr(String(b.type || "").toLowerCase())}">                                                                                                                                                                                                                                       
-        <div class="cell bundle-name-cell" title="${escapeAttr(b.name)}">                                                                                                                                                                                                                                                                                        
+      <div class="row" data-id="${EscAttr(b.id)}" data-bundle-type="${EscAttr(String(b.type || "").toLowerCase())}" tabindex="0">
+        <div class="cell bundle-name-cell" title="${EscAttr(b.name)}">                                                                                                                                                                                                                                                                                        
           ${b.unauthorized
-            ? `<span class="bundle-status-icon bundle-status-icon-unauthorized" title="${escapeAttr(UNAUTHORIZED_TOOLTIP)}" aria-label="${escapeAttr(UNAUTHORIZED_TOOLTIP)}">!</span>`
+            ? `<span class="bundle-status-icon bundle-status-icon-unauthorized" title="${EscAttr(UNAUTHORIZED_TOOLTIP)}" aria-label="${EscAttr(UNAUTHORIZED_TOOLTIP)}">!</span>`
             : b.update_available
-              ? `<span class="bundle-status-icon bundle-status-icon-update" title="${escapeAttr(UPDATE_TOOLTIP)}" aria-label="${escapeAttr(UPDATE_TOOLTIP)}">&uarr;</span>`
+              ? `<span class="bundle-status-icon bundle-status-icon-update" title="${EscAttr(UPDATE_TOOLTIP)}" aria-label="${EscAttr(UPDATE_TOOLTIP)}">&uarr;</span>`
               : `<span class="bundle-status-icon-spacer" aria-hidden="true"></span>`}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
           ${
             b.type === "Subscribed" ?
-            `<a href="#" class="bundle-name-text bundle-cloud-link" title="${escapeAttr(T("open_in_browser", "Open this bundle in your browser"))}">${escapeHtml(b.name)}</a>`
+            `<a href="#" class="bundle-name-text bundle-cloud-link" title="${EscAttr(T("open_in_browser", "Open this bundle in your browser"))}">${escapeHtml(b.name)}</a>`
             : `<span class="bundle-name-text">${escapeHtml(b.name)}</span>`
           }                                                                                                                                                                                                                                                                                
         </div>                                                                                                                                                                                                                                                                                                                                                   
-        <span title="${escapeAttr(BundleTypeLabel(b.type))}">${escapeHtml(BundleTypeLabel(b.type))}</span>                                                                                                                                                                                                                                                                                         
-        <span title="${escapeAttr(b.version)}">${escapeHtml(b.version)}</span>                                                                                                                                                                                                                                                                                   
+        <span title="${EscAttr(BundleTypeLabel(b.type))}">${escapeHtml(BundleTypeLabel(b.type))}</span>                                                                                                                                                                                                                                                                                         
+        <span title="${EscAttr(b.version)}">${escapeHtml(b.version)}</span>                                                                                                                                                                                                                                                                                   
         <div class="cell bundle-update-cell">                                                                                                                                                                                                                                                                                                                    
             <button                                                                                                                                                                                                                                                               
             type="button"                                                                                                                                                                                                                                                       
             class="bundle-update-btn ${(!b.unauthorized && b.update_available) ? "is-enabled" : "is-disabled"}"                                                                                                                                                                 
             ${(!b.unauthorized && b.update_available) ? "" : "disabled"}                                                                                                                                                                                                        
-            data-id="${escapeAttr(b.id)}"                                                                                                                                                                                                                                       
+            data-id="${EscAttr(b.id)}"                                                                                                                                                                                                                                       
           >${escapeHtml(T("update", "Update"))}</button>                                                                                                                                                                                                                                                                                                                                       
         </div>                                                                                                                                                                                                                                                                                                                                                   
       </div>                                                                                                                                                                                                                                                                                                                                                     
@@ -293,9 +270,9 @@ function renderBottomForBundle(bundleId) {
   for (const [, name] of processes) rows.push({ type: T("process", "Process"), name });
 
   bottomList.innerHTML = rows.map((r, idx) => `
-    <div class="row" data-id="${escapeAttr(bundleId)}" data-idx="${idx}">
+    <div class="row" data-id="${EscAttr(bundleId)}" data-idx="${idx}">
       <span>${escapeHtml(r.name)}</span>
-      <span title="${escapeAttr(r.type)}">${escapeHtml(r.type)}</span>
+      <span title="${EscAttr(r.type)}">${escapeHtml(r.type)}</span>
     </div>
   `).join("");
 }
@@ -309,6 +286,14 @@ function selectTopRow(rowEl) {
   // only clear selection in top list, not bottom
   topList.querySelectorAll(".row.selected").forEach(r => r.classList.remove("selected"));
   rowEl.classList.add("selected");
+  // aria-current: aria-selected needs a listbox the list is not
+  topList.querySelectorAll(".row").forEach(r => SetAriaState(r, "aria-current", r === rowEl));
+}
+
+function selectBundleRow(rowEl) {
+  selectTopRow(rowEl);
+  selectedBundleId = String(rowEl.dataset.id || "");
+  renderBottomForBundle(selectedBundleId);
 }
 
 function autoSelectFirstBundle() {
@@ -327,9 +312,18 @@ function autoSelectFirstBundle() {
     return;
   }
 
-  selectTopRow(first);
-  selectedBundleId = first.dataset.id;
-  renderBottomForBundle(selectedBundleId);
+  selectBundleRow(first);
+}
+
+function openRowMenu(row, x, y) {
+  selectTopRow(row);
+  contextRow = row;
+
+  if (String(row.dataset.bundleType || "").toLowerCase() === "subscribed")
+    showSubscribedMenu(x, y);
+  else
+    showMenu(x, y);
+  A11yMenu(ctxMenu, row, hideMenu);
 }
 
 function showSubscribedMenu(x, y) {
@@ -372,11 +366,6 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function escapeAttr(str) {
-  // minimal attribute escaping
-  return escapeHtml(str);
 }
 
 function cssEscape(str) {

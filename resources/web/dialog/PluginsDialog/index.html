@@ -14,6 +14,7 @@
   <script type="text/javascript" src="../js/json2.js"></script>
   <script type="text/javascript" src="../../include/i18n.js"></script>
   <script type="text/javascript" src="../js/globalapi.js"></script>
+  <script type="text/javascript" src="../../include/a11y.js"></script>
   <script type="text/javascript" src="../js/common.js"></script>
   <script src="../js/plugin-config-ui.js"></script>
   <script src="./index.js"></script>
@@ -73,14 +74,14 @@
       <section class="pane plugin-list-pane">
         <div class="hdr plugin-cols">
           <span data-i18n="activate">Activate</span>
-          <span class="sort-th" data-sort-field="name" role="button" tabindex="0"
-            title="Sort by name" data-i18n-title="sort_by_name" data-i18n="name">Name<span class="sort-tri" aria-hidden="true"></span></span>
-          <span class="sort-th" data-sort-field="version" role="button" tabindex="0"
-            title="Sort by version" data-i18n-title="sort_by_version" data-i18n="plugin_version">Plugin Version<span class="sort-tri" aria-hidden="true"></span></span>
-          <span class="sort-th" data-sort-field="source" role="button" tabindex="0"
-            title="Sort by source" data-i18n-title="sort_by_source" data-i18n="source">Source<span class="sort-tri" aria-hidden="true"></span></span>
-          <span class="sort-th" data-sort-field="status" role="button" tabindex="0"
-            title="Sort by status" data-i18n-title="sort_by_status" data-i18n="status">Status<span class="sort-tri" aria-hidden="true"></span></span>
+          <span class="sort-th" data-sort-field="name"><button type="button" class="FocusRingInset"
+            title="Sort by name" data-i18n-title="sort_by_name" data-i18n="name">Name<span class="sort-tri" aria-hidden="true"></span></button></span>
+          <span class="sort-th" data-sort-field="version"><button type="button" class="FocusRingInset"
+            title="Sort by version" data-i18n-title="sort_by_version" data-i18n="plugin_version">Plugin Version<span class="sort-tri" aria-hidden="true"></span></button></span>
+          <span class="sort-th" data-sort-field="source"><button type="button" class="FocusRingInset"
+            title="Sort by source" data-i18n-title="sort_by_source" data-i18n="source">Source<span class="sort-tri" aria-hidden="true"></span></button></span>
+          <span class="sort-th" data-sort-field="status"><button type="button" class="FocusRingInset"
+            title="Sort by status" data-i18n-title="sort_by_status" data-i18n="status">Status<span class="sort-tri" aria-hidden="true"></span></button></span>
         </div>
         <div id="pluginList" class="body thin-scroll"></div>
       </section>

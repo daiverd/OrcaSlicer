@@ -76,6 +76,8 @@ nlohmann::json TerminalDialog::localized_strings() const
         {"run", _u8L("Run")},
         {"ready", _u8L("Plugin terminal ready.")},
         {"exit_code", _u8L("Process exited with code: %s")},
+        // TRN Screen reader name of the command field.
+        {"command", _u8L("Command")},
     };
 }
 
