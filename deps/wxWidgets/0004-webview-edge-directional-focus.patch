@@ -1,0 +1,185 @@
+Move the focus into and out of the web content when navigating by keyboard.
+
+The Edge backend asked WebView2 to move the focus with
+COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC in all cases, which focuses the web
+content window without giving the focus to any element of the document and
+without saying in which direction the focus is travelling. Nothing handled
+ICoreWebView2Controller::MoveFocusRequested either, so the focus could never
+leave the web view again: Tab moved the focus into a wxWebView and left it
+there until the user clicked somewhere else.
+
+Pass _NEXT or _PREVIOUS when the focus arrives while Tab is pressed, so that
+WebView2 puts the DOM focus on the first (or, for Shift+Tab, the last)
+focusable element of the page. The key state is what tells us the direction:
+wxFocusEvent doesn't carry it and SetFocusFromKbd() isn't called at all when
+the focus is moved by the native dialog navigation code. PROGRAMMATIC is still
+used when the focus doesn't come from Tab, e.g. on a mouse click, so nothing
+changes there.
+
+Handle MoveFocusRequested, which WebView2 raises when the user tabs past the
+last (or before the first) focusable element of the page, by continuing the
+traversal in the parent window with wxWindow::Navigate(), so that the focus
+leaves the web view instead of cycling inside it forever. The request is
+ignored while we're moving the focus in ourselves because a page without any
+focusable elements raises it immediately and the focus would bounce.
+
+ include/wx/msw/private/webview_edge.h | 10 +++++
+ src/msw/webview_edge.cpp              | 72 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 81 insertions(+), 1 deletion(-)
+
+diff --git a/include/wx/msw/private/webview_edge.h b/include/wx/msw/private/webview_edge.h
+index 9f98c28..d3c69db 100644
+--- a/include/wx/msw/private/webview_edge.h
++++ b/include/wx/msw/private/webview_edge.h
+@@ -41,6 +41,7 @@ __CRT_UUID_DECL(ICoreWebView2Environment10, 0xee0eb9df,0x6f12,0x46ce, 0xb5,0x3f,
+ __CRT_UUID_DECL(ICoreWebView2EnvironmentOptions, 0x2fde08a8, 0x1e9a, 0x4766, 0x8c,0x05, 0x95,0xa9,0xce,0xb9,0xd1,0xc5);
+ __CRT_UUID_DECL(ICoreWebView2EnvironmentOptions3, 0x4a5c436e, 0xa9e3, 0x4a2e, 0x89,0xc3, 0x91,0x0d,0x35,0x13,0xf5,0xcc);
+ __CRT_UUID_DECL(ICoreWebView2ExecuteScriptCompletedHandler, 0x49511172, 0xcc67, 0x4bca, 0x99,0x23, 0x13,0x71,0x12,0xf4,0xc4,0xcc);
++__CRT_UUID_DECL(ICoreWebView2MoveFocusRequestedEventHandler, 0x69035451, 0x6dc7, 0x4cb8, 0x9b,0xce, 0xb2,0xbd,0x70,0xad,0x28,0x9f);
+ __CRT_UUID_DECL(ICoreWebView2NavigationCompletedEventHandler, 0xd33a35bf, 0x1c49, 0x4f98, 0x93,0xab, 0x00,0x6e,0x05,0x33,0xfe,0x1c);
+ __CRT_UUID_DECL(ICoreWebView2NavigationStartingEventHandler, 0x9adbe429, 0xf36d, 0x432b, 0x9d,0xdc, 0xf8,0x88,0x1f,0xbd,0x76,0xe3);
+ __CRT_UUID_DECL(ICoreWebView2NewWindowRequestedEventHandler, 0xd4c185fe, 0xc81c, 0x4989, 0x97,0xaf, 0x2d,0x3f,0xa7,0xab,0x56,0x51);
+@@ -80,6 +81,9 @@ public:
+     bool m_initialized;
+     bool m_isBusy;
+     bool m_inEventCallback;
++    // Set while we're moving the focus into the web content ourselves, see
++    // OnMoveFocusRequested().
++    bool m_movingFocusIn = false;
+     wxString m_pendingURL;
+     wxString m_pendingPage;
+     int m_pendingContextMenuEnabled;
+@@ -104,6 +108,9 @@ public:
+     EventRegistrationToken m_webResourceRequestedToken = { };
+     EventRegistrationToken m_windowCloseRequestedToken = { };
+ 
++    // Controller Events tokens
++    EventRegistrationToken m_moveFocusRequestedToken = { };
++
+     // WebView Event handlers
+     HRESULT OnNavigationStarting(ICoreWebView2* sender, ICoreWebView2NavigationStartingEventArgs* args);
+     HRESULT OnFrameNavigationStarting(ICoreWebView2* sender, ICoreWebView2NavigationStartingEventArgs* args);
+@@ -118,6 +125,9 @@ public:
+     HRESULT OnAddScriptToExecuteOnDocumentedCreatedCompleted(HRESULT errorCode, LPCWSTR id);
+     HRESULT OnWindowCloseRequested(ICoreWebView2* sender, IUnknown* args);
+ 
++    // Controller Event handlers
++    HRESULT OnMoveFocusRequested(ICoreWebView2Controller* sender, ICoreWebView2MoveFocusRequestedEventArgs* args);
++
+     void EnvironmentAvailable(ICoreWebView2Environment* environment);
+     HRESULT OnWebViewCreated(HRESULT result, ICoreWebView2Controller* webViewController);
+ 
+diff --git a/src/msw/webview_edge.cpp b/src/msw/webview_edge.cpp
+index cf6f80e..2cc46da 100644
+--- a/src/msw/webview_edge.cpp
++++ b/src/msw/webview_edge.cpp
+@@ -24,6 +24,7 @@
+ #include "wx/tokenzr.h"
+ #include "wx/uilocale.h"
+ #include "wx/uri.h"
++#include "wx/utils.h"
+ #include "wx/private/jsscriptwrapper.h"
+ #include "wx/private/json.h"
+ #include "wx/private/webview.h"
+@@ -465,6 +466,9 @@ wxWebViewEdgeImpl::~wxWebViewEdgeImpl()
+         m_webView->remove_WebResourceRequested(m_webResourceRequestedToken);
+         m_webView->remove_WindowCloseRequested(m_windowCloseRequestedToken);
+     }
++
++    if (m_webViewController)
++        m_webViewController->remove_MoveFocusRequested(m_moveFocusRequestedToken);
+ }
+ 
+ bool wxWebViewEdgeImpl::Create()
+@@ -747,6 +751,35 @@ HRESULT wxWebViewEdgeImpl::OnWindowCloseRequested(ICoreWebView2* WXUNUSED(sender
+     return S_OK;
+ }
+ 
++HRESULT wxWebViewEdgeImpl::OnMoveFocusRequested(ICoreWebView2Controller* WXUNUSED(sender),
++    ICoreWebView2MoveFocusRequestedEventArgs* args)
++{
++    COREWEBVIEW2_MOVE_FOCUS_REASON reason;
++    if (FAILED(args->get_Reason(&reason)))
++        return S_OK;
++
++    // The web content ran out of focusable elements in this direction, so
++    // continue the keyboard traversal in the window containing this control,
++    // i.e. let the focus leave the web view instead of cycling inside it.
++    //
++    // Don't do this while we're moving the focus into the web content
++    // ourselves from OnSetFocus(): a page without any focusable elements at
++    // all asks for the focus to move on immediately and sending it back to
++    // the parent could bounce it right back here.
++    if (!m_movingFocusIn &&
++        (reason == COREWEBVIEW2_MOVE_FOCUS_REASON_NEXT ||
++         reason == COREWEBVIEW2_MOVE_FOCUS_REASON_PREVIOUS))
++    {
++        const int dir = reason == COREWEBVIEW2_MOVE_FOCUS_REASON_NEXT
++                            ? wxNavigationKeyEvent::IsForward
++                            : wxNavigationKeyEvent::IsBackward;
++        if (m_ctrl->Navigate(dir | wxNavigationKeyEvent::FromTab))
++            args->put_Handled(TRUE);
++    }
++
++    return S_OK;
++}
++
+ HRESULT wxWebViewEdgeImpl::OnDocumentTitleChanged(ICoreWebView2* WXUNUSED(sender), IUnknown* WXUNUSED(args))
+ {
+     wxWebViewEvent event(wxEVT_WEBVIEW_TITLE_CHANGED,
+@@ -944,6 +977,12 @@ HRESULT wxWebViewEdgeImpl::OnWebViewCreated(HRESULT result, ICoreWebView2Control
+             this, &wxWebViewEdgeImpl::OnWindowCloseRequested).Get(),
+         &m_windowCloseRequestedToken);
+ 
++    // This event is raised by the controller and not by the web view itself.
++    m_webViewController->add_MoveFocusRequested(
++        Callback<ICoreWebView2MoveFocusRequestedEventHandler>(
++            this, &wxWebViewEdgeImpl::OnMoveFocusRequested).Get(),
++        &m_moveFocusRequestedToken);
++
+     // Register handlers
+     for (const auto& kv : m_handlers)
+     {
+@@ -1168,10 +1207,41 @@ void wxWebViewEdge::OnSize(wxSizeEvent& event)
+     event.Skip();
+ }
+ 
++namespace
++{
++
++// Return the reason to pass to ICoreWebView2Controller::MoveFocus() when this
++// control gets the focus.
++//
++// If the focus arrives while Tab is pressed, it comes from the keyboard
++// traversal of the containing window and we ask WebView2 to put the DOM focus
++// on the first (or, when going backwards, the last) focusable element of the
++// page instead of just focusing the web content window, which would leave the
++// user with nothing to Tab from.
++//
++// We have to look at the key state because the focus event itself doesn't
++// carry the direction of the traversal and neither does SetFocusFromKbd(),
++// which isn't called at all when the focus is moved by the native dialog
++// navigation code.
++COREWEBVIEW2_MOVE_FOCUS_REASON GetMoveFocusReason()
++{
++    if (!wxGetKeyState(WXK_TAB))
++        return COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC;
++
++    return wxGetKeyState(WXK_SHIFT) ? COREWEBVIEW2_MOVE_FOCUS_REASON_PREVIOUS
++                                    : COREWEBVIEW2_MOVE_FOCUS_REASON_NEXT;
++}
++
++} // anonymous namespace
++
+ void wxWebViewEdge::OnSetFocus(wxFocusEvent& event)
+ {
+     if (m_impl && m_impl->m_webViewController)
+-        m_impl->m_webViewController->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
++    {
++        m_impl->m_movingFocusIn = true;
++        m_impl->m_webViewController->MoveFocus(GetMoveFocusReason());
++        m_impl->m_movingFocusIn = false;
++    }
+     event.Skip();
+ }
+ 
