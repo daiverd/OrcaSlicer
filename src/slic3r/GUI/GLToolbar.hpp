@@ -429,6 +429,7 @@ public:
     bool on_mouse(wxMouseEvent& evt, GLCanvas3D& parent);
     // get item pointer for highlighter timer
     GLToolbarItem* get_item(const std::string& item_name);
+    const GLToolbarItem* get_item(int item_id) const { return (0 <= item_id && item_id < (int)m_items.size()) ? m_items[item_id] : nullptr; }
 
     //BBS: GUI refactor: GLToolbar
     int generate_button_text_textures(wxFont& font);

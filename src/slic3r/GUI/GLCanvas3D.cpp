@@ -1628,6 +1628,7 @@ GLCanvas3D::GLCanvas3D(wxGLCanvas* canvas, Bed3D &bed)
     , m_separator_toolbar(GLToolbar::Normal, "Separator")
     , m_assemble_view_toolbar(GLToolbar::Normal, "Assembly_View")
     , m_return_toolbar()
+    , m_keyboard_ring(*this)
     , m_canvas_type(ECanvasType::CanvasView3D)
     , m_gizmos(*this)
     , m_use_clipping_planes(false)
@@ -3960,6 +3961,7 @@ void GLCanvas3D::bind_event_handlers()
                 }
 #endif
                 ImGui::SetWindowFocus(nullptr);
+                m_keyboard_ring.reset();
                 render();
                 evt.Skip();
             });
@@ -4442,6 +4444,11 @@ void GLCanvas3D::on_key(wxKeyEvent& evt)
             return;
         }
         if (!m_gizmos.on_key(evt)) {
+            // The arrows, Home, End, Enter and Space belong to the focused toolbar while
+            // one has the virtual focus; Tab moves between the stops, below.
+            if (m_keyboard_ring.on_key(evt))
+                return;
+
             if (evt.GetEventType() == wxEVT_KEY_UP) {
                 if (evt.ShiftDown() && evt.ControlDown() && keyCode == WXK_SPACE) {
 #if !BBL_RELEASE_TO_PUBLIC
@@ -4481,11 +4488,15 @@ void GLCanvas3D::on_key(wxKeyEvent& evt)
             else if (evt.GetEventType() == wxEVT_KEY_DOWN) {
                 if (handle_shortcut(KeyChord::from_event(evt)))
                     return;
-                // Tab and Shift+Tab move the keyboard focus unless the user bound them to a shortcut.
-                // The canvas is created with wxWANTS_CHARS, so wx never turns Tab into a navigation
-                // event on its own and evt.Skip() alone would not move the focus out of the canvas.
+                // Tab and Shift+Tab move the keyboard focus unless the user bound them to a shortcut:
+                // through the toolbar stops of the canvas, then out of it past either end. The scene is
+                // the first stop, so Shift+Tab leaves the canvas only from there. The canvas is created
+                // with wxWANTS_CHARS, so wx never turns Tab into a navigation event on its own and
+                // evt.Skip() alone would not move the focus out of the canvas.
                 if (keyCode == WXK_TAB && !evt.ControlDown() && !evt.AltDown()) {
-                    m_canvas->Navigate(evt.ShiftDown() ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward);
+                    const bool backward = evt.ShiftDown();
+                    if (!(backward ? m_keyboard_ring.focus_previous_stop() : m_keyboard_ring.focus_next_stop()))
+                        m_canvas->Navigate(backward ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward);
                     return;
                 }
                 if (keyCode == WXK_SHIFT) {
@@ -10400,6 +10411,7 @@ void GLCanvas3D::_render_gizmos_overlay()
     m_gizmos.set_overlay_icon_size(size); //! #ys_FIXME_experiment
 #endif */ /* __WXMSW__ */
     m_gizmos.render_overlay();
+    m_keyboard_ring.render_focus_ring(m_gizmos);
 
     if (m_gizmo_highlighter.m_render_arrow)
     {
@@ -10437,6 +10449,7 @@ void GLCanvas3D::_render_main_toolbar()
     const float left = -0.5f * cnv_size.get_width() + get_main_toolbar_offset();
     m_main_toolbar.set_position(top, left);
     m_main_toolbar.render(*this);
+    m_keyboard_ring.render_focus_ring(m_main_toolbar);
     if (m_toolbar_highlighter.m_render_arrow)
         m_main_toolbar.render_arrow(*this, m_toolbar_highlighter.m_toolbar_item);
 }
@@ -11009,6 +11022,7 @@ void GLCanvas3D::_render_assemble_view_toolbar() const
 
     m_assemble_view_toolbar.set_position(top, left);
     m_assemble_view_toolbar.render(*this);
+    m_keyboard_ring.render_focus_ring(m_assemble_view_toolbar);
 }
 
 void GLCanvas3D::_render_return_toolbar() const
@@ -11472,6 +11486,7 @@ void GLCanvas3D::_render_collapse_toolbar() const
 
     collapse_toolbar.set_position(top, left);
     collapse_toolbar.render(*this);
+    m_keyboard_ring.render_focus_ring(collapse_toolbar);
 }
 
 //BBS reander assemble toolbar

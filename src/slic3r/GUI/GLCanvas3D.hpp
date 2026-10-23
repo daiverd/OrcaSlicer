@@ -31,6 +31,7 @@
 #include "Event.hpp"
 #include "Selection.hpp"
 #include "Gizmos/GLGizmosManager.hpp"
+#include "GLCanvasRing.hpp"
 #include "GUI_ObjectLayers.hpp"
 #include "GLSelectionRectangle.hpp"
 #include "GLModel.hpp"
@@ -237,6 +238,9 @@ wxDECLARE_EVENT(EVT_GLCANVAS_PRINTABLE, SimpleEvent);
 
 class GLCanvas3D
 {
+    // reads the toolbars it builds the focus stops from
+    friend class GLCanvasKeyboardRing;
+
     static const double DefaultCameraZoomToBoxMarginFactor;
     static const double DefaultCameraZoomToBedMarginFactor;
     static const double DefaultCameraZoomToPlateMarginFactor;
@@ -670,6 +674,7 @@ private:
     bool     m_plate_switcher_scrollbar{ false };
     mutable GLToolbar m_assemble_view_toolbar;
     mutable IMReturnToolbar m_return_toolbar;
+    GLCanvasKeyboardRing m_keyboard_ring;
     mutable Vec2i32 m_canvas_toolbar_pos = {140, 5};
     mutable float m_sc{1};
     mutable float m_paint_toolbar_width;

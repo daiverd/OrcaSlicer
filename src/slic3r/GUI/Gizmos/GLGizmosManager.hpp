@@ -145,7 +145,6 @@ private:
     //BBS: GUI refactor: add object manipulation
     GizmoObjectManipulation m_object_manipulation;
 
-    std::vector<size_t> get_selectable_idxs() const;
     EType get_gizmo_from_mouse(const Vec2d &mouse_pos) const;
 
     // top left corner of the first icon of the strip, in canvas pixels
@@ -363,6 +362,9 @@ public:
     // To end highlight set gizmo = undefined
     void set_highlight(EType gizmo, bool highlight_shown) { m_highlight = std::pair<EType, bool>(gizmo, highlight_shown); }
     bool get_highlight_state() const { return m_highlight.second; }
+
+    // the gizmos of the strip, in the order they are drawn
+    std::vector<size_t> get_selectable_idxs() const;
 
     // Bounding box of the icon of the given gizmo, in canvas pixels with the origin at
     // the top left corner, the space the mouse position is expressed in. Returns false
