@@ -436,21 +436,22 @@ void ComboBox::keyDown(wxKeyEvent& event)
                 GetEventHandler()->ProcessEvent(e);
             }
             break;
+        // Left/Right are deliberately absent: this list is vertical, and the rows they
+        // used to reach include actions that run on mere selection.
         case WXK_UP:
+        case WXK_NUMPAD_UP:
         case WXK_DOWN:
-        case WXK_LEFT:
-        case WXK_RIGHT: {
-            // Step over disabled rows: the mouse cannot select them either.
-            const int step = (event.GetKeyCode() == WXK_UP || event.GetKeyCode() == WXK_LEFT) ? -1 : 1;
-            int       n    = GetSelection() + step;
-            while (n >= 0 && n < int(items.size()) && (items[n].style & DD_ITEM_STYLE_DISABLED))
-                n += step;
-            if (n < 0 || n >= int(items.size()))
-                break;
-            SetSelection(n);
-            sendComboBoxEvent();
+        case WXK_NUMPAD_DOWN:
+        case WXK_HOME:
+        case WXK_NUMPAD_HOME:
+        case WXK_END:
+        case WXK_NUMPAD_END:
+        case WXK_PAGEUP:
+        case WXK_NUMPAD_PAGEUP:
+        case WXK_PAGEDOWN:
+        case WXK_NUMPAD_PAGEDOWN:
+            keyMoveSelection(event.GetKeyCode());
             break;
-        }
         case WXK_TAB:
             HandleAsNavigationKey(event);
             break;
@@ -458,6 +459,61 @@ void ComboBox::keyDown(wxKeyEvent& event)
             event.Skip();
             break;
     }
+}
+
+// Browse the list with the popup closed. The change commits at once, the native
+// Windows convention, so it must only ever land on a row the open popup would let
+// the keyboard select: group headers, separators, disabled entries and the rows
+// IsItemKeySelectable() refuses are stepped over rather than counted.
+void ComboBox::keyMoveSelection(int keycode)
+{
+    drop.messureSize(); // drop.count and drop.rowSize are stale until this runs
+    const int last = (int) drop.count - 1;
+    const int cur  = drop.selectedItem();
+    // A page is what the popup shows at once, which messureSize() caps at 15 rows.
+    int page = drop.rowSize.y > 0 ? drop.GetSize().y / drop.rowSize.y : 1;
+    if (page < 1) page = 1;
+
+    int dir = 1, from = 0, steps = 1;
+    switch (keycode) {
+    case WXK_UP:
+    case WXK_NUMPAD_UP:
+        dir = -1; from = cur < 0 ? last : cur - 1;
+        break;
+    case WXK_DOWN:
+    case WXK_NUMPAD_DOWN:
+        dir = 1; from = cur < 0 ? 0 : cur + 1;
+        break;
+    case WXK_PAGEUP:
+    case WXK_NUMPAD_PAGEUP:
+        dir = -1; from = cur < 0 ? last : cur - 1; steps = page;
+        break;
+    case WXK_PAGEDOWN:
+    case WXK_NUMPAD_PAGEDOWN:
+        dir = 1; from = cur < 0 ? 0 : cur + 1; steps = page;
+        break;
+    case WXK_HOME:
+    case WXK_NUMPAD_HOME:
+        from = 0;
+        break;
+    case WXK_END:
+    case WXK_NUMPAD_END:
+        dir = -1; from = last;
+        break;
+    }
+
+    int selection = -1;
+    for (int i = 0; i < steps; ++i) {
+        int hover = drop.findSelectable(from, dir);
+        while (hover >= 0 && !IsItemKeySelectable(drop.itemIndex(hover)))
+            hover = drop.findSelectable(hover + dir, dir);
+        if (hover < 0)
+            break;
+        selection = drop.itemIndex(hover);
+        from      = hover + dir;
+    }
+    if (selection >= 0 && selection != GetSelection())
+        SelectAndNotify(selection);
 }
 
 void ComboBox::onMove(wxMoveEvent &event)

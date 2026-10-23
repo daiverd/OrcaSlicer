@@ -103,6 +103,11 @@ public:
     void ForceDropdownOpen();
     void CloseDropdown();
 
+    // Rows that key browsing on the COLLAPSED combo must not land on, because merely
+    // selecting one acts (the preset action rows run a wizard). They stay clickable and
+    // Enter-activatable in the open popup.
+    virtual bool IsItemKeySelectable(unsigned int n) const { return true; }
+
 protected:
     virtual int  DoInsertItems(const wxArrayStringsAdapter &items,
                                unsigned int                 pos,
@@ -124,6 +129,8 @@ protected:
 #endif
 
 private:
+
+    void keyMoveSelection(int keycode);
 
     // some useful events
     void mouseDown(wxMouseEvent &event);

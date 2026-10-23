@@ -205,6 +205,12 @@ void PresetComboBox::set_label_marker(int item, LabelItemType label_item_type)
     this->SetClientData(item, (void*)label_item_type);
 }
 
+bool PresetComboBox::IsItemKeySelectable(unsigned int n) const
+{
+    auto marker = reinterpret_cast<Marker>(this->GetClientData(n));
+    return marker < LABEL_ITEM_DISABLED || marker >= LABEL_ITEM_MAX;
+}
+
 bool PresetComboBox::set_printer_technology(PrinterTechnology pt)
 {
     if (printer_technology != pt) {
