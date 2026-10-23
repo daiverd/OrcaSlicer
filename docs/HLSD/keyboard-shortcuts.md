@@ -26,7 +26,9 @@ the dialog lists them; a `static_assert` keeps the table and the enum in step.
 `ShortcutRegistry` overlays the user's overrides on the defaults and keeps a
 chord-to-shortcut index for lookups. It reads and writes the `shortcuts` section of
 `AppConfig`. Only overrides are stored, so a default can change between releases
-without touching anyone's config; `none` records a shortcut the user unbound.
+without touching anyone's config; `none` records a shortcut the user unbound. A default can
+be unbound itself, and `load()` drops a `none` saved for such a shortcut, so it does not
+count as customized.
 
 ## Contexts
 
@@ -75,6 +77,14 @@ repeats, its char event and its release follow the key-down's decision even when
 modal opens or closes in between, so a key never both runs a shortcut and types, and a
 keyboard move of the selection always sees the release of the key that started it.
 
+Tab and Shift+Tab are not bound in the canvas by default. When no shortcut claims them,
+`GLCanvas3D::on_key` moves the keyboard focus to the next or previous control with
+`Navigate()`, because the canvas is created with `wxWANTS_CHARS` and wx would not turn Tab
+into a navigation event by itself. A user can bind them, for example to `SwitchView` and
+`CollapseSidebar`, and the binding then wins over focus navigation. Only while Tab or
+Shift+Tab is bound does the canvas take the focus when the mouse enters it; otherwise that
+would undo whatever the keyboard user tabbed to.
+
 Key-ups go to whatever window has the focus, so a shortcut that opens a dialog, such as
 Ctrl+P, takes the release of its modifier with it. When the canvas loses the focus it sends
 itself a key-up for each Shift, Ctrl or Alt still held, which ends a gizmo's Shift mode and
@@ -102,7 +112,7 @@ follows.
 
 wxGTK does not report key auto-repeat, so the canvases share one record of the keys
 seen going down and swallow the repeats of every shortcut not marked `repeatable`. Zoom
-and undo repeat, for example; a toggle such as Tab does not. The record is shared because
+and undo repeat, for example; a toggle such as the G-code window's `C` does not. The record is shared because
 a shortcut can move the focus to another canvas while its key is still held; a key
 released while no canvas had the focus is dropped on the next press.
 

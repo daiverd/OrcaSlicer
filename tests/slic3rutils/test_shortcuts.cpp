@@ -455,3 +455,30 @@ TEST_CASE("Unreadable config entries fall back to the default binding", "[Shortc
     CHECK_FALSE(registry.is_customized(Shortcut::Arrange));
     CHECK(registry.lookup(ShortcutContext::Plater, { 'A' }) == Shortcut::Arrange);
 }
+
+TEST_CASE("Tab is free for focus navigation in the canvas unless the user binds it", "[Shortcuts]")
+{
+    const KeyChord tab{ WXK_TAB };
+    const KeyChord shift_tab{ WXK_TAB, wxMOD_SHIFT };
+    ShortcutRegistry registry;
+    CHECK_FALSE(registry.lookup(ShortcutContext::Plater, tab).has_value());
+    CHECK_FALSE(registry.lookup(ShortcutContext::Preview, shift_tab).has_value());
+
+    registry.bind(Shortcut::SwitchView, tab);
+    CHECK(registry.is_customized(Shortcut::SwitchView));
+    AppConfig config;
+    registry.save(config);
+    CHECK(config.get("shortcuts", "switch_view") == "Tab");
+    ShortcutRegistry loaded;
+    loaded.load(config);
+    CHECK(loaded.lookup(ShortcutContext::Preview, tab) == Shortcut::SwitchView);
+
+    SECTION("a saved unbinding of a default that is now unbound is not an override")
+    {
+        config.set("shortcuts", "collapse_sidebar", std::string("none"));
+        loaded.load(config);
+        CHECK_FALSE(loaded.is_customized(Shortcut::CollapseSidebar));
+        loaded.save(config);
+        CHECK_FALSE(config.has("shortcuts", "collapse_sidebar"));
+    }
+}
