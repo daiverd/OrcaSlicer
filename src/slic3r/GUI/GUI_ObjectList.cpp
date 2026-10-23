@@ -338,8 +338,12 @@ ObjectList::ObjectList(wxWindow* parent) :
     // arrow keys and Enter, giving up per-cell TAB navigation.
     GetMainWindow()->Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& evt) {
         if (evt.GetKeyCode() == WXK_TAB && !evt.HasModifiers() && !m_editing_in_progress) {
-            Navigate(evt.ShiftDown() ? wxNavigationKeyEvent::IsBackward
-                                     : wxNavigationKeyEvent::IsForward);
+            // FromTab: this is a real TAB escape, and GUI_App::FilterEvent drops navigation
+            // events that lack the flag. Navigate() replaces the event's default flags with
+            // the ones passed here, so it has to be spelled out.
+            Navigate(wxNavigationKeyEvent::FromTab |
+                     (evt.ShiftDown() ? wxNavigationKeyEvent::IsBackward
+                                      : wxNavigationKeyEvent::IsForward));
             return; // consume, so wxDataViewMainWindow::OnCharHook() never sees it
         }
         evt.Skip();

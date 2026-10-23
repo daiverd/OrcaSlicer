@@ -8817,11 +8817,42 @@ int GUI_App::input_idle_ms() const
 
 // Every wxCommandEvent claims the user-input category, so only real mouse and key events count,
 // plus main window resizes, since a border drag produces no mouse events.
+//
+// ORCA: the filter also applies the app-wide arrow-key policy - arrow keys move focus only inside
+// a composite widget (tab strip, list, tree, radio group, toolbar, menu), never between plain
+// buttons or fields; moving between widgets is TAB's job everywhere.
+//
+// The arrow leaks are not deliberate: on MSW, wxWindowMSW::MSWProcessMessage turns any
+// arrow key the focused control did not claim through WM_GETDLGCODE into a
+// wxNavigationKeyEvent (wx src/msw/window.cpp), and wxControlContainer then walks focus
+// with it, so focus wanders off buttons in whichever containers happen not to claim the
+// key. That conversion sets the FromTab flag only for VK_TAB (wx src/msw/window.cpp), so
+// dropping non-FromTab navigation events removes the fallback. Every real composite in the
+// tree drives its arrows from key events and moves focus itself, so none of them depends on
+// this path; the deliberate TAB escapes we raise in code pass FromTab explicitly.
+//
+// The same conversion also turns [Ctrl-]PageUp/PageDown into a navigation event without the
+// flag, which is how those switch notebook pages (Notebook and Tabbook both act on
+// IsWindowChange()). That is composite paging, not focus wandering, so it is let through: an
+// arrow key never sets WindowChange, so nothing the policy targets comes back with it.
+//
+// An app-level filter is the right place because filters run before any handler and
+// before the container logic (wx src/common/event.cpp), so no container ever sees the
+// event. MSW-only: no other port converts arrows this way, and on macOS
+// wxTextCtrl clears FromTab on its own TAB escape (wx src/osx/textctrl_osx.cpp), which
+// this filter would then swallow.
 int GUI_App::FilterEvent(wxEvent& event)
 {
     if ((!event.IsCommandEvent() && (event.GetEventCategory() & wxEVT_CATEGORY_USER_INPUT)) ||
         (event.GetEventType() == wxEVT_SIZE && event.GetEventObject() == mainframe))
         m_last_input = std::chrono::steady_clock::now();
+#ifdef __WXMSW__
+    if (event.GetEventType() == wxEVT_NAVIGATION_KEY) {
+        const auto& nav = static_cast<wxNavigationKeyEvent&>(event);
+        if (!nav.IsFromTab() && !nav.IsWindowChange())
+            return Event_Ignore;
+    }
+#endif
     return Event_Skip;
 }
 
