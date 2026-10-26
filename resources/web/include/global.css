@@ -86,6 +86,12 @@ label:has(> input.A11yOnly:focus-visible) {
 	outline-offset: 1px;
 }
 
+/* for a control whose container clips the ring above: draw it inside the border */
+.FocusRingInset:focus-visible {
+	outline: 2px solid var(--fg-color-text);
+	outline-offset: -3px;
+}
+
 /*////////////////////////////*/
 /*           ICONS            */
 /*////////////////////////////*/
