@@ -46,7 +46,7 @@ PrinterCloudAuthDialog::PrinterCloudAuthDialog(wxWindow* parent, PrintHost* host
     BOOST_LOG_TRIVIAL(info) << "login url = " << m_TargetUrl.ToStdString();
 
     // Create the webview
-    m_browser = WebView::CreateWebView(this, m_TargetUrl);
+    m_browser = WebView::CreateWebView(this, m_TargetUrl, _L("Login"));
     if (m_browser == nullptr) {
         wxLogError("Could not init m_browser");
         return;

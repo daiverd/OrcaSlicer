@@ -302,11 +302,15 @@ WebViewPanel::~WebViewPanel()
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__ << " End";
 }
 
+bool WebViewPanel::AcceptsFocusFromKeyboard() const
+{
+    return WebView::HostAcceptsFocusFromKeyboard(this);
+}
 
 void WebViewPanel::create_browser()
 {
     // Created empty and loaded after the strings are added, so the first load already has them.
-    m_browser = WebView::CreateWebView(this, wxEmptyString);
+    m_browser = WebView::CreateWebView(this, wxEmptyString, _L("Home"));
     m_browser->AddUserScript(wxString::FromUTF8(WebViewHostDialog::localized_strings_script(home_page_strings())));
     WebView::LoadUrl(m_browser, m_home_url);
     m_browser->Hide();
@@ -316,7 +320,7 @@ void WebViewPanel::create_browser()
 // so its session and scroll position survive hiding.
 void WebViewPanel::create_cloud_browser()
 {
-    m_cloud_browser = WebView::CreateWebView(this, wxEmptyString);
+    m_cloud_browser = WebView::CreateWebView(this, wxEmptyString, "OrcaCloud");
 
 #ifdef __linux__
     // The pane's web session is a cookie (guide §3), and WebKitGTK keeps cookies only in memory

@@ -181,7 +181,7 @@ bool WebViewHostDialog::create_webview(const std::string& resource_path,
     wxBoxSizer*    topsizer   = new wxBoxSizer(wxVERTICAL);
 
     // Created empty and loaded below, after the user scripts are added, so the first load already has them.
-    m_browser = WebView::CreateWebView(this, wxEmptyString);
+    m_browser = WebView::CreateWebView(this, wxEmptyString, title);
     if (m_browser == nullptr) {
         wxLogError("Could not init m_browser");
         delete topsizer;

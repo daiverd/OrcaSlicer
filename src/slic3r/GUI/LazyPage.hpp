@@ -54,6 +54,16 @@ public:
     // Pending only while the tab is in the book.
     bool pending() const override { return in_book() && Lazy<Panel>::pending(); }
 
+    // ORCA: the book asks the page, not the panel inside it, whether a Tab may enter it, so
+    // answer for the panel: a web view host declines the keyboard (see
+    // WebView::HostAcceptsFocusFromKeyboard()), and this wrapper would otherwise always accept.
+    bool AcceptsFocusFromKeyboard() const override
+    {
+        if (const Panel* panel = this->get())
+            return panel->AcceptsFocusFromKeyboard();
+        return wxPanel::AcceptsFocusFromKeyboard();
+    }
+
     // Forwarded so the panel's own Show() override stays its activation hook; wx calls this
     // virtual from the book's ShowWithEffect() only for wxSHOW_EFFECT_NONE, the default.
     bool Show(bool show = true) override

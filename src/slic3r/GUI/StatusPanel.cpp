@@ -1618,7 +1618,7 @@ wxBoxSizer *StatusBasePanel::create_monitoring_page()
     m_media_ctrl = new wxMediaCtrl3(this);
     m_media_ctrl->SetMinSize(wxSize(PAGE_MIN_WIDTH, FromDIP(288)));
 
-    m_custom_camera_view = WebView::CreateWebView(this, wxEmptyString);
+    m_custom_camera_view = WebView::CreateWebView(this, wxEmptyString, _L("Camera"));
     m_custom_camera_view->EnableContextMenu(false);
     m_web_media_controller = std::make_unique<WebMediaController>(m_custom_camera_view);
 

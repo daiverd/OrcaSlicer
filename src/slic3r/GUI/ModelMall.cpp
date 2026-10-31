@@ -105,7 +105,7 @@ namespace GUI {
         m_web_control_panel->Layout();
         m_sizer_web_control->Fit(m_web_control_panel);
 
-        m_browser = WebView::CreateWebView(this, wxEmptyString);
+        m_browser = WebView::CreateWebView(this, wxEmptyString, _L("3D Models"));
         if (m_browser == nullptr) {
             wxLogError("Could not init m_browser");
             return;

@@ -238,7 +238,7 @@ GuideFrame::GuideFrame(GUI_App *pGUI, long style)
 
     // Created empty and loaded by SetStartPage(BBL_REGION) below, after the strings are added, so the
     // first load already has them.
-    m_browser = WebView::CreateWebView(this, wxEmptyString);
+    m_browser = WebView::CreateWebView(this, wxEmptyString, _L("Setup Wizard"));
     if (m_browser == nullptr) {
         wxLogError("Could not init m_browser");
         return;
@@ -315,7 +315,8 @@ void GuideFrame::load_url(wxString &url)
 {
     BOOST_LOG_TRIVIAL(trace) << __FUNCTION__<< " enter, url=" << url.ToStdString();
     WebView::LoadUrl(m_browser, url);
-    m_browser->SetFocus();
+    // The browser is still hidden and sized 0x0 here, so focusing it now is a no-op;
+    // OnNavigationComplete does it once the view is actually shown.
     UpdateState();
 
     BOOST_LOG_TRIVIAL(info) << __FUNCTION__<< " exit";
@@ -349,10 +350,12 @@ wxString GuideFrame::SetStartPage(GuidePage startpage, bool load)
         else
             TargetUrl = guide_url + "?target=21";
     } else if (startpage == BBL_FILAMENT_ONLY) {
-        SetTitle("");
+        // ORCA: these two pages open as standalone dialogs, not as the wizard, so an
+        // empty title left them announced as a nameless "dialog" by screen readers.
+        SetTitle(_L("Select Filaments"));
         TargetUrl = guide_url + "?target=23";
     } else if (startpage == BBL_MODELS_ONLY) {
-        SetTitle("");
+        SetTitle(_L("Select Printers"));
         TargetUrl = guide_url + "?target=24";
     }
     else {
@@ -489,6 +492,7 @@ void GuideFrame::OnNavigationComplete(wxWebViewEvent &evt)
 
     m_browser->Show();
     Layout();
+    m_browser->SetFocus();
 
     wxString NewUrl = evt.GetURL();
 

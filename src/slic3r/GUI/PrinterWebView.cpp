@@ -181,7 +181,7 @@ PrinterWebView::~PrinterWebView()
 
 void PrinterWebView::create_browser()
 {
-    m_browser = WebView::CreateWebView(this, "");
+    m_browser = WebView::CreateWebView(this, "", _L("Printer Web Interface"));
     add_page_strings(m_browser);
 
 #ifdef __linux__
@@ -220,6 +220,11 @@ static PrintHostType active_host_type()
     if (wxGetApp().preset_bundle == nullptr)
         return htOctoPrint;
     return wxGetApp().preset_bundle->printers.get_edited_preset().config.option<ConfigOptionEnum<PrintHostType>>("host_type")->value;
+}
+
+bool PrinterWebView::AcceptsFocusFromKeyboard() const
+{
+    return WebView::HostAcceptsFocusFromKeyboard(this);
 }
 
 void PrinterWebView::load_url(wxString& url, wxString apikey)

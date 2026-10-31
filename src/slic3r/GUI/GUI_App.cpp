@@ -10016,7 +10016,11 @@ bool GUI_App::run_wizard(RunReason reason, StartPage start_page)
     //const bool res = wizard_t->run(reason, start_page);
 
     std::string strFinish = wxGetApp().app_config->get("firstguide", "finish");
-    long        pStyle    = wxCAPTION | wxCLOSE_BOX | wxSYSTEM_MENU;
+    // ORCA: wxTAB_TRAVERSAL belongs in both branches - without it wx assigns no initial
+    // focus and runs no dialog navigation, which is why the wizard was keyboard-navigable
+    // on first run but the same frame reopened later (from "Set filaments to use", say)
+    // was completely dead.
+    long        pStyle    = wxCAPTION | wxCLOSE_BOX | wxSYSTEM_MENU | wxTAB_TRAVERSAL;
     if (strFinish == "false" || strFinish.empty())
         pStyle = wxCAPTION | wxTAB_TRAVERSAL;
 
@@ -10034,6 +10038,16 @@ bool GUI_App::run_wizard(RunReason reason, StartPage start_page)
         mainframe->refresh_plugin_tips();
         // BBS: remove SLA related message
     }
+
+    // ORCA: nothing takes focus on the way out of the wizard, and on first run it opened
+    // before any main frame control had ever held it, so wx has no previous focus to
+    // restore and a screen reader is left on a nameless pane. Deferred because the frame
+    // is only destroyed when this scope ends.
+    CallAfter([this] {
+        if (plater_ && plater_->IsShownOnScreen())
+            if (GLCanvas3D *canvas = plater_->get_current_canvas3D())
+                canvas->force_set_focus();
+    });
 
     return res;
 }

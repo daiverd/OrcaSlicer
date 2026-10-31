@@ -23,11 +23,12 @@ std::string plugin_pane_name(const std::string& plugin_key, const std::string& t
 }
 
 DockPanel::DockPanel(wxWindow*          parent,
+                     const wxString&    title,
                      const std::string& html,
                      MessageHandler     on_message,
                      CloseHandler       on_close,
                      CloseHandler       on_destroyed)
-    : WebPanel(parent, web_hosting::orca_bridge_script())
+    : WebPanel(parent, web_hosting::orca_bridge_script(), title)
     , m_html(html)
     , m_on_message(std::move(on_message))
     , m_on_close(std::move(on_close))

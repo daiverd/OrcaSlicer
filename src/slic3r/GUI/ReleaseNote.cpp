@@ -434,7 +434,7 @@ UpdateVersionDialog::~UpdateVersionDialog() {}
 
 wxWebView* UpdateVersionDialog::CreateTipView(wxWindow* parent)
 {
-	wxWebView* tipView = WebView::CreateWebView(parent, "");
+	wxWebView* tipView = WebView::CreateWebView(parent, "", _L("Release Note"));
 	tipView->Bind(wxEVT_WEBVIEW_LOADED, &UpdateVersionDialog::OnLoaded, this);
 	tipView->Bind(wxEVT_WEBVIEW_NAVIGATED, &UpdateVersionDialog::OnTitleChanged, this);
 	tipView->Bind(wxEVT_WEBVIEW_ERROR, &UpdateVersionDialog::OnError, this);

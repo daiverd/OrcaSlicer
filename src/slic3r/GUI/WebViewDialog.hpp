@@ -48,6 +48,10 @@ public:
     WebViewPanel(wxWindow *parent);
     virtual ~WebViewPanel();
 
+    // ORCA: a page holding nothing but a web view is not a Tab stop, see
+    // WebView::HostAcceptsFocusFromKeyboard().
+    bool AcceptsFocusFromKeyboard() const override;
+
     void load_url(wxString& url);
 
     void UpdateState();
