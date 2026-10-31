@@ -10,6 +10,12 @@
         box-sizing: border-box;
       }
 
+      /* the divs these buttons replaced were border-box (see *) and had no border */
+      .PlainButtons button {
+        box-sizing: border-box;
+        border: none;
+      }
+
       html, body {
         margin: 0px;
         padding: 0px;
@@ -259,7 +265,7 @@
 
   <link rel="stylesheet" type="text/css" href="../include/global.css" /> <!-- ORCA One for all-->
 
-  <body>
+  <body class="PlainButtons">
     <div class="container">
       <div class="tip-panel" id="auto_flush_tip">
         Orca would re-calculate your flushing volumes every time the filament
@@ -268,17 +274,19 @@
       </div>
 
       <div style="margin-bottom: 10px; display: flex; align-items: center; flex-shrink: 0;">
-        <div
+        <button
+          type="button"
           class="ButtonStyleConfirm ButtonTypeWindow"
           onclick="calcFlushingVolumes()"
           id="calc_btn"
         >
           Re-Calculate
-      </div>
+      </button>
         <div class="ComboBox">
           <div class="arrow-icon"></div>
           <select
             id="extruders"
+            aria-label="Extruder"
             onchange="handleExtruderSelect(document.getElementById('extruders').value)"
           >
             <option value="left" id="extruder_label_0">Left Nozzle</option>
@@ -336,12 +344,12 @@
       </div>
 
       <div class="button-container" style="padding: 0px; margin: 0px;">
-        <div class="ButtonStyleConfirm ButtonTypeChoice" id="ok_btn" onclick="storeData()">
+        <button type="button" class="ButtonStyleConfirm ButtonTypeChoice" id="ok_btn" onclick="storeData()">
           Save
-        </div>
-        <div class="ButtonStyleRegular ButtonTypeChoice" id="cancel_btn" onclick="quit()">
+        </button>
+        <button type="button" class="ButtonStyleRegular ButtonTypeChoice" id="cancel_btn" onclick="quit()">
           Cancel
-        </div>
+        </button>
       </div>
     </div>
 
@@ -359,6 +367,12 @@
       let m_min_flush_multiplier = 0.50
       let m_max_flush_multiplier = 3
       let m_default_matrix //系统默认矩阵
+      // cell name template; buildText() swaps in the translation after buildTable() ran
+      let m_flush_cell_label = "Flush from filament %1% to filament %2%"
+
+      function flushCellLabel(i, j) {
+        return m_flush_cell_label.replace("%1%", i + 1).replace("%2%", j + 1)
+      }
 
       function storeData() {
         var data = JSON.stringify({
@@ -436,6 +450,15 @@
         document.getElementById('calc_btn').innerText = data.calc_btn_panel
         document.getElementById('extruder_label_0').innerText = data.extruder_label_0
         document.getElementById('extruder_label_1').innerText = data.extruder_label_1
+        if (data.extruder_select_label)
+          document.getElementById('extruders').setAttribute("aria-label", data.extruder_select_label)
+        // buildTable() labelled the cells in English; re-label them translated
+        if (data.flush_cell_label) {
+          m_flush_cell_label = data.flush_cell_label
+          for (let i = 0; i < m_cell_inputs.length; i++)
+            for (let j = 0; j < m_cell_inputs[i].length; j++)
+              m_cell_inputs[i][j].setAttribute("aria-label", flushCellLabel(i, j))
+        }
         document.getElementById('multiplier_label').innerText = data.multiplier_label
         document.getElementById('ok_btn').innerText = data.ok_btn_label
         document.getElementById('cancel_btn').innerText = data.cancel_btn_label
@@ -559,6 +582,7 @@
             input.className = "table-input"
             input.type = "number";
             input.value = readonly ? 0 : displayVal;
+            input.setAttribute("aria-label", flushCellLabel(i, j));
             if (readonly) {
               input.readOnly = true;
             }

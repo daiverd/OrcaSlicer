@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="max-age=7200" />
-<title>Model</title>	
+<title data-i18n="model">Model</title>	
 
 <script type="text/javascript" src="../include/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="../include/json2.js"></script>	
+<script type="text/javascript" src="../include/a11y.js"></script>
 
 <link rel="stylesheet" type="text/css" href="../include/swiper/swiper-bundle.min.css" />
 <script type="text/javascript" src="../include/swiper/swiper-bundle.min.js"></script>
@@ -21,12 +22,13 @@
 	
 <script type="text/javascript" src="model.js"></script>	
 </head>
-<body onLoad="OnInit()">
+<body class="PlainButtons" onLoad="OnInit()">
+<h1 class="A11yOnly" data-i18n="model">Model</h1>
 
 <div id="EmptyArea">
-	<div><img src="img/null.png"></div>
+	<div><img src="img/null.png" alt=""></div>
 	<div class="Text_Title Text_Bold" data-i18n="no_model_info">No model information</div>
-	<div id="AddModelInfoBtn" class="ButtonStyleConfirm ButtonTypeWindow" onClick="OnClickEditProjectInfo()" data-i18n="edit_project_info">Edit Project Info</div>
+	<button type="button" id="AddModelInfoBtn" class="ButtonStyleConfirm ButtonTypeWindow" onClick="OnClickEditProjectInfo()" data-i18n="edit_project_info">Edit Project Info</button>
 </div>
 	
 <div id="WholeArea">
@@ -34,18 +36,18 @@
 	
   <div id="Info_Inside_Board" class="ZScrol" >
   <div id="LeftProcessBlock" class="Block_BKGA">
-    <div id="Info_ProcessBar" class="LeftProcessBar ProcessBarSelected" onclick="OnMenuClick('Model_Basic');">
-	  <img class="LeftTipIcon" src="img/info_h.svg" /><span data-i18n="model_information">Model Information</span>
-	</div>
-    <div id="File_ProcessBar" class="LeftProcessBar" onclick="OnMenuClick('Model_Accessories');">
-	  <img class="LeftTipIcon" src="img/file_h.svg" /><span data-i18n="accessories">Accessories</span>
-	</div>
-    <div id="Profile_ProcessBar" class="LeftProcessBar" onclick="OnMenuClick('Model_Profile');">
-	  <img class="LeftTipIcon ProfileIcon" src="img/profile_h.svg" /><span data-i18n="profile_information">Profile Information</span>
-	</div>	  
-    <div id="Edit_ProcessBar" class="LeftProcessBar" onclick="OnClickEditProjectInfo();">
-		<img class="LeftTipIcon" src="img/edit.svg" /><span data-i18n="edit_project_info">Edit Project Info</span>
-	</div>
+    <button type="button" id="Info_ProcessBar" class="LeftProcessBar ProcessBarSelected" aria-pressed="true" onclick="OnMenuClick('Model_Basic');">
+	  <img class="LeftTipIcon" src="img/info_h.svg" alt="" /><span data-i18n="model_information">Model Information</span>
+	</button>
+    <button type="button" id="File_ProcessBar" class="LeftProcessBar" aria-pressed="false" onclick="OnMenuClick('Model_Accessories');">
+	  <img class="LeftTipIcon" src="img/file_h.svg" alt="" /><span data-i18n="accessories">Accessories</span>
+	</button>
+    <button type="button" id="Profile_ProcessBar" class="LeftProcessBar" aria-pressed="false" onclick="OnMenuClick('Model_Profile');">
+	  <img class="LeftTipIcon ProfileIcon" src="img/profile_h.svg" alt="" /><span data-i18n="profile_information">Profile Information</span>
+	</button>
+    <button type="button" id="Edit_ProcessBar" class="LeftProcessBar" onclick="OnClickEditProjectInfo();">
+		<img class="LeftTipIcon" src="img/edit.svg" alt="" /><span data-i18n="edit_project_info">Edit Project Info</span>
+	</button>
   </div>	  
 	  
   <div id="LeftEmptyBlock" style="height: 100%;width:280px;">&nbsp;</div>
@@ -57,7 +59,7 @@
 		   <div class="Text_Title" id="ModelNameBar" ><div data-i18n="model_name">Model name</div><div>:</div><div title="xxxxxxxxxx" id="ModelName" style="margin-left: 8px;">xxxxxxxxxx</div></div>
 		   <div><span id="ModelAuthorType" data-i18n="created_by">Created by</span><span>:</span><span id="ModelAuthorName" style="margin-left: 8px;" class="Text_Value">xxxxxxx</span></div>
 		</div>
-	    <div id="ModelLicenceImg"><img src="img/by-nc-nd.png"></div>
+	    <div id="ModelLicenceImg"><img src="img/by-nc-nd.png" alt=""></div>
 		</div>
 		
 		<div id="Model_Preview_Image" class="swiper">

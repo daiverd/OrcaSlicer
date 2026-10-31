@@ -113,7 +113,10 @@ function OnMenuSelected(strID)
 		case 'Model_Profile':
 			$('#Profile_ProcessBar').addClass('ProcessBarSelected');
 			break;
-	}	
+	}
+	let pBars=$('.LeftProcessBar[aria-pressed]');
+	SetAriaState(pBars.not('.ProcessBarSelected'),'aria-pressed',false);
+	SetAriaState(pBars.filter('.ProcessBarSelected'),'aria-pressed',true);
 }
 
 
@@ -267,6 +270,8 @@ function ShowModelInfo( pModel )
 			$('#ModelLicenceImg').hide();
 			break;
 	}
+
+	$('#ModelLicenceImg img').attr('alt',T('license_named','License: %s',sLicence.indexOf('CC')===0 ? sLicence : 'CC '+sLicence));
 	
 	$('#Model_Desc').empty().append( SanitizeDescHtml( html_decode(sModelDesc) ) );
 			
@@ -287,7 +292,7 @@ function ShowModelInfo( pModel )
 			//let FTmpPath=decodeURIComponent(ModelPreviewList[pn]);
 			let FTmpPath=ModelPreviewList[pn]['filepath'];
 			
-			$('#ModelPreviewList').append( $('<div class="swiper-slide"></div>').append( $('<img class="Model_PrevImg" />').attr('src',FTmpPath) ) );
+			$('#ModelPreviewList').append( $('<div class="swiper-slide"></div>').append( $('<img class="Model_PrevImg" />').attr('src',FTmpPath).attr('alt',T('preview_named','%s preview %s',sModelName,pn+1)) ) );
 		}
 			
 		$('#Model_Preview_Image').viewer({
@@ -444,18 +449,20 @@ function ConstructFileHtml( ID, pItem )
 		}		
 			
 		//Add html. File names come from the 3MF, so build the nodes rather than concatenating markup.
-		let pIconImg=$('<img />').attr('src',ImgPath);
-		let pMenu=$('<div class="FileMenu"><img src="img/s.svg" /></div>');
+		let pIconImg=$('<img alt="" />').attr('src',ImgPath);
+		let pMenu=$('<button type="button" class="FileMenu"><img src="img/s.svg" alt="" /></button>');
 		if( strClass!='ImageIcon' )
 		{
+			pMenu.attr('aria-label',T('open_file','Open file'));
 			pMenu.on('click', function(){ OnClickOpenFile(tPath); });
 		}
 		else
 		{
 			ImgID++;
 			let TmpImgID="AF"+ImgID;
-			
+
 			pIconImg.attr('id',TmpImgID);
+			pMenu.attr('aria-label',T('open_image','Open image'));
 			pMenu.on('click', function(){ OnClickOpenImage(TmpImgID); });
 		}
 		
@@ -604,7 +611,7 @@ function ShowProfilelInfo( pProfile )
 		{	
 			let FTmpPath=ProfilePreviewList[pn]['filepath'];
 			
-			$('#ProfilePreviewList').append( $('<div class="swiper-slide"></div>').append( $('<img class="Model_PrevImg" />').attr('src',FTmpPath) ) );
+			$('#ProfilePreviewList').append( $('<div class="swiper-slide"></div>').append( $('<img class="Model_PrevImg" />').attr('src',FTmpPath).attr('alt',T('preview_named','%s preview %s',sProfileName,pn+1)) ) );
 		}
 			
 		$('#Profile_Preview_Image').viewer({

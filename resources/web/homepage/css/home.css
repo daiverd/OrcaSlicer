@@ -30,7 +30,7 @@ html, body {
 	cursor: pointer;
 }
 
-.LinkBtn:hover
+.LinkBtn:hover, .LinkBtn:focus-visible
 {
 	text-decoration:underline;
 }
@@ -89,6 +89,8 @@ body
 
 .AccountRow
 {
+	width: 100%;			/*----ORCA a <button> shrinks to fit----*/
+	box-sizing: border-box;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -100,12 +102,6 @@ body
 .AccountRow:hover
 {
 	background-color: var(--button-bg-hover);
-}
-
-.AccountRow:focus-visible
-{
-	outline: 2px solid var(--main-color);
-	outline-offset: -2px;
 }
 
 .AccountRow.Disabled
@@ -255,6 +251,8 @@ body
 
 #BambuCloudHeader
 {
+	width: 100%;			/*----ORCA a <button> shrinks to fit----*/
+	box-sizing: border-box;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -270,12 +268,6 @@ body
 #BambuCloudHeader:hover
 {
 	color: var(--fg-color-text);
-}
-
-#BambuCloudHeader:focus-visible
-{
-	outline: 2px solid var(--main-color);
-	outline-offset: -2px;
 }
 
 .SectionChevron
@@ -416,12 +408,6 @@ body
 	color: var(--button-fg-light);
 }
 
-#AccountMenuLogout:focus-visible
-{
-	outline: 2px solid var(--main-color);
-	outline-offset: -2px;
-}
-
 #AccountMenuLogoutIcon
 {
 	width: 15px;
@@ -443,6 +429,7 @@ body
     padding-left:18px;
 	padding-right:10px;
 	height:44px;
+	width: -webkit-fill-available;	/*----ORCA a <button> shrinks to fit; fill like the div did, height stays content-box----*/
 	display: flex;
 	justify-content:space-between;
 	align-items: center;
@@ -586,6 +573,7 @@ body.cloud-mode #LeftBoard
 {
 	line-height: 30px;
 	font-weight: 700;
+	font-size: inherit;	/*----ORCA an <h2>----*/
 	margin: 8px 16px 8px 0; /*remove margin from left and Align contents with title*/
 }
 
@@ -659,6 +647,7 @@ body.cloud-mode #LeftBoard
 	align-content: flex-start;
 	overflow-y: auto;
 	min-height: 0;
+	list-style: none;	/*----ORCA a <ul>----*/
 }
 
 .FileItem
@@ -730,6 +719,10 @@ body.cloud-mode #LeftBoard
 
 .FileName {
 	color:var(--fg-color-text);
+	/*----ORCA a <button>: fill the card for the ellipsis, keep the hand cursor----*/
+	display: block;
+	width: 100%;
+	cursor: pointer;
 }
 
 .FileDate {
@@ -862,10 +855,26 @@ body.cloud-mode #LeftBoard
 	margin-top: 5px;
 }
 
-.FileItem:hover .FileActions {
+.FileItem:hover .FileActions,
+.FileActions:focus-within {
 	display: flex;
  	min-height: 40px;
 	justify-content: space-between;
+}
+
+/*----ORCA hidden, the buttons stay in the tab order; focus on one swaps them in as hover does----*/
+.FileItem:not(:hover) .FileActions:not(:focus-within) {
+	display: flex;
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+}
+
+.FileItem:has(.FileActions:focus-within) .FileNamePack,
+.FileItem:has(.FileActions:focus-within) .FileDate {
+	display: none;
 }
 
 .FileActionsReveal,

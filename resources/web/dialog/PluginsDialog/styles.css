@@ -1252,8 +1252,7 @@ body.pane-resizing {
   padding: 8px;
   box-sizing: border-box;
   /* common.css applies `user-select: none` to *, so without this the user could type into the
-     editor but not select, drag or copy what they had typed. (What blocks typing is the global
-     onkeydown guard in common.js — see the keydown handler in index.js.) */
+     editor but not select, drag or copy what they had typed. */
   -webkit-user-select: text;
   user-select: text;
   border: 1px solid var(--border);
@@ -1269,7 +1268,6 @@ body.pane-resizing {
 }
 
 .config-textarea:focus {
-  outline: none;
   border-color: var(--main-color);
 }
 

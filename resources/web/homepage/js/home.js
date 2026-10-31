@@ -9,7 +9,9 @@ function OnInit()
     let pluginTip = document.getElementById("NoPluginText");
     if (pluginTip)
         AppendTemplate(pluginTip, T("plugin_not_detected", "Bambu Network plug-in not detected. Click <a>here</a> to install it."),
-                       pluginTip.querySelector("a"));
+                       pluginTip.querySelector(".LinkBtn"));
+
+	Init_RecentFile_Events();
 
 	SendMsg_GetLoginInfo();
 	SendMsg_GetBambuLoginInfo();
@@ -26,78 +28,30 @@ var MousePosX=0;
 var MousePosY=0;
 var sImages = {};
  
-function Set_RecentFile_MouseRightBtn_Event()
+// Bound once: the list is re-rendered on every push from the app.
+// Delegated from the document: a listener on the <ul> exposes the list as clickable.
+// On click, not mousedown, so Enter/Space on the buttons act too.
+function Init_RecentFile_Events()
 {
-	$(".FileItem").mousedown(
-		function(e)
-		{			
-			//FilePath
-			RightBtnFilePath=$(this).attr('fpath');
-			
-			if(e.which == 3){
-				//鼠标点击了右键+$(this).attr('ff') );
-				//ShowRecnetFileContextMenu();
-			}else if(e.which == 2){
-				//鼠标点击了中键
-			}else if(e.which == 1){
-				//鼠标点击了左键
-				OnOpenRecentFile( encodeURI(RightBtnFilePath) );
-			}
-		});
-
-	$(document).bind("contextmenu",function(e){
-		//在这里书写代码，构建个性右键化菜单
-		return false;
-	});	
-	
-	// ORCA file actions
-	$(".FileActions").mousedown(function(e){		
-		return false; // Block events on empty area & parent
+	$(document).on("click", ".FileItem", function () {
+		OnOpenRecentFile( encodeURI($(this).attr('fpath')) );
 	});
 
-	$(".FileActionsReveal").mousedown(function(e){		
+	// ORCA file actions; the innermost handler runs first, so returning false keeps the file closed
+	$(document).on("click", ".FileActions", function () {
+		return false; // the empty area between the buttons
+	});
+	$(document).on("click", ".FileActionsReveal", function () {
 		RightBtnFilePath=$(this).attr('fpath');
-		if(e.which == 1 && RightBtnFilePath != "")
+		if(RightBtnFilePath != "")
 			OnExploreRecentFile();
-		return false; // Block events from parent
+		return false;
 	});
-	$(".FileActionsRemove").mousedown(function(e){		
+	$(document).on("click", ".FileActionsRemove", function () {
 		RightBtnFilePath=$(this).attr('fpath');
-		if(e.which == 1)
-			OnDeleteRecentFile();
-		return false; // Block events from parent
+		OnDeleteRecentFile();
+		return false;
 	});
-
-    $(document).mousemove( function(e){
-		MousePosX=e.pageX;
-		MousePosY=e.pageY;
-		
-		//let ContextMenuWidth=$('#recnet_context_menu').width();
-		//let ContextMenuHeight=$('#recnet_context_menu').height();
-	
-		let DocumentWidth=$(document).width();
-		let DocumentHeight=$(document).height();
-		
-		//$("#DebugText").text( ContextMenuWidth+' - '+ContextMenuHeight+'<br/>'+
-		//					 DocumentWidth+' - '+DocumentHeight+'<br/>'+
-		//					 MousePosX+' - '+MousePosY +'<br/>' );
-	} );
-	
-
-	$(document).click( function(){		
-		var e = e || window.event;
-        var elem = e.target || e.srcElement;
-        while (elem) {
-			//if (elem.id && elem.id == 'recnet_context_menu') {
-            //        return;
-			//}
-			elem = elem.parentNode;
-		}		
-		
-		//$("#recnet_context_menu").hide();
-	} );
-
-	
 }
 
 function SetLoginPanelVisibility(visible) {
@@ -179,6 +133,9 @@ function SetCloudMode( bOn )
 	{
 		$(".BtnItem").removeClass("BtnItemSelected");
 		$(".BtnItem[menu='orca_cloud']").addClass("BtnItemSelected");
+		// leaving it, GotoMenu presses the menu button it switches to
+		SetAriaState($(".BtnItem[menu]").not("[menu='orca_cloud']"), "aria-pressed", false);
+		SetAriaState($(".BtnItem[menu='orca_cloud']"), "aria-pressed", true);
 	}
 }
 
@@ -206,12 +163,14 @@ function GotoMenu( strMenu )
 		
 		if( $(OneBtn).attr("menu")==strMenu )
 		{
-			$(".BtnItem").removeClass("BtnItemSelected");			
-			
+			$(".BtnItem").removeClass("BtnItemSelected");
 			$(OneBtn).addClass("BtnItemSelected");
-			
-			$("div[board]").hide();
-			$("div[board=\'"+strMenu+"\']").show();
+
+			SetAriaState($(".BtnItem[menu]").not(OneBtn), "aria-pressed", false);
+			SetAriaState(OneBtn, "aria-pressed", true);
+
+			$("[board]").hide();   // #ContentBoard is the <main>
+			$("[board=\'"+strMenu+"\']").show();
 		}
 	}
 }
@@ -229,6 +188,7 @@ var AccountRows = {
 var BAMBU_FOLD_KEY = "OrcaHome_BambuCloudExpanded";
 
 var m_OpenAccountMenu = null;
+var m_AccountMenu = null;
 
 function SetAccountAvatar(selector, strAvatar) {
   if (strAvatar != null && strAvatar.trim() !== '') {
@@ -249,6 +209,9 @@ function SetAccountSignedIn(strProvider, strAvatar, strName, strHandle) {
   SetAccountAvatar(account.avatar, strAvatar);
   /*----the handle is the one thing the row does not already show----*/
   $(account.row).addClass("SignedIn").data("handle", strHandle !== strName ? strHandle : null);
+  /*----signed in, the row opens the account menu; signed out, it opens the login dialog----*/
+  SetAriaState($(account.row), "aria-haspopup", true);
+  SetAriaState($(account.row), "aria-expanded", m_OpenAccountMenu === strProvider);
   $(account.dot).addClass("Online");
 
   if (m_OpenAccountMenu === strProvider) OpenAccountMenu(strProvider);
@@ -260,7 +223,7 @@ function SetAccountSignedOut(strProvider) {
   if (m_OpenAccountMenu === strProvider) CloseAccountMenu();
   $(account.name).text('').removeAttr("title");
   SetAccountAvatar(account.avatar, null);
-  $(account.row).removeClass("SignedIn").removeData("handle");
+  $(account.row).removeClass("SignedIn").removeData("handle").removeAttr("aria-haspopup aria-expanded");
   $(account.dot).removeClass("Online");
 }
 
@@ -285,17 +248,24 @@ function OpenAccountMenu(strProvider) {
   var top = row[0].offsetTop + row[0].offsetHeight + 6;  /*----read the geometry before writing----*/
   var strHandle = row.data("handle") || "";
 
+  if (m_AccountMenu) m_AccountMenu.close(false);  /*----before the writes below, which its hide() would undo----*/
   $("#AccountMenuHandle").text(strHandle).css("display", strHandle === "" ? "none" : "block");
   $("#AccountMenu").css("top", top + "px").addClass("Open");
-  $(".AccountRow").removeClass("MenuOpen").attr("aria-expanded", "false");
-  row.addClass("MenuOpen").attr("aria-expanded", "true");
+  row.addClass("MenuOpen");
+  SetAriaState(row[0], "aria-expanded", true);
   m_OpenAccountMenu = strProvider;
+  m_AccountMenu = A11yMenu($("#AccountMenu")[0], row[0], HideAccountMenu);
+}
+
+function HideAccountMenu() {
+  $("#AccountMenu").removeClass("Open");
+  $(".AccountRow").removeClass("MenuOpen");
+  SetAriaState($(".AccountRow.SignedIn"), "aria-expanded", false);
+  m_OpenAccountMenu = null;
 }
 
 function CloseAccountMenu() {
-  $("#AccountMenu").removeClass("Open");
-  $(".AccountRow").removeClass("MenuOpen").attr("aria-expanded", "false");
-  m_OpenAccountMenu = null;
+  if (m_AccountMenu) m_AccountMenu.close();
 }
 
 function OnAccountMenuLogout() {
@@ -306,8 +276,7 @@ function OnAccountMenuLogout() {
 
 /*----Bambu Cloud is secondary, so its account folds away under the main one----*/
 function SetBambuSectionExpanded(bExpanded, bPersist) {
-  $("#BambuCloudBody").toggleClass("Expanded", bExpanded);
-  $("#BambuAccount").attr("tabindex", bExpanded ? "0" : "-1");  /*----keep the folded row out of the tab order----*/
+  $("#BambuCloudBody").toggleClass("Expanded", bExpanded).prop("inert", !bExpanded);  /*----inert keeps the fold animation----*/
   $("#BambuCloudHeader").toggleClass("Expanded", bExpanded).attr("aria-expanded", bExpanded ? "true" : "false");
   if (!bExpanded && m_OpenAccountMenu === "bambu") CloseAccountMenu();
   // Best effort: the fold is a per-machine convenience, not a synced preference.
@@ -322,22 +291,6 @@ function Set_AccountMenu_Event() {
   var bExpanded = false;
   try { bExpanded = localStorage.getItem(BAMBU_FOLD_KEY) === "1"; } catch (e) {}
   SetBambuSectionExpanded(bExpanded, false);
-
-  $(document).mousedown(function (e) {
-    if (m_OpenAccountMenu === null) return;
-    if ($(e.target).closest("#AccountMenu, .AccountRow").length === 0) CloseAccountMenu();
-  });
-
-  $(document).keydown(function (e) {
-    if (m_OpenAccountMenu !== null && e.key === "Escape") CloseAccountMenu();
-  });
-
-  /*----Enter and Space activate the div-based buttons of this panel----*/
-  $(document).on("keydown", "#LoginArea [role=button], #LoginArea [role=menuitem]", function (e) {
-    if (e.key !== "Enter" && e.key !== " " && e.key !== "Spacebar") return;
-    e.preventDefault();
-    this.click();
-  });
 }
 
 function SetMallUrl( strUrl )
@@ -361,37 +314,44 @@ function ShowRecentFileList( pList )
 		let sName=OneFile['project_name'];
 		let sPublished=OneFile['published'] == '1';
 		sImages[sPath] = sImg;
-		
-		//let index=sPath.lastIndexOf('\\')>0?sPath.lastIndexOf('\\'):sPath.lastIndexOf('\/');
-		//let sShortName=sPath.substring(index+1,sPath.length);
+
+		// a model file or an older project has no project_name; the button needs a name
+		if(!sName)
+		{
+			let nCut=Math.max(sPath.lastIndexOf('\\'),sPath.lastIndexOf('/'));
+			sName=sPath.substring(nCut+1);
+		}
 
 		let isExist  = !isNaN(sTime[0]); // its a valid file with time stamp
 		let btnStyle = isExist ? "ButtonStyleConfirm" : "ButtonStyleDisabled";
 		let btnPath  = isExist ? sPath : ""; // blank path will disable btn event
-		
-		let sBadge=sPublished? '<span class="FilePublishedBadge">'+T("published_badge", "PUB")+'</span>':'';
+
+		// the "PUB" badge is spoken as the full word, inside the name button
+		let sBadge=sPublished? '<span class="FilePublishedBadge" aria-hidden="true">'+T("published_badge", "PUB")+'</span>':'';
+		let sPubText=sPublished? '<span class="A11yOnly"> '+EscAttr(T("published","Published"))+'</span>':'';
 		let sLogoBadge=sPublished? '<img class="FileLogoBadge" src="../../images/OrcaSlicer_gradient_circle.svg" alt="" />':'';
 
-		let TmpHtml='<div class="FileItem"  fpath="'+sPath+'"  >'+
-						'<a class="FileTip" title="'+sPath+'"></a>'+
-						'<div class="FileImg" ><img src="'+sImg+'" onerror="this.onerror=null;this.src=\'img/d.png\';"  alt="No Image"  />'+sLogoBadge+'</div>'+
-						'<div class="FileNamePack">'+sBadge+'<div class="FileName TextS1">'+sName+'</div></div>'+
-						'<div class="FileDate">'+sTime+'</div>'+
+		// the clipped path reads between the name and the date
+		let TmpHtml='<li class="FileItem" fpath="'+EscAttr(sPath)+'">'+
+						'<a class="FileTip" title="'+EscAttr(sPath)+'" aria-hidden="true"></a>'+
+						'<div class="FileImg"><img src="'+EscAttr(sImg)+'" onerror="this.onerror=null;this.src=\'img/d.png\';" alt="" />'+sLogoBadge+'</div>'+
+						'<div class="FileNamePack">'+sBadge+'<button type="button" class="FileName TextS1 FocusRingInset" aria-describedby="RecentPath'+n+' RecentDate'+n+'">'+EscAttr(sName)+sPubText+'</button></div>'+
+						'<span class="A11yOnly" id="RecentPath'+n+'">'+EscAttr(sPath)+'</span>'+
+						'<div class="FileDate" id="RecentDate'+n+'">'+EscAttr(sTime)+'</div>'+
 						'<div class="FileActions">'+
-							'<div class="FileActionsReveal '+btnStyle+' ButtonTypeWindow trans" fpath="'+btnPath+'" data-i18n="show_in_folder">Show in folder</div>'+
-							'<div class="FileActionsRemove ButtonStyleAlert ButtonTypeWindow" fpath="'+sPath+'">'+
-								'<div class="icon16"/></div>'+
-							'</div>'+
+							'<button type="button" class="FileActionsReveal '+btnStyle+' ButtonTypeWindow trans" fpath="'+EscAttr(btnPath)+'"'+(isExist ? '' : ' disabled')+' data-i18n="show_in_folder">Show in folder</button>'+
+							'<button type="button" class="FileActionsRemove ButtonStyleAlert ButtonTypeWindow" fpath="'+EscAttr(sPath)+'" aria-label="Remove" data-i18n-aria-label="remove">'+
+								'<span class="icon16"></span>'+
+							'</button>'+
 						'</div>'+
-			    	'</div>';
-		
+			    	'</li>';
+
 		strHtml+=TmpHtml;
 	}
-	
-	$("#FileList").html(strHtml);	
+
+	$("#FileList").html(strHtml);
 	TranslatePage();   // translate the data-i18n attributes on the freshly inserted cards
-	
-    Set_RecentFile_MouseRightBtn_Event();
+
 	UpdateRecentClearBtnDisplay();
 }
 /*
@@ -489,18 +449,28 @@ function OnDeleteRecentFile( )
 {
 	//Clear in UI
 	//$("#recnet_context_menu").hide();
-	
+
 	let AllFile=$(".FileItem");
 	let nFile=AllFile.length;
+	let pFocus=null;
 	for(let p=0;p<nFile;p++)
 	{
 		let pp=AllFile[p].getAttribute("fpath");
 		if(pp==RightBtnFilePath)
+		{
+			pFocus=AllFile[p+1] || AllFile[p-1];
 			$(AllFile[p]).remove();
-	}	
-	
+		}
+	}
+
 	UpdateRecentClearBtnDisplay();
-	
+
+	// the next or previous file, else the Open Project card before the emptied list
+	if (pFocus && pFocus.isConnected)
+		$(pFocus).find(".FileName").focus();
+	else
+		$(".MenuItem").last().focus();
+
 	//Send Msg to C++
 	var tSend={};
 	tSend['sequence_id']=Math.round(new Date() / 1000);

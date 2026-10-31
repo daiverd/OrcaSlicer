@@ -76,6 +76,79 @@ document.addEventListener('contextmenu', function (e) {
 	e.preventDefault();
 });
 
+// Keyboard and dismissal for a popup menu the page has just shown and positioned.
+// hide() hides it again (default: menu.hidden = true). Returns { close(bRestoreFocus) }.
+var CurrentA11yMenu = null;
+
+function A11yMenu(menu, opener, hide) {
+	if (CurrentA11yMenu)
+		CurrentA11yMenu.close(false);
+	var self = { close: close };
+	CurrentA11yMenu = self;
+
+	function Items() {
+		return Array.prototype.filter.call(menu.querySelectorAll('[role="menuitem"], button'), function (el) {
+			return !el.disabled && el.getAttribute('aria-disabled') !== 'true' && el.getClientRects().length > 0;
+		});
+	}
+
+	function close(bRestoreFocus) {
+		if (CurrentA11yMenu !== self)
+			return;
+		CurrentA11yMenu = null;
+		var bHeld = menu.contains(document.activeElement);
+		menu.removeEventListener('keydown', OnKey);
+		menu.removeEventListener('click', OnClick);
+		document.removeEventListener('mousedown', OnMouseDown, true);
+		if (hide)
+			hide();
+		else
+			menu.hidden = true;
+		if (bRestoreFocus !== false && bHeld && opener && opener.isConnected)
+			opener.focus();   // only from the menu: an action that moved the focus keeps it there
+	}
+
+	function OnKey(e) {
+		var List = Items(), n = List.length, i = List.indexOf(document.activeElement);
+		var next = { ArrowDown: (i + 1) % n, ArrowUp: ((i < 0 ? 0 : i) + n - 1) % n, Home: 0, End: n - 1 }[e.key];
+		if (e.key === 'Escape' || e.key === 'Tab')
+			close();   // Tab moves on from the opener, wherever the menu sits in the DOM
+		else if (next === undefined || !n)
+			return;
+		else
+			List[next].focus();
+		if (e.key !== 'Tab')
+			e.preventDefault();
+		e.stopPropagation();   // the page's own Escape and arrows act on what is behind the menu
+	}
+
+	function OnClick(e) {
+		if (Items().indexOf(e.target.closest('[role="menuitem"], button')) >= 0)
+			close();
+	}
+
+	function OnMouseDown(e) {
+		// a menu button (aria-expanded) toggles the menu on its own click
+		if (!menu.contains(e.target) && !(opener && opener.hasAttribute('aria-expanded') && opener.contains(e.target)))
+			close(false);
+	}
+
+	// pages that build the menu from plain buttons still read as a menu
+	if (!menu.hasAttribute('role'))
+		menu.setAttribute('role', 'menu');
+	Items().forEach(function (el) {
+		if (!el.hasAttribute('role'))
+			el.setAttribute('role', 'menuitem');
+	});
+	menu.addEventListener('keydown', OnKey);
+	menu.addEventListener('click', OnClick);
+	document.addEventListener('mousedown', OnMouseDown, true);
+	var First = Items()[0];
+	if (First)
+		First.focus({ preventScroll: true });   // a scroll would dismiss some menus (Speed Dial)
+	return self;
+}
+
 // Write state only where it changes: Chromium announces every write, even of an unchanged value.
 function SetCheckedState(nodes, bChecked) {
 	var List = nodes.nodeType ? [nodes] : nodes;

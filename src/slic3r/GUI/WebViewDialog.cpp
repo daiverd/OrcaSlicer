@@ -89,6 +89,11 @@ static json home_page_strings()
         {"clear_all", _u8L("Clear all")},
         {"remove", _u8L("Remove")},
         {"show_in_folder", _u8L("Show in folder")},
+        // Screen reader names for sections that show no text of their own.
+        {"home", _u8L("Home")},
+        {"accounts", _u8L("Accounts")},
+        // TRN Read by a screen reader after the name of a recent project that shows the published badge.
+        {"published", _u8L("Published")},
     };
 }
 

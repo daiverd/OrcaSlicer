@@ -51,13 +51,6 @@ function RenderSortHeaders() {
 function InitSortHeaders() {
   document.querySelectorAll(".hdr .sort-th").forEach((th) => {
     th.addEventListener("click", () => CyclePluginSort(th.dataset.sortField));
-    // note: role="button" cells need Enter/Space to match the old dropdown's keyboard access.
-    th.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        CyclePluginSort(th.dataset.sortField);
-      }
-    });
   });
   RenderSortHeaders(); // paint the initial state (baseline = no triangle)
 }

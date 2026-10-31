@@ -837,9 +837,16 @@ function markedText(className, text, match) {
     return node;
 }
 
+// markedText for an English alias in a translated UI; lang="en" gets it pronounced as English.
+function englishMarkedText(className, text, match) {
+    var node = markedText(className, text, match);
+    node.lang = "en";
+    return node;
+}
+
 // A bookmark glyph: outlined when unpinned, filled when saved to favourites.
 function pinSvg(on) {
-    return '<svg width="15" height="15" viewBox="0 0 24 24" fill="' + (on ? "currentColor" : "none") +
+    return '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="' + (on ? "currentColor" : "none") +
         '" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round">' +
         '<path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h9A1.5 1.5 0 0 1 18 3.5V21l-6-4.2L6 21z"/></svg>';
 }
@@ -911,15 +918,16 @@ function renderFav() {
 
 // ---- favourite context menu (right-click a tile) -----------------------------
 var favMenuEl = null;
+var favMenu = null;
 
-function hideFavMenu() { if (favMenuEl) favMenuEl.hidden = true; }
+function hideFavMenu() { if (favMenu) favMenu.close(); }
 
 function addFavMenuItem(label, enabled, fn) {
     var item = document.createElement("button");
     item.className = "ctx-item";
     item.textContent = label;
     item.disabled = !enabled;
-    item.onclick = function () { hideFavMenu(); fn(); };
+    item.onclick = fn;
     favMenuEl.appendChild(item);
 }
 
@@ -940,6 +948,17 @@ function showFavMenu(x, y, id) {
     favMenuEl.hidden = false;
     favMenuEl.style.left = Math.max(0, Math.min(x, window.innerWidth - favMenuEl.offsetWidth - 4)) + "px";
     favMenuEl.style.top = Math.max(0, Math.min(y, window.innerHeight - favMenuEl.offsetHeight - 4)) + "px";
+    // Escape/Tab return to the search field, where typing goes
+    favMenu = A11yMenu(favMenuEl, qEl);
+}
+
+// Keyboard twin of tile.oncontextmenu: the menu opens under the selected tile.
+function openFavMenuForSelection(favs) {
+    var tile = favEl && favEl.querySelector(".fav-tile.sel");
+    var id = favs[sel.i];
+    if (!tile || !id) return;
+    var r = tile.getBoundingClientRect();
+    showFavMenu(r.left, r.bottom, id);
 }
 
 // Swap a favourite with its visible neighbour (dir -1/+1) and persist the new order. Swapping
@@ -1006,14 +1025,14 @@ function renderActionRow(a, i) {
     eyebrowLine.appendChild(markedText("row-eyebrow", eyebrow, eyebrowMatch));
     var enBreadcrumb = englishBreadcrumb(a, mi);
     if (enBreadcrumb)
-        eyebrowLine.appendChild(markedText("row-eyebrow-en", enBreadcrumb.text, enBreadcrumb.ranges));
+        eyebrowLine.appendChild(englishMarkedText("row-eyebrow-en", enBreadcrumb.text, enBreadcrumb.ranges));
     shell.left.insertBefore(eyebrowLine, shell.line);
     shell.line.appendChild(markedText("row-name", a.title, mi ? mi.title : null));
     // A row found only through an English alias shows the action's English name, highlighted when the
     // name itself matched, so the match makes sense even when the translated row resembles nothing.
     var hint = englishHint(a, mi, mi ? (mi.title || eyebrowMatch) : null);
     if (hint)
-        shell.line.appendChild(markedText("row-alias", hint.text, hint.ranges));
+        shell.line.appendChild(englishMarkedText("row-alias", hint.text, hint.ranges));
     var badge = modeBadge(a, USER_MODE);
     if (badge) {
         var tag = document.createElement("span");
@@ -1195,7 +1214,7 @@ function renderTabRow(t, i) {
     // explained even when the translated label looks nothing like the query.
     var hint = tabAliasHint(t, query);
     if (hint)
-        shell.line.appendChild(markedText("row-alias", hint.text, hint.ranges));
+        shell.line.appendChild(englishMarkedText("row-alias", hint.text, hint.ranges));
     shell.row.onclick = function () { sel = { zone: "list", i: i }; render({ resize: true }); };
     shell.row.ondblclick = function () { sel = { zone: "list", i: i }; jumpToTab(t); };
     return shell.row;
@@ -1502,12 +1521,15 @@ function OnInit() {
         revealTo(list, revealTarget(list.length, firstVisible, 2 * K_ROWS));
     });
 
-    // why: dismiss the fav context menu on any click/scroll away from it (capture scroll to catch nested scrollers).
-    document.addEventListener("click", hideFavMenu);
+    // why: dismiss the fav context menu on any scroll (capture scroll to catch nested scrollers).
     document.addEventListener("scroll", hideFavMenu, true);
 
     document.addEventListener("keydown", function (e) {
-        if (favMenuEl && !favMenuEl.hidden && e.key === "Escape") { e.preventDefault(); hideFavMenu(); return; }
+        // why: an open fav menu owns the keyboard; A11yMenu handles its keys.
+        if (favMenuEl && !favMenuEl.hidden) return;
+        // why: Enter on a keyboard-focused button clicks it; a mouse-focused one still runs the selection.
+        if (e.key === "Enter" && e.target && e.target.tagName === "BUTTON" && e.target.matches(":focus-visible"))
+            return;
         // F1 opens the selected setting's wiki page. Settings without one flash a hint instead.
         if (e.key === "F1") {
             e.preventDefault();
@@ -1574,6 +1596,9 @@ function OnInit() {
             if (phase !== "commands") { exitPhase(); }
             else if (query) { query = ""; qEl.value = ""; sel = { zone: "list", i: 0 }; syncClearButton(); render({ resize: true, resetScroll: true }); qEl.focus(); }
             else SendMessage({ command: "close_page" });
+        } else if ((e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) && sel.zone === "fav") {
+            e.preventDefault();
+            openFavMenuForSelection(favs);
         }
     });
 

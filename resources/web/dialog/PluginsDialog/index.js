@@ -80,10 +80,6 @@ function OnInit() {
   document.getElementById("configRestoreBtn")?.addEventListener("click", RestoreCapabilityConfig);
 
   const configText = document.getElementById("configText");
-  // why: common.js cancels every key at the document level (returnValue=false) to block webview
-  //      shortcuts, which also swallows typing; don't bubble to it, so the textarea stays editable.
-  //      Same treatment as the search field (see plugin-search.js).
-  configText?.addEventListener("keydown", (event) => event.stopPropagation());
   configText?.addEventListener("input", ValidateConfigText);
   // The custom UI is sandboxed into an opaque origin, so postMessage is its only channel.
   // OnCustomConfigMessage matches on the frame's contentWindow, not the origin ("null" when
@@ -92,16 +88,12 @@ function OnInit() {
   OrcaWatchThemeForFrame("configCustom");
 
   document.addEventListener("click", (event) => {
-    if (!event.target.closest(".ctx"))
-      HideContextMenu();
     if (!event.target.closest(".explore-dropdown"))
       HideExploreMenu();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      HideContextMenu();
+    if (event.key === "Escape")
       HideExploreMenu();
-    }
   });
 
   ActivateDetailTab(activeDetailTab);
@@ -443,6 +435,12 @@ function RenderPlugins() {
   if (!pluginList)
     return;
 
+  // why: the rebuild would drop focus from the expand button that asked for it; restore it below
+  const focusedExpandKey = document.activeElement?.classList?.contains("plugin-expand-btn")
+    ? String(document.activeElement.closest(".plugin-block")?.dataset.pluginKey || "")
+    : "";
+  let expandButtonToFocus = null;
+
   pluginList.innerHTML = "";
 
   if (pluginsById.size === 0) {
@@ -484,14 +482,20 @@ function RenderPlugins() {
     row.className = "row plugin-row plugin-cols";
     row.dataset.pluginKey = pluginKey;
 
-    if (pluginKey === selectedPluginId)
+    // why: aria-current, not a focusable row: its checkbox, expand button and link already select it
+    if (pluginKey === selectedPluginId) {
       row.classList.add("selected");
+      row.setAttribute("aria-current", "true");
+    }
 
     row.appendChild(CheckCell(row, plugin));
     row.appendChild(LabelCell(plugin, isExpanded, capabilities.length, match?.nameRanges));
     row.appendChild(VersionCell(plugin));
     row.appendChild(SourceCell(plugin));
     row.appendChild(StatusCell(plugin));
+
+    if (pluginKey === focusedExpandKey)
+      expandButtonToFocus = row.querySelector(".plugin-expand-btn");
 
     block.appendChild(row);
     if (isExpanded)
@@ -508,6 +512,9 @@ function RenderPlugins() {
     AppendTemplate(empty, T("no_match", 'No plugins match "%s"'), term);
     pluginList.appendChild(empty);
   }
+
+  if (expandButtonToFocus)
+    expandButtonToFocus.focus();
 
   // why: recompute the scrollbar gutter on every render - search and sort re-render via RenderPlugins
   SyncPluginListHeaderGutter();
@@ -1543,10 +1550,13 @@ function OnPluginContextMenu(event) {
   contextPluginId = selectedPluginId;
   RenderPlugins();
   RenderDetails();
-  ShowContextMenu(event.clientX, event.clientY);
+  // the rebuild drops a focused row control, so the menu returns focus to the plugin's first one
+  const opener = pluginList.contains(document.activeElement) ? document.activeElement
+    : pluginList.querySelector(".plugin-block.selected :is(input, button, a)");
+  ShowContextMenu(event.clientX, event.clientY, opener);
 }
 
-function ShowContextMenu(x, y) {
+function ShowContextMenu(x, y, opener) {
   const plugin = pluginsById.get(contextPluginId);
   if (!ctxMenu || !plugin)
     return;
@@ -1572,11 +1582,7 @@ function ShowContextMenu(x, y) {
   ctxMenu.hidden = false;
   ctxMenu.style.left = `${Math.max(4, x)}px`;
   ctxMenu.style.top = `${Math.max(4, y)}px`;
-}
-
-function HideContextMenu() {
-  if (ctxMenu)
-    ctxMenu.hidden = true;
+  A11yMenu(ctxMenu, opener);
 }
 
 function OnContextMenuClick(event) {
@@ -1593,7 +1599,6 @@ function OnContextMenuClick(event) {
     plugin_key: contextPluginId,
     action: action
   });
-  HideContextMenu();
 }
 
 function HasContextAction(plugin, actionId) {

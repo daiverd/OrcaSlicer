@@ -87,6 +87,15 @@ static json project_page_strings()
         {"profile_name", _u8L("Profile name")},
         {"profile_author", _u8L("Profile Author")},
         {"profile_description", _u8L("Profile description")},
+        // Screen reader names for the page, its icon buttons and its images.
+        {"model", _u8L("Model")},
+        {"open_file", _u8L("Open file")},
+        {"open_image", _u8L("Open image")},
+        // TRN Text alternative of the license badge. %s is the license name, such as "CC BY-NC".
+        {"license_named", _u8L("License: %s")},
+        // TRN Text alternative of a preview image. The two %s are filled in this order and cannot be swapped:
+        // first the model or profile name, then the image's position in the gallery, starting at 1.
+        {"preview_named", _u8L("%s preview %s")},
     };
 }
 

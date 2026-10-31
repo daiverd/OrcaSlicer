@@ -162,6 +162,8 @@ body
 {
 	border-left: 2px solid #DDDDDD;
 	height: 40px;
+	width: 100%;			/*----ORCA a <button> shrinks to fit, the replaced div filled LeftProcessBlock----*/
+	box-sizing: border-box;	/*----ORCA so the 2px marker stays inside that width----*/
 	display: flex;
 	align-items: center;
 	cursor: pointer;

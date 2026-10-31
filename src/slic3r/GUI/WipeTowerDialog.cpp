@@ -410,6 +410,8 @@ wxString WipingDialog::BuildTextObjStr(bool multi_language)
     wxString calc_btn_panel;
     wxString extruder_label_0;
     wxString extruder_label_1;
+    wxString extruder_select_label;
+    wxString flush_cell_label;
     wxString multiplier_label;
     wxString ok_btn_label;
     wxString cancel_btn_label;
@@ -426,6 +428,10 @@ wxString WipingDialog::BuildTextObjStr(bool multi_language)
         calc_btn_panel = _L("Re-calculate");
         extruder_label_0 = _L(extruder_name_0);
         extruder_label_1 = _L(extruder_name_1);
+        // screen reader name of the nozzle selector, which has no visible label
+        extruder_select_label = _L("Extruder");
+        // TRN Screen reader name of a flushing volumes table cell. %1% and %2% are filament numbers.
+        flush_cell_label = _L("Flush from filament %1% to filament %2%");
         multiplier_label = _L("Multiplier");
         ok_btn_label = _L("OK");
         cancel_btn_label = _L("Cancel");
@@ -437,24 +443,28 @@ wxString WipingDialog::BuildTextObjStr(bool multi_language)
         calc_btn_panel = "Re-calculate";
         extruder_label_0 = wxString::FromUTF8(extruder_name_0);
         extruder_label_1 = wxString::FromUTF8(extruder_name_1);
+        extruder_select_label = "Extruder";
+        flush_cell_label = "Flush from filament %1% to filament %2%";
         multiplier_label = "Multiplier";
         ok_btn_label = "OK";
         cancel_btn_label = "Cancel";
     }
 
-    wxString text_obj = "{";
-    text_obj += wxString::Format("\"volume_desp_panel\":\"%s\",", volume_desp_panel);
-    text_obj += wxString::Format("\"volume_range_panel\":\"%s\",", volume_range_panel);
-    text_obj += wxString::Format("\"multiplier_range_panel\":\"%s\",", multiplier_range_panel);
-    text_obj += wxString::Format("\"calc_btn_panel\":\"%s\",", calc_btn_panel);
-    text_obj += wxString::Format("\"extruder_label_0\":\"%s\",", extruder_label_0);
-    text_obj += wxString::Format("\"extruder_label_1\":\"%s\",", extruder_label_1);
-    text_obj += wxString::Format("\"multiplier_label\":\"%s\",", multiplier_label);
-    text_obj += wxString::Format("\"ok_btn_label\":\"%s\",", ok_btn_label);
-    text_obj += wxString::Format("\"cancel_btn_label\":\"%s\",", cancel_btn_label);
-    text_obj += wxString::Format("\"auto_flush_tip\":\"%s\"", auto_flush_tip);
-    text_obj += "}";
-    return text_obj;
+    // json escapes quotes and backslashes a translation may contain
+    json obj;
+    obj["volume_desp_panel"]      = into_u8(volume_desp_panel);
+    obj["volume_range_panel"]     = into_u8(volume_range_panel);
+    obj["multiplier_range_panel"] = into_u8(multiplier_range_panel);
+    obj["calc_btn_panel"]         = into_u8(calc_btn_panel);
+    obj["extruder_label_0"]       = into_u8(extruder_label_0);
+    obj["extruder_label_1"]       = into_u8(extruder_label_1);
+    obj["extruder_select_label"]  = into_u8(extruder_select_label);
+    obj["flush_cell_label"]       = into_u8(flush_cell_label);
+    obj["multiplier_label"]       = into_u8(multiplier_label);
+    obj["ok_btn_label"]           = into_u8(ok_btn_label);
+    obj["cancel_btn_label"]       = into_u8(cancel_btn_label);
+    obj["auto_flush_tip"]         = into_u8(auto_flush_tip);
+    return wxString::FromUTF8(obj.dump());
 }
 
 WipingDialog::WipingDialog(wxWindow* parent, const int max_flush_volume) :

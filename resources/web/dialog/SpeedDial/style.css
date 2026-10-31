@@ -7,6 +7,12 @@ body {
     margin: 0;
 }
 
+/* Keyboard-focus ring; this page loads neither shared stylesheet, so it is declared locally. */
+:focus-visible {
+    outline: 2px solid var(--text, var(--orca-fg, #1b1c1e));
+    outline-offset: 1px;
+}
+
 body {
     font-family: var(--orca-font, "Segoe UI", sans-serif);
     font-size: 13px;
@@ -228,7 +234,6 @@ body {
     padding: 0;
     background: transparent;
     border: 0;
-    outline: 0;
     color: var(--text, var(--orca-fg, #1b1c1e));
     font: inherit;
 }
@@ -490,7 +495,8 @@ body {
 }
 
 .row:hover .pin:not(.on),
-.row.sel .pin:not(.on) {
+.row.sel .pin:not(.on),
+.pin:not(.on):focus-visible {
     opacity: .5;
 }
 

@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta http-equiv="Cache-Control" content="max-age=7200" />
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport" />	
-<title>homepage</title>
+<title data-i18n="home">Home</title>
 <link rel="stylesheet" type="text/css" href="../include/global.css" />	<!-- ORCA One for all-->
 <link rel="stylesheet" type="text/css" href="./css/home.css" />
 <!-- <link rel="stylesheet" type="text/css" href="./css/dark.css" />	 -->
 
 <script type="text/javascript" src="../include/jquery-3.6.0.min.js"></script>
 <script type="text/javascript" src="../include/json2.js"></script>	
-<script type="text/javascript" src="../include/globalapi.js"></script>	
+<script type="text/javascript" src="../include/globalapi.js"></script>
+<script type="text/javascript" src="../include/a11y.js"></script>
 
 <link rel="stylesheet" type="text/css" href="../include/swiper/swiper-bundle.min.css" />
 <script type="text/javascript" src="../include/swiper/swiper-bundle.min.js"></script>
@@ -19,12 +20,15 @@
 	
 <script type="text/javascript" src="js/home.js"></script>
 </head>
-<body class="thin-scroll" onLoad="OnInit()">
+<body class="thin-scroll PlainButtons" onLoad="OnInit()">
 <div id="LeftBoard">
 	<div id="LoginArea">
 
+		<!-- clipped: the panel has no visible title -->
+		<h2 class="A11yOnly" data-i18n="accounts">Accounts</h2>
+
 		<!-- Orca Cloud account -->
-		<div id="OrcaAccount" class="AccountRow" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"
+		<button type="button" id="OrcaAccount" class="AccountRow FocusRingInset"
 			 onClick="OnAccountRowClick('orca')">
 			<span class="AccountAvatar">
 				<img id="UserAvatarIcon" class="AccountAvatarImg" alt="" onerror="OnAvatarLoadError(this)" />
@@ -37,21 +41,21 @@
 			<svg class="AccountChevron" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 				<path d="M3 4.75L6 7.75L9 4.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
 			</svg>
-		</div>
+		</button>
 
 		<!-- Bambu Cloud, a secondary provider folded away under the main account -->
 		<div id="BambuCloudSection">
-			<div id="BambuCloudHeader" tabindex="0" role="button" aria-expanded="false" aria-controls="BambuCloudBody"
+			<button type="button" id="BambuCloudHeader" class="FocusRingInset" aria-expanded="false" aria-controls="BambuCloudBody"
 				 onClick="ToggleBambuSection()">
 				<svg class="SectionChevron" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 					<path d="M4.5 2.5L8 6L4.5 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 				</svg>
 				<span class="SectionLabel">Bambu Cloud</span>
 				<span id="BambuStatusDot"></span>
-			</div>
+			</button>
 
 			<div id="BambuCloudBody">
-				<div id="BambuAccount" class="AccountRow AccountRowCompact" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"
+				<button type="button" id="BambuAccount" class="AccountRow AccountRowCompact FocusRingInset"
 					 onClick="OnAccountRowClick('bambu')">
 					<span class="AccountAvatar">
 						<img id="BambuAvatarIcon" class="AccountAvatarImg" alt="" onerror="OnAvatarLoadError(this)" />
@@ -64,10 +68,10 @@
 					<svg class="AccountChevron" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 						<path d="M3 4.75L6 7.75L9 4.75" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
 					</svg>
-				</div>
+				</button>
 
 				<div id="NoPluginTip">
-					<div id="NoPluginText" class="RedFont"><a class="LinkBtn" onClick="BeginDownloadNetworkPlugin()"></a></div>
+					<div id="NoPluginText" class="RedFont"><button type="button" class="LinkBtn" onClick="BeginDownloadNetworkPlugin()"></button></div>
 				</div>
 			</div>
 		</div>
@@ -77,7 +81,7 @@
 		     adds the account handle. -->
 		<div id="AccountMenu" role="menu">
 			<div id="AccountMenuHandle" role="presentation"></div>
-			<div id="AccountMenuLogout" role="menuitem" tabindex="0" onClick="OnAccountMenuLogout()">
+			<div id="AccountMenuLogout" class="FocusRingInset" role="menuitem" tabindex="0" onClick="OnAccountMenuLogout()">
 				<span id="AccountMenuLogoutIcon"></span>
 				<span data-i18n="log_out">Log Out</span>
 			</div>
@@ -86,24 +90,25 @@
 	</div>
 
 	<div id="BtnArea">
-		<div menu="recent" class="BtnItem BtnItemSelected" onClick="GotoMenu('recent')">
+		<button type="button" menu="recent" class="BtnItem BtnItemSelected" aria-pressed="true" onClick="GotoMenu('recent')">
 			<div data-i18n="recent">Recent</div>
 			<div class="NavArrow icon16"></div>
-		</div>
-		<div menu="orca_cloud" class="BtnItem" onClick="GotoCloud()">
+		</button>
+		<button type="button" menu="orca_cloud" class="BtnItem" aria-pressed="false" onClick="GotoCloud()">
 			<div>OrcaCloud</div>
 			<div class="NavArrow icon16"></div>
-		</div>
-		<div class="BtnItem" onClick="OpenUrlInLocalBrowser('https://orcaslicer.com/wiki')">
+		</button>
+		<button type="button" class="BtnItem" onClick="OpenUrlInLocalBrowser('https://orcaslicer.com/wiki')">
 			<div>Wiki</div>
 			<div class="ShortcutIcon icon16"></div>
-		</div>
+		</button>
 	</div>
 </div>
 
 <div id="RightBoard">
-<div id="ContentBoard" class="thin-scroll" board="recent">
-    <div style="height: 14px;"></div>	
+<main id="ContentBoard" class="thin-scroll" board="recent">
+	<h1 class="A11yOnly" data-i18n="home">Home</h1>
+    <div style="height: 14px;"></div>
 	<div id="MenuArea">
 <!--		<div class="MenuItem" onClick="OnClickModelDepot()">
 			<div class="MenuIcon"><img src="img/i6.png"></div>
@@ -112,52 +117,53 @@
 				<div class="MenuDesc trans"  tid="t91">Download 3D Models</div>
 			</div>
 		</div>	-->	
-		<div class="MenuItem" onClick="OnClickNewProject()">
-			<div class="MenuIcon"><img src="img/i4.png"></div>
+		<button type="button" class="MenuItem" onClick="OnClickNewProject()">
+			<div class="MenuIcon"><img src="img/i4.png" alt="" /></div>
 			<div>
 				<div class="TextS1" data-i18n="new_project">New Project</div>
-				<div class="MenuDesc" data-i18n="create_new_project">Create new project</div>
+				<div class="MenuDesc" data-i18n="create_new_project" aria-hidden="true">Create new project</div>
 			</div>
-		</div>
-		<div class="MenuItem" onClick="OnClickOpenProject()">
-			<div class="MenuIcon"><img src="img/i5.png"></div>
+		</button>
+		<button type="button" class="MenuItem" onClick="OnClickOpenProject()">
+			<div class="MenuIcon"><img src="img/i5.png" alt="" /></div>
 			<div>
 				<div class="TextS1" data-i18n="open_project">Open Project</div>
-				<div class="MenuDesc">3mf</div>
+				<div class="MenuDesc" aria-hidden="true">3mf</div>
 			</div>
-		</div>		
+		</button>
 	</div>
-	
-	<div id="DebugText"></div>	
+
+	<div id="DebugText"></div>
 	<div id="RecentFileArea">
 		<div id="RecentTitleBlock">
-		    <div id="RecentTitle" class="Content-Title TextS1" data-i18n="recently_opened">Recently opened</div>
-			<div id="RecentClearAllBtn" class="ButtonStyleRegular ButtonTypeWindow" onClick="OnDeleteAllRecentFiles()" data-i18n="clear_all">Clear all</div>
+		    <h2 id="RecentTitle" class="Content-Title TextS1" data-i18n="recently_opened">Recently opened</h2>
+			<button type="button" id="RecentClearAllBtn" class="ButtonStyleRegular ButtonTypeWindow" onClick="OnDeleteAllRecentFiles()" data-i18n="clear_all">Clear all</button>
 		</div>
-		<div id="FileList" class="thin-scroll">
+		<ul id="FileList" class="thin-scroll">
 			<!-- EXAMPLE GENERATED BLOCK
-			<div class="FileItem" fpath="sPath">
-				<a class="FileTip" title="sPath"></a>
+			<li class="FileItem" fpath="sPath">
+				<a class="FileTip" title="sPath" aria-hidden="true"></a>
 				<div class="FileImg" >
-					<img src="sImg" onerror="this.onerror=null;this.src=\'img/d.png\';" alt="No Image"/>
+					<img src="sImg" onerror="this.onerror=null;this.src=\'img/d.png\';" alt=""/>
 					sLogoBadge
 				</div>
 				<div class="FileNamePack">
-					<div class="FileName TextS1">
+					<button type="button" class="FileName TextS1 FocusRingInset" aria-describedby="RecentPath0 RecentDate0">
 						orca-model.3mf
-					</div>
+					</button>
 				</div>
-				<div class="FileDate">
+				<span class="A11yOnly" id="RecentPath0">sPath</span>
+				<div class="FileDate" id="RecentDate0">
 					2026/05/27 09:22
 				</div>
 				<div class="FileActions">
-					<div class="FileActionsReveal ButtonStyleRegular ButtonTypeWindow" fpath="btnPath">Show in folder</div>
-					<div class="FileActionsRemove ButtonStyleAlert ButtonTypeWindow" fpath="sPath">
-					<div class="icon16"/></div>
+					<button type="button" class="FileActionsReveal ButtonStyleRegular ButtonTypeWindow" fpath="btnPath">Show in folder</button>
+					<button type="button" class="FileActionsRemove ButtonStyleAlert ButtonTypeWindow" fpath="sPath" aria-label="Remove">
+					<span class="icon16"></span></button>
 				</div>
-			</div>
-			-->	
-		</div>
+			</li>
+			-->
+		</ul>
 	</div>
 	
     <div style="height: 14px;"></div>	
@@ -172,10 +178,10 @@
 			<div class="CT_Text" data-i18n="open_containing_folder">Open Containing Folder</div>
 		</div>				
     </div>
-	-->	
-</div>
+	-->
+</main>
 
-</div>	
+</div>
 </body>
 <script type="text/javascript">
 	//HandleStudio(TestData);
@@ -200,11 +206,7 @@
 
 		if (e.shiftKey && e.metaKey)
 			OutputKey(e.keyCode, false, true, true);
-
-		if (window.event) {
-			try { e.keyCode = 0; } catch (e) { }
-			e.returnValue = false;
-		}
+		// forward only the combos above; leave all other keys alone
 	};
 
 	window.addEventListener('mousewheel', function (event) {
