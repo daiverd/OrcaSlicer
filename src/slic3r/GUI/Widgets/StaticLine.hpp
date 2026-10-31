@@ -13,6 +13,11 @@ public:
     StaticLine(wxWindow *parent, bool vertical = false, const wxString &label = {}, const wxString &icon = {});
 
 public:
+    // ORCA: a decorative rule is never a TAB stop. wxStaticLine, which this class
+    // replaces, refuses the focus the same way; deriving from plain wxWindow
+    // instead made every separator an invisible, unlabelled stop in TAB traversal.
+    bool AcceptsFocus() const override { return false; }
+
     void SetLabel(const wxString& label) override;
 
     void SetIcon(const wxString& icon);

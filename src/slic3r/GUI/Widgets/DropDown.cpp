@@ -40,6 +40,9 @@ EVT_LEFT_UP(DropDown::mouseReleased)
 EVT_MOUSE_CAPTURE_LOST(DropDown::mouseCaptureLost)
 EVT_MOTION(DropDown::mouseMove)
 EVT_MOUSEWHEEL(DropDown::mouseWheelMoved)
+// CHAR_HOOK rather than KEY_DOWN: it reaches the focused popup before the keys
+// are offered to an enclosing dialog, which would otherwise cancel on Escape.
+EVT_CHAR_HOOK(DropDown::charHook)
 
 // catch paint events
 EVT_PAINT(DropDown::paintEvent)
@@ -490,14 +493,16 @@ void DropDown::render(wxDC &dc)
     }
 }
 
-int DropDown::hoverIndex()
+int DropDown::hoverIndex() { return itemIndex(hover_item); }
+
+int DropDown::itemIndex(int hover) const
 {
-    if (hover_item < 0)
+    if (hover < 0)
         return -1;
     // BUG FIX: Can't take the shortcut if subDropDown exists (which means there are groups)
     // because we need to detect group headers which return negative indices
     if (count == items.size() && subDropDown == nullptr)
-        return hover_item;
+        return hover;
     int index = -1;
     std::set<wxString> groups;
     for (int i = 0; i < items.size(); ++i) {
@@ -514,7 +519,7 @@ int DropDown::hoverIndex()
             if (item.group_key != group)
                 continue;
         }
-        if (++index == hover_item)
+        if (++index == hover)
             return (item.group_key.IsEmpty() || !group.IsEmpty()) ? i : -i - 2;
     }
     return -1;
@@ -762,6 +767,61 @@ void DropDown::autoPosition()
     }
 }
 
+void DropDown::setHoverItem(int hover)
+{
+    hover_item = hover;
+    int index  = hoverIndex();
+    if (index < -1) {
+        auto & drop = *subDropDown;
+        drop.group  = items[-index - 2].group_key;
+        drop.need_sync = true;
+        drop.messureSize();
+#ifdef __WXGTK__
+        // wxGTK wraps popup contents in a native GtkWindow. Make the submenu
+        // transient for the currently mapped parent popup window before
+        // positioning/showing it, so wlroots/Hyprland sees the topmost parent.
+        if (m_widget && drop.m_widget)
+            gtk_window_set_transient_for(GTK_WINDOW(drop.m_widget), GTK_WINDOW(m_widget));
+#endif
+        drop.autoPosition();
+        drop.paintNow();
+        if (!drop.IsShown())
+            drop.Popup(&drop);
+    } else if (index >= 0) {
+        if (subDropDown) {
+            subDropDown->group.clear();
+            if (subDropDown->IsShown())
+                subDropDown->Dismiss();
+        }
+        SetToolTip(items[index].tip);
+    }
+}
+
+int DropDown::findSelectable(int hover, int delta) const
+{
+    for (; hover >= 0 && hover < (int) count; hover += delta) {
+        int index = itemIndex(hover);
+        // Group headers (negative index), separators and disabled items are not selectable
+        if (index >= 0 && (items[index].style & (DD_ITEM_STYLE_SPLIT_ITEM | DD_ITEM_STYLE_DISABLED)) == 0)
+            return hover;
+    }
+    return -1;
+}
+
+void DropDown::selectHoverItem()
+{
+    if (hover_item < 0)
+        return;
+    if (subDropDown == nullptr || subDropDown->group.empty()) { // not a group header
+        sendDropDownEvent();
+        if (mainDropDown)
+            mainDropDown->hover_item = -1; // To Dismiss mainDropDown
+        DismissAndNotify();
+    } else {
+        subDropDown->Popup(subDropDown);
+    }
+}
+
 void DropDown::mouseDown(wxMouseEvent& event)
 {
     // Receivce unexcepted LEFT_DOWN on Mac after OnDismiss
@@ -781,8 +841,6 @@ void DropDown::mouseReleased(wxMouseEvent& event)
         pressedDown = false;
         if (HasCapture())
             ReleaseMouse();
-        if (hover_item < 0)
-            return;
         if (hover_item >= 0 && (subDropDown == nullptr || subDropDown->group.empty())) { // not moved
             int index = hoverIndex();
             if (index >= 0 && items[index].action_icon.IsOk()) {
@@ -793,12 +851,8 @@ void DropDown::mouseReleased(wxMouseEvent& event)
                     return;
                 }
             }
-            sendDropDownEvent();
-            if (mainDropDown)
-                mainDropDown->hover_item = -1; // To Dismiss mainDropDown
-            DismissAndNotify();
-        } else if (subDropDown)
-            subDropDown->Popup(subDropDown);
+        }
+        selectHoverItem();
     }
 }
 
@@ -842,32 +896,7 @@ void DropDown::mouseMove(wxMouseEvent &event)
         int hover = (pt.y - offset.y) / rowSize.y;
         if (hover >= (int) count) hover = -1;
         if (hover == hover_item) return;
-        hover_item = hover;
-        int index  = hoverIndex();
-        if (index < -1) {
-            auto & drop = *subDropDown;
-            drop.group  = items[-index - 2].group_key;
-            drop.need_sync = true;
-            drop.messureSize();
-#ifdef __WXGTK__
-            // wxGTK wraps popup contents in a native GtkWindow. Make the submenu
-            // transient for the currently mapped parent popup window before
-            // positioning/showing it, so wlroots/Hyprland sees the topmost parent.
-            if (m_widget && drop.m_widget)
-                gtk_window_set_transient_for(GTK_WINDOW(drop.m_widget), GTK_WINDOW(m_widget));
-#endif
-            drop.autoPosition();
-            drop.paintNow();
-            if (!drop.IsShown())
-                drop.Popup(&drop);
-        } else if (index >= 0) {
-            if (subDropDown) {
-                subDropDown->group.clear();
-                if (subDropDown->IsShown())
-                    subDropDown->Dismiss();
-            }
-            SetToolTip(items[index].tip);
-        }
+        setHoverItem(hover);
     }
     paintNow();
 }
@@ -893,6 +922,58 @@ void DropDown::mouseWheelMoved(wxMouseEvent &event)
         if (auto index = hoverIndex(); index >= 0)
             SetToolTip(items[index].tip);
     }
+    paintNow();
+}
+
+void DropDown::charHook(wxKeyEvent &event)
+{
+    int base  = hover_item >= 0 ? hover_item : selectedItem();
+    int hover = -1;
+    switch (event.GetKeyCode()) {
+    case WXK_DOWN:
+    case WXK_NUMPAD_DOWN:
+        hover = findSelectable(base < 0 ? 0 : base + 1, 1);
+        break;
+    case WXK_UP:
+    case WXK_NUMPAD_UP:
+        hover = findSelectable(base < 0 ? (int) count - 1 : base - 1, -1);
+        break;
+    case WXK_HOME:
+    case WXK_NUMPAD_HOME:
+        hover = findSelectable(0, 1);
+        break;
+    case WXK_END:
+    case WXK_NUMPAD_END:
+        hover = findSelectable((int) count - 1, -1);
+        break;
+    case WXK_RETURN:
+    case WXK_NUMPAD_ENTER:
+    case WXK_SPACE:
+        if (hover_item < 0)
+            DismissAndNotify(); // nothing highlighted, keep the current selection
+        else
+            selectHoverItem();
+        return;
+    case WXK_ESCAPE:
+        DismissAndNotify();
+        return;
+    default:
+        event.Skip();
+        return;
+    }
+    if (hover < 0 || hover == hover_item)
+        return;
+    setHoverItem(hover);
+    // The mouse can only hover visible rows, but arrows walk the whole list,
+    // so scroll the new row into view the way autoPosition() does for selection.
+    wxSize size = GetSize();
+    if (offset.y + rowSize.y * (hover + 1) > size.y)
+        offset.y = size.y - rowSize.y * (hover + 1);
+    else if (offset.y + rowSize.y * hover < 0)
+        offset.y = -rowSize.y * hover;
+    // render() draws the highlight only while the window carries the hovered
+    // state, which is otherwise fed by enter/leave events from the mouse.
+    state_handler.set_state(StateHandler::Hovered, StateHandler::Hovered);
     paintNow();
 }
 

@@ -23,7 +23,9 @@ class Button;
 // react live rather than only on commit (wxEVT_SPINCTRL) or Enter. Ported from BambuStudio.
 wxDECLARE_EVENT(EVT_SPINCTRL_TEXT, wxCommandEvent);
 
-class SpinInput : public wxNavigationEnabled<StaticBox>
+// ORCA: StaticBox is now wxNavigationEnabled itself; the extra wrapper here
+// used to be this class's only source of TAB-traversal container behavior.
+class SpinInput : public StaticBox
 {
     wxSize labelSize;
     StateColor   label_color;

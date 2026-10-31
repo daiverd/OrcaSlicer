@@ -3,6 +3,7 @@
 //#ifdef _WIN32
 
 #include "GUI_App.hpp"
+#include "I18N.hpp"
 #include "wxExtensions.hpp"
 #include "Widgets/Button.hpp"
 #include "Widgets/StateColor.hpp"
@@ -101,9 +102,16 @@ private:
 };
 } // namespace
 
-ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools) :
-    wxControl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL)
+ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools)
 {
+    // ORCA: wxNavigationEnabled<> has only a default constructor, so the window has to
+    // be created in two phases rather than through a base-class initializer.
+    wxControl::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL);
+    // ORCA: unnamed, this is announced as the wx default "control"; in Preview it is also
+    // the container the side-tool panels below are reparented into (see the side_tools
+    // loop below), so it needs a name of its own rather than borrowing one of theirs.
+    SetName(_L("Main tabs"));
+
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
 #endif //__WINDOWS__
@@ -136,6 +144,12 @@ ButtonsListCtrl::ButtonsListCtrl(wxWindow *parent, wxBoxSizer* side_tools) :
             wxWindow* item_win = item->GetWindow();
             if (item_win) {
                 item_win->Reparent(this);
+                // ORCA: Reparent() appends, and Tab traversal walks the child list, so every
+                // side tool ends up ahead of the tab buttons - which do not exist yet. Keep
+                // the first of them; InsertPage() moves each tab button in front of it so the
+                // Tab order follows the visual left-to-right order instead.
+                if (m_first_side_tool == nullptr)
+                    m_first_side_tool = item_win;
             }
         }
         m_sizer->Add(side_tools, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT | wxBOTTOM, m_btn_margin);
@@ -286,6 +300,16 @@ bool ButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect /*
     int em = em_unit(this);
     //BBS set size for button
     btn->SetMinSize({(text.empty() ? 40 : 136) * em / 10, 36 * em / 10});
+    // ORCA: roving tabindex, per the WAI-ARIA tabs pattern - the strip is a single Tab
+    // stop, so Tab enters and leaves it in one press instead of stepping through every
+    // tab; moving within the strip is the arrow keys' job. The stop follows the selected
+    // tab, and the focused one keeps it while it has focus, so an arrow key that moved
+    // focus without changing the selection cannot leave focus on a window Tab traversal
+    // refuses to see.
+    btn->SetKeyboardTabStop([this, btn] {
+        return btn->HasFocus() || (m_selection >= 0 && m_selection < static_cast<int>(m_pageButtons.size()) &&
+                                   m_pageButtons[m_selection] == btn);
+    });
 
     // ORCA: wxNO_BORDER zeroed the width; the ring needs a border in every state (see set_tab_colors).
     btn->SetBorderWidth(btn->FromDIP(2));
@@ -296,9 +320,16 @@ bool ButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect /*
     btn->Bind(wxEVT_BUTTON, [this, btn](wxCommandEvent& event) {
         if (auto it = std::find(m_pageButtons.begin(), m_pageButtons.end(), btn); it != m_pageButtons.end()) {
             auto sel = it - m_pageButtons.begin();
+            // ORCA: selecting a tab hands it the strip's only Tab stop, so the focus has to
+            // follow it. SetSelection() moves the focus only when the outgoing tab was
+            // holding it, which left a click made while the focus sat elsewhere selecting a
+            // tab that the next Tab press would then leap to out of nowhere. The Tab stop
+            // itself arrives with the SetSelection() the posted event below triggers; a
+            // click on a tab always ends in one.
+            btn->SetFocus();
             //do it later
             //SetSelection(sel);
-            
+
             wxCommandEvent evt = wxCommandEvent(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED);
             evt.SetId(sel);
             wxPostEvent(this->GetParent(), evt);
@@ -339,6 +370,16 @@ bool ButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect /*
     m_pageIcons.insert(m_pageIcons.begin() + n, bmp_name);
     m_buttons_sizer->Insert(n, new wxSizerItem(btn));
     m_buttons_sizer->SetCols(m_buttons_sizer->GetCols() + 1);
+    // ORCA: put the button in the Tab order where it is drawn - after the tab before it, or,
+    // for the first tab, ahead of the side tools the constructor reparented in. Without this
+    // a forward Tab from the last tab button left the strip altogether and the side tools
+    // were only ever reachable backwards.
+    if (n > 0)
+        btn->MoveAfterInTabOrder(m_pageButtons[n - 1]);
+    else if (m_pageButtons.size() > 1)
+        btn->MoveBeforeInTabOrder(m_pageButtons[1]);
+    else if (m_first_side_tool != nullptr)
+        btn->MoveBeforeInTabOrder(m_first_side_tool);
     m_sizer->Layout();
     return true;
 }
@@ -419,9 +460,16 @@ void ButtonsListCtrl::SetOverflowButton(wxWindow* button)
 
     m_overflow_button = button;
 
-    if (m_overflow_button != nullptr)
+    if (m_overflow_button != nullptr) {
         // Right after the tab buttons (index 0), ahead of any stretch spacer / side_tools.
         m_sizer->Insert(1, m_overflow_button, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxBOTTOM, m_btn_margin);
+        // ORCA: it is created as a child of the strip and so lands last in the child list.
+        // Move it to where it is drawn, as InsertPage() does for the tab buttons.
+        if (!m_pageButtons.empty())
+            m_overflow_button->MoveAfterInTabOrder(m_pageButtons.back());
+        else if (m_first_side_tool != nullptr)
+            m_overflow_button->MoveBeforeInTabOrder(m_first_side_tool);
+    }
 
     m_sizer->Layout();
 }

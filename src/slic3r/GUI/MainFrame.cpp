@@ -1454,23 +1454,21 @@ void MainFrame::update_title_colour_after_set_title()
 
 void MainFrame::show_option(bool show)
 {
-    if (!show) {
-        if (m_slice_btn->IsShown()) {
-            m_slice_btn->Hide();
-            m_print_btn->Hide();
-            m_slice_option_btn->Hide();
-            m_print_option_btn->Hide();
-            Layout();
-        }
-    } else {
-        if (!m_slice_btn->IsShown()) {
-            m_slice_btn->Show();
-            m_print_btn->Show();
-            m_slice_option_btn->Show();
-            m_print_option_btn->Show();
-            Layout();
-        }
-    }
+    if (m_slice_btn->IsShown() == show)
+        return;
+
+    m_slice_btn->Show(show);
+    m_print_btn->Show(show);
+    m_slice_option_btn->Show(show);
+    m_print_option_btn->Show(show);
+    // ORCA: hiding just the buttons left their two panels in the tab strip shown but empty,
+    // and a shown container with no focusable children is a keyboard stop in its own right -
+    // wxControlContainer::HandleOnNavigationKey() focuses the container itself once none of
+    // its children will take the focus. A Tab walk on the Home tab therefore landed on two
+    // zero-sized, invisible controls. Hide the panels along with what they hold.
+    m_slice_btn->GetParent()->Show(show);
+    m_print_btn->GetParent()->Show(show);
+    Layout();
 }
 
 void MainFrame::set_undo_redo_enabled(bool undo, bool redo)
@@ -2352,6 +2350,13 @@ wxBoxSizer* MainFrame::create_side_tools()
         fit_tab_labels(); // ORCA on label change
     }
 
+    // ORCA: both halves of each split button are Tab stops of their own, and a SideButton is
+    // named by its label - which the arrow halves deliberately do not have. Name them after
+    // what they pop up: the slice arrow picks between slicing this plate and all of them, the
+    // print arrow between the print / send / export actions.
+    m_slice_option_btn->SetName(_L("Slice options"));
+    m_print_option_btn->SetName(_L("Print options"));
+
     auto slice_sizer = new wxBoxSizer(wxHORIZONTAL);
     slice_sizer->Add(m_slice_option_btn, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, FromDIP(1));
     slice_sizer->Add(m_slice_btn, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, FromDIP(1));
@@ -2361,6 +2366,13 @@ wxBoxSizer* MainFrame::create_side_tools()
     print_sizer->Add(m_print_option_btn, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, FromDIP(1));
     print_sizer->Add(m_print_btn, 0, wxLEFT | wxALIGN_CENTER_VERTICAL, FromDIP(1));
     print_panel->SetSizer(print_sizer);
+
+    // ORCA: both halves of each split button are Tab stops, and Tab traversal walks the
+    // child list, which follows creation order - so Tab reached "Slice plate" before the
+    // arrow that is drawn to its left. Put each label half back behind its own arrow so
+    // the Tab order runs left to right, the way the sizers above lay the halves out.
+    m_slice_btn->MoveAfterInTabOrder(m_slice_option_btn);
+    m_print_btn->MoveAfterInTabOrder(m_print_option_btn);
 
     update_side_button_style();
     m_slice_option_btn->Enable();

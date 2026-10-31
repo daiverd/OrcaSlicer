@@ -9,6 +9,7 @@
 #include <vector>
 #include <wx/bookctrl.h>
 #include <wx/bitmap.h>
+#include <wx/containr.h>
 #include <wx/event.h>
 #include <wx/gdicmn.h>
 #include <wx/debug.h>
@@ -28,7 +29,15 @@ class Button;
 // custom message the ButtonsListCtrl sends to its parent (Notebook) to notify a selection change:
 wxDECLARE_EVENT(wxCUSTOMEVT_NOTEBOOK_SEL_CHANGED, wxCommandEvent);
 
-class ButtonsListCtrl : public wxControl
+// ORCA: plain wxControl has no TAB-traversal container logic - that only exists in the
+// wxNavigationEnabled<W> mixin, which wxPanel gets for free. Without it the main tab
+// strip was a total Tab trap: a tab Button's Tab key calls Navigate(), which invokes
+// DoNavigateIn() directly on this window and fires a wxNavigationKeyEvent on its own
+// event handler chain. wxNavigationKeyEvent is a plain wxEvent, so it does not
+// propagate to a grandparent, and the only thing that ever handles it is the binding
+// wxNavigationEnabled installs. With nothing bound here, every Tab press was silently
+// dropped and focus never left the strip. Same defect as StaticBox had, one level up.
+class ButtonsListCtrl : public wxNavigationEnabled<wxControl>
 {
 public:
     // BBS
@@ -72,6 +81,9 @@ private:
     std::vector<wxString>           m_pageLabels; // ORCA
     std::vector<std::string>        m_pageIcons;  // ORCA: resource icon name per page, plugin pages empty
     wxWindow*                       m_overflow_button{nullptr}; // ORCA
+    // ORCA: first of the side tools reparented in by the constructor, i.e. the child the tab
+    // buttons have to be moved in front of to get a Tab order matching the visual one.
+    wxWindow*                       m_first_side_tool{nullptr};
     // ORCA: set while an Enter/Space on a tab button is on its way to becoming a click,
     // so SetSelection knows the activation came from the keyboard. Must outlive the key
     // event: the selection change it triggers is delivered through a posted event.
@@ -405,23 +417,28 @@ public:
             // the wxObject* casts are required to avoid MinGW GCC 2.95.3 ICE
             const bool isFromParent = event.GetEventObject() == (wxObject*)parent;
             const bool isFromSelf = event.GetEventObject() == (wxObject*)this;
+            // ORCA: our tab strip is a child window of its own rather than a part of this
+            // control, so everything wxNotebook deals with as coming from its tab area
+            // reaches us as a from-child event and has to be told apart from a page's.
+            const bool isFromBtns = IsFromTabStrip(event);
             const bool isForward = event.GetDirection();
 
-            if (isFromSelf && !isForward)
+            if ((isFromSelf || isFromBtns) && !isForward)
             {
                 // focus is currently on notebook tab and should leave
                 // it backwards (Shift-TAB)
                 event.SetCurrentFocus(this);
-                parent->HandleWindowEvent(event);
+                if (!parent->HandleWindowEvent(event))
+                    event.Skip();
             }
-            else if (isFromParent || isFromSelf)
+            else if (isFromParent || isFromSelf || isFromBtns)
             {
                 // no, it doesn't come from child, case (b) or (c): forward to a
                 // page but only if entering notebook page (i.e. direction is
                 // backwards (Shift-TAB) comething from out-of-notebook, or
                 // direction is forward (TAB) from ourselves),
                 if (m_selection != wxNOT_FOUND &&
-                    (!event.GetDirection() || isFromSelf))
+                    (!isForward || isFromSelf || isFromBtns))
                 {
                     // so that the page knows that the event comes from it's parent
                     // and is being propagated downwards
@@ -434,25 +451,30 @@ public:
                     }
                     //else: page manages focus inside it itself
                 }
-                else // otherwise set the focus to the notebook itself
+                else // otherwise set the focus to the tab strip
                 {
-                    SetFocus();
+                    SetFocusToTabStrip();
                 }
             }
             else
             {
                 // it comes from our child, case (a), pass to the parent, but only
                 // if the direction is forwards. Otherwise set the focus to the
-                // notebook itself. The notebook is always the 'first' control of a
-                // page.
+                // tab strip, which is always the 'first' control of a page.
                 if (!isForward)
                 {
-                    SetFocus();
+                    SetFocusToTabStripEnd(event);
                 }
                 else if (parent)
                 {
                     event.SetCurrentFocus(this);
-                    parent->HandleWindowEvent(event);
+                    // ORCA: our parent is MainFrame, and a wxFrame - unlike a wxDialog - is not a
+                    // wxNavigationEnabled container, so nothing there handles the event. Leave it
+                    // skipped in that case: wxControlContainer::HandleOnNavigationKey() otherwise
+                    // reads "processed" from our return value, stops escalating and stops looking
+                    // for a control to focus, which traps the focus inside the page.
+                    if (!parent->HandleWindowEvent(event))
+                        event.Skip();
                 }
             }
         }
@@ -505,6 +527,50 @@ protected:
     }
 
 private:
+    // ORCA: a Tab press leaving the strip reaches us still stamped with the window it
+    // started from, never with the strip itself: wxWindow::Navigate() makes the focused
+    // window the event object, and wxControlContainer::HandleOnNavigationKey()'s
+    // escalate-to-parent loop rewrites only the event's *current focus* on the way up.
+    // Comparing against the strip by identity therefore missed every tab button and every
+    // side tool reparented into it, so their Tab was treated as a page's and never entered
+    // one. Ask for membership instead; pages are siblings of the strip rather than
+    // descendants of it, so they still take the from-a-page branch.
+    bool IsFromTabStrip(const wxNavigationKeyEvent& event) const
+    {
+        const wxWindow* const btns = GetBtnsListCtrl();
+        for (const wxWindow* win = wxDynamicCast(event.GetEventObject(), wxWindow);
+             win != nullptr && win != this; win = win->GetParent())
+            if (win == btns)
+                return true;
+        return false;
+    }
+
+    // ORCA: the roving tabindex makes the selected tab the strip's only Tab stop, and the
+    // side tools reparented into the strip are its first children, so a plain SetFocus()
+    // on the strip would land on one of those instead.
+    void SetFocusToTabStrip()
+    {
+        if (wxWindow* const tab = GetBtnsListCtrl()->GetSelectedButton())
+            tab->SetFocusFromKbd();
+        else
+            GetBtnsListCtrl()->SetFocus();
+    }
+
+    // ORCA: coming back out of a page has to enter the strip at its *last* stop rather than
+    // its first, now that the side tools follow the tab buttons in the strip's Tab order -
+    // landing straight on the selected tab would leave them reachable forwards only. Handing
+    // the event to the strip with ourselves as its object is what
+    // wxControlContainer::HandleOnNavigationKey() reads as "propagated down from the parent",
+    // which makes it enter from the end for a backward key and descend into the last side
+    // tool. Hidden side tools are skipped, so the Home tab still lands on the tab button, as
+    // does the fallback when nothing in the strip takes the focus.
+    void SetFocusToTabStripEnd(wxNavigationKeyEvent& event)
+    {
+        event.SetEventObject(this);
+        if (!GetBtnsListCtrl()->GetEventHandler()->ProcessEvent(event))
+            SetFocusToTabStrip();
+    }
+
     void Init();
 
     std::vector<wxString> m_pageNames; // index-parallel to wxBookCtrlBase::m_pages

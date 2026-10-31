@@ -135,6 +135,8 @@ protected:
 #endif
 
     bool AcceptsFocus() const override;
+    bool AcceptsFocusRecursively() const override;
+    bool AcceptsFocusFromKeyboard() const override;
 
 private:
     bool m_has_style = false;
@@ -164,6 +166,7 @@ private:
     // parent motion
     void OnParentMotion(wxMouseEvent& event);
     void OnParentLeave(wxMouseEvent& event);
+    void DestroyTipWindow();
 
     DECLARE_EVENT_TABLE()
 };

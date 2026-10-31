@@ -20,6 +20,8 @@ BEGIN_EVENT_TABLE(TabButton, StaticBox)
 
 EVT_LEFT_DOWN(TabButton::mouseDown)
 EVT_LEFT_UP(TabButton::mouseReleased)
+EVT_KEY_DOWN(TabButton::keyDownUp)
+EVT_KEY_UP(TabButton::keyDownUp)
 
 // catch paint events
 EVT_PAINT(TabButton::paintEvent)
@@ -235,6 +237,42 @@ void TabButton::mouseReleased(wxMouseEvent &event)
         if (wxRect({0, 0}, GetSize()).Contains(event.GetPosition()))
             sendButtonEvent();
     }
+}
+
+// ORCA: the selected tab is the strip's only Tab stop, so it has to be operable from
+// the keyboard - TabButton had no key handling at all, unlike Button. Tab itself needs
+// nothing here: it has no children, so it carries no wxTAB_TRAVERSAL and the key is
+// turned into a wxNavigationKeyEvent by the enclosing TabButtonsListCtrl instead.
+void TabButton::keyDownUp(wxKeyEvent &event)
+{
+    if (event.GetKeyCode() == WXK_SPACE || event.GetKeyCode() == WXK_RETURN) {
+        if (event.GetEventType() == wxEVT_KEY_UP)
+            sendButtonEvent();
+        return;
+    }
+    event.Skip();
+}
+
+#ifdef __WIN32__
+
+// ORCA: wxMSW converts the arrow keys into navigation events before any wxEVT_KEY_DOWN is
+// generated unless the focused window asks for them here - which is why only Home/End,
+// which it does not convert, ever reached the tab strip's arrow-key handler.
+WXLRESULT TabButton::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+    if (nMsg == WM_GETDLGCODE) { return DLGC_WANTARROWS; }
+    return StaticBox::MSWWindowProc(nMsg, wParam, lParam);
+}
+
+#endif
+
+bool TabButton::AcceptsFocus() const { return wxWindow::AcceptsFocus(); }
+
+bool TabButton::AcceptsFocusRecursively() const { return AcceptsFocus(); }
+
+bool TabButton::AcceptsFocusFromKeyboard() const
+{
+    return KeyboardTabStopAllows() && wxWindow::AcceptsFocusFromKeyboard();
 }
 
 void TabButton::sendButtonEvent()

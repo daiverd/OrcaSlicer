@@ -55,6 +55,19 @@ public:
     void ShowNewTag(bool tag = false) {show_new_tag = tag; Refresh();};
     bool GetShowNewTag() const { return show_new_tag; };
 
+protected:
+    // ORCA: StaticBox is a wxNavigationEnabled container, whose AcceptsFocus*() answer
+    // from the container rather than for the window itself, so the strip's roving
+    // tabindex would be silently ignored without these three overrides. A tab button
+    // never has focusable children, so answer for ourselves. Same shape as Button.
+    bool AcceptsFocus() const override;
+    bool AcceptsFocusRecursively() const override;
+    bool AcceptsFocusFromKeyboard() const override;
+
+#ifdef __WIN32__
+    WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
+#endif
+
 private:
     void paintEvent(wxPaintEvent& evt);
 
@@ -65,6 +78,7 @@ private:
     // some useful events
     void mouseDown(wxMouseEvent& event);
     void mouseReleased(wxMouseEvent& event);
+    void keyDownUp(wxKeyEvent& event);
 
     void sendButtonEvent();
 

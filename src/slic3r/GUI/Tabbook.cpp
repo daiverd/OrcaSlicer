@@ -34,9 +34,12 @@ static const int BUTTON_DEF_HEIGHT = 46;
 static const int BUTTON_DEF_WIDTH  = 220;
 
 
-TabButtonsListCtrl::TabButtonsListCtrl(wxWindow *parent, wxBoxSizer *side_tools) :
-    wxControl(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL)
+TabButtonsListCtrl::TabButtonsListCtrl(wxWindow *parent, wxBoxSizer *side_tools)
 {
+    // ORCA: wxNavigationEnabled<> has only a default constructor, so the window has to
+    // be created in two phases rather than through a base-class initializer.
+    wxControl::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE | wxTAB_TRAVERSAL);
+
 #ifdef __WINDOWS__
     SetDoubleBuffered(true);
 #endif //__WINDOWS__
@@ -122,6 +125,26 @@ void TabButtonsListCtrl::SetSelection(int sel)
     Refresh();
 }
 
+wxWindow* TabButtonsListCtrl::GetSelectedButton() const
+{
+    if (m_selection >= 0 && m_selection < int(m_pageButtons.size()))
+        return m_pageButtons[m_selection];
+    return nullptr;
+}
+
+void TabButtonsListCtrl::SelectAndNotify(size_t idx)
+{
+    SetSelection(int(idx));
+    // ORCA: whatever selects a tab - a click or an arrow key - hands it the strip's only
+    // Tab stop, so the focus has to follow it. SetSelection() moves the focus only when the
+    // outgoing tab was holding it, which left a click made while the focus sat elsewhere
+    // selecting a tab that the next Tab press would then leap to out of nowhere.
+    m_pageButtons[idx]->SetFocus();
+    wxCommandEvent evt(wxCUSTOMEVT_TABBOOK_SEL_CHANGED);
+    evt.SetId(int(idx));
+    wxPostEvent(GetParent(), evt);
+}
+
 void TabButtonsListCtrl::showNewTag(int sel, bool tag)
 {
     if (m_pageButtons[sel]->GetShowNewTag() == tag)
@@ -140,17 +163,52 @@ bool TabButtonsListCtrl::InsertPage(size_t n, const wxString &text, bool bSelect
 
     int em = em_unit(this);
     btn->SetMinSize({BUTTON_DEF_WIDTH * em / 10, BUTTON_DEF_HEIGHT * em / 10});
+    // ORCA: roving tabindex, same as the main tab strip - the strip is a single Tab stop
+    // that follows the selected tab, and a focused tab keeps the stop for as long as it
+    // has focus. Asked on demand rather than handed over as the selection changes, so
+    // nothing has to be kept in sync and no platform loses the ability to focus a tab.
+    btn->SetKeyboardTabStop([this, btn] {
+        return btn->HasFocus() || (m_selection >= 0 && m_selection < static_cast<int>(m_pageButtons.size()) &&
+                                   m_pageButtons[m_selection] == btn);
+    });
 
     btn->SetBackgroundColor(TAB_BUTTON_BG);
     btn->SetTextColor(*wxBLACK);
     btn->Bind(wxEVT_BUTTON, [this, btn](wxCommandEvent& event) {
-        if (auto it = std::find(m_pageButtons.begin(), m_pageButtons.end(), btn); it != m_pageButtons.end()) {
-            auto sel = it - m_pageButtons.begin();
-            SetSelection(sel);
-            wxCommandEvent evt = wxCommandEvent(wxCUSTOMEVT_TABBOOK_SEL_CHANGED);
-            evt.SetId(sel);
-            wxPostEvent(this->GetParent(), evt);
+        if (auto it = std::find(m_pageButtons.begin(), m_pageButtons.end(), btn); it != m_pageButtons.end())
+            SelectAndNotify(it - m_pageButtons.begin());
+    });
+    // ORCA: WAI-ARIA vertical-tablist keyboard model - this strip is a column, so Up/Down
+    // (not Left/Right, as ButtonsListCtrl's horizontal strip uses) move among the tab
+    // buttons and wrap at the ends, Home/End jump to the first/last tab, and Left/Right
+    // stay swallowed, matching a vertical tab list. ButtonsListCtrl's arrow keys only move
+    // focus (manual activation - Enter/Space, separately, is what selects); this strip has
+    // no such split to begin with, since its own click handler above already selects
+    // immediately rather than deferring to the parent. So arrow keys here move the
+    // selection and the focus together, same as a click, and the roving tabindex follows
+    // both by construction. This dynamic handler runs before TabButton's static event
+    // table, so it wins for the keys it takes; Space/Return/Tab fall through to
+    // keyDownUp()/navigation as before.
+    btn->Bind(wxEVT_KEY_DOWN, [this, btn](wxKeyEvent& evt) {
+        auto it = std::find(m_pageButtons.begin(), m_pageButtons.end(), btn);
+        if (it == m_pageButtons.end()) {
+            evt.Skip();
+            return;
         }
+        int cur   = int(it - m_pageButtons.begin());
+        int count = int(m_pageButtons.size());
+        int next;
+        switch (evt.GetKeyCode()) {
+        case WXK_UP:    next = (cur + count - 1) % count; break;
+        case WXK_DOWN:  next = (cur + 1) % count; break;
+        case WXK_HOME:  next = 0; break;
+        case WXK_END:   next = count - 1; break;
+        case WXK_LEFT:
+        case WXK_RIGHT: return;
+        default:        evt.Skip(); return;
+        }
+        SelectAndNotify(next);
+        m_pageButtons[next]->SetFocus();
     });
     Slic3r::GUI::wxGetApp().UpdateDarkUI(btn);
     m_pageButtons.insert(m_pageButtons.begin() + n, btn);

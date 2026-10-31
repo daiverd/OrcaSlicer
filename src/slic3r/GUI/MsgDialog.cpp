@@ -110,7 +110,13 @@ MsgDialog::MsgDialog(wxWindow *parent, const wxString &title, const wxString &he
 
 void MsgDialog::show_dsa_button(wxString const &title)
 {
+    const wxString dsa_title = title.IsEmpty() ? _L("Don't show again") : title;
+
     m_checkbox_dsa = new CheckBox(this);
+    // ORCA: the checkbox draws no label of its own - the static text beside it is the label -
+    // which left it an unnamed Tab stop, e.g. in the save-on-close prompt. Name it after the
+    // text the user reads next to it.
+    m_checkbox_dsa->SetName(dsa_title);
     m_dsa_sizer->Add(m_checkbox_dsa, 0, wxALIGN_CENTER);
     m_checkbox_dsa->Bind(wxEVT_TOGGLEBUTTON, [this](wxCommandEvent& e) {
         auto event = wxCommandEvent(EVT_CHECKBOX_CHANGE);
@@ -120,7 +126,7 @@ void MsgDialog::show_dsa_button(wxString const &title)
         e.Skip();
     });
 
-    auto  m_text_dsa = new wxStaticText(this, wxID_ANY, title.IsEmpty() ? _L("Don't show again") : title, wxDefaultPosition, wxDefaultSize, 0);
+    auto  m_text_dsa = new wxStaticText(this, wxID_ANY, dsa_title, wxDefaultPosition, wxDefaultSize, 0);
     auto on_toggle = [this]() {
         m_checkbox_dsa->SetValue(!m_checkbox_dsa->GetValue());
         wxCommandEvent ev(wxEVT_TOGGLEBUTTON, m_checkbox_dsa->GetId());

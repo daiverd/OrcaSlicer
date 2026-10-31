@@ -991,9 +991,12 @@ PlaterPresetComboBox::PlaterPresetComboBox(wxWindow *parent, Preset::Type preset
                 else
                     switch_to_tab();
             });
-#ifdef __linux__
+        // ORCA: the only combo box that reaches this branch is the sidebar's printer preset
+        // one, and the sidebar lays out Sidebar::priv::btn_edit_printer over the combo box
+        // instead of this button - which is therefore never added to a sizer, never
+        // positioned, and never seen. Shown, it was still a Tab stop: the keyboard landed on
+        // an invisible control between the printer preset and nozzle combo boxes.
         edit_btn->Hide();
-#endif //__linux__
     }
 }
 

@@ -931,7 +931,8 @@ struct Sidebar::priv
     //wxComboBox *                m_comboBox_print_preset;
     wxStaticLine *              m_staticline1;
     StaticBox* m_panel_filament_title;
-    wxPanel*   m_panel_filament_separator;
+    // ORCA: a bare wxWindow, not a wxPanel - see where it is created.
+    wxWindow*  m_panel_filament_separator;
     wxStaticText* m_staticText_filament_settings;
     wxStaticText* m_staticText_filament_count;
     ScalableButton *  m_bpButton_add_filament;
@@ -972,7 +973,8 @@ struct Sidebar::priv
 
     // BBS printer config
     StaticBox* m_panel_printer_title = nullptr;
-    wxPanel*   m_panel_printer_separator = nullptr;
+    // ORCA: a bare wxWindow, not a wxPanel - see where it is created.
+    wxWindow*  m_panel_printer_separator = nullptr;
     ScalableButton* m_printer_icon = nullptr;
     ScalableButton* m_printer_connect = nullptr;
     ScalableButton* m_printer_bbl_sync = nullptr;
@@ -2890,7 +2892,14 @@ Sidebar::Sidebar(Plater *parent)
         p->m_panel_printer_title->Bind(wxEVT_LEFT_DOWN  , toggle_printer_section);
         p->m_panel_printer_title->Bind(wxEVT_LEFT_DCLICK, toggle_printer_section);
         // ORCA add bottom border for seperation wile sections folded
-        p->m_panel_printer_separator = new wxPanel(p->scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(2))); // ORCA staticline class not works without string
+        // ORCA: a decorative rule is never a TAB stop. This used to be a childless
+        // wxPanel, which is focusable by default and so showed up as an unnamed,
+        // unlabelled stop in TAB traversal. DisableFocusFromKeyboard() cannot fix that
+        // on a wxPanel: wxPanel is a wxNavigationEnabled container, and the mixin's
+        // AcceptsFocusFromKeyboard() answers from the container's own state, ignoring
+        // the flag entirely. A bare wxWindow honours it, and paints the same 2px line.
+        p->m_panel_printer_separator = new wxWindow(p->scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(2))); // ORCA staticline class not works without string
+        p->m_panel_printer_separator->DisableFocusFromKeyboard();
         p->m_panel_printer_separator->SetBackgroundColour("#FFFFFF");
         scrolled_sizer->Add(p->m_panel_printer_separator, 0, wxEXPAND);
 
@@ -3300,7 +3309,10 @@ Sidebar::Sidebar(Plater *parent)
     p->m_panel_filament_title->Layout();
     scrolled_sizer->Add(p->m_panel_filament_title, 0, wxEXPAND | wxALL, 0);
     // ORCA add bottom border for seperation wile sections folded
-    p->m_panel_filament_separator = new wxPanel(p->scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(2))); // ORCA staticline class not works without string
+    // ORCA: a decorative rule is never a TAB stop - see m_panel_printer_separator above
+    // for why this is a bare wxWindow rather than a wxPanel.
+    p->m_panel_filament_separator = new wxWindow(p->scrolled, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(2))); // ORCA staticline class not works without string
+    p->m_panel_filament_separator->DisableFocusFromKeyboard();
     p->m_panel_filament_separator->SetBackgroundColour("#FFFFFF");
     scrolled_sizer->Add(p->m_panel_filament_separator, 0, wxEXPAND);
 
@@ -3602,7 +3614,9 @@ Sidebar::Sidebar(Plater *parent)
     });
 
     auto search_sizer = new wxBoxSizer(wxHORIZONTAL);
-    search_sizer->Add(new wxWindow(p->m_search_bar, wxID_ANY, wxDefaultPosition, wxSize(0, 0)), 0, wxEXPAND|wxLEFT|wxRIGHT, FromDIP(1));
+    // ORCA: plain left padding. This used to be a 0x0 wxWindow, which wx counts as a
+    // focusable child, so TAB traversal stopped on an invisible, unlabelled window.
+    search_sizer->AddSpacer(FromDIP(1) * 2);
     search_sizer->Add(p->m_search_item, 1, wxEXPAND | wxALL, FromDIP(2));
     p->m_search_bar->SetSizer(search_sizer);
     p->m_search_bar->Layout();

@@ -600,9 +600,10 @@ void Button::keyDownUp(wxKeyEvent& event)
     }
     if (event.GetEventType() == wxEVT_KEY_DOWN &&
         (event.GetKeyCode() == WXK_TAB || event.GetKeyCode() == WXK_LEFT || event.GetKeyCode() == WXK_RIGHT ||
-         event.GetKeyCode() == WXK_UP || event.GetKeyCode() == WXK_DOWN))
-        HandleAsNavigationKey(event);
-    else
+         event.GetKeyCode() == WXK_UP || event.GetKeyCode() == WXK_DOWN)) {
+        if (!HandleAsNavigationKey(event))
+            event.Skip();
+    } else
         event.Skip();
 }
 
@@ -675,6 +676,17 @@ WXLRESULT Button::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
 
 bool Button::AcceptsFocus() const { return canFocus; }
 
+// ORCA: StaticBox is a wxNavigationEnabled container, whose AcceptsFocusRecursively()
+// and AcceptsFocusFromKeyboard() answer from the container instead of this class's
+// AcceptsFocus() override, silently undoing SetCanFocus()/DisableFocusFromKeyboard().
+// A Button never has focusable children, so answer for ourselves.
+bool Button::AcceptsFocusRecursively() const { return AcceptsFocus(); }
+
+bool Button::AcceptsFocusFromKeyboard() const
+{
+    return KeyboardTabStopAllows() && wxWindow::AcceptsFocusFromKeyboard();
+}
+
 void Button::EnableTooltipEvenDisabled()
 {
 #if defined(_MSC_VER) || defined(_WIN32)
@@ -697,7 +709,13 @@ void Button::OnParentMotion(wxMouseEvent& event)
     wxString tip       = this->GetToolTipText();
     if (!tip.IsEmpty() && !this->IsEnabled() && screen_rect.Contains(pos)) {
         if (!tipWindow) {
-            tipWindow = wxTipWindow::New(this, tip);
+            // ORCA: parenting this child to us triggers wxNavigationEnabled's
+            // AddChild bookkeeping, which recomputes and reassigns SetCanFocus()
+            // on this Button - restore our own explicit flag so a deliberate
+            // SetCanFocus(false) elsewhere survives a tooltip-even-disabled cycle.
+            bool canFocus_before = canFocus;
+            tipWindow            = wxTipWindow::New(this, tip);
+            SetCanFocus(canFocus_before);
             if (!tipWindow)
                 return event.Skip();
             tipWindow->Enable(false);
@@ -712,11 +730,7 @@ void Button::OnParentMotion(wxMouseEvent& event)
         tipWindow->Position(this->ClientToScreen(wxPoint(0, 0)), this->GetSize());
         tipWindow->Popup();
     } else {
-        if (tipWindow) {
-            tipWindow->Dismiss();
-            tipWindow->Destroy();
-            tipWindow = nullptr;
-        }
+        DestroyTipWindow();
     }
 
     event.Skip();
@@ -732,12 +746,23 @@ void Button::OnParentLeave(wxMouseEvent& event)
         wxPoint pos        = parent->ClientToScreen(event.GetPosition());
         wxRect screen_rect = this->GetScreenRect();
         wxString tip       = this->GetToolTipText();
-        if (!screen_rect.Contains(pos)) {
-            tipWindow->Dismiss();
-            tipWindow->Destroy();
-            tipWindow = nullptr;
-        }
+        if (!screen_rect.Contains(pos))
+            DestroyTipWindow();
     }
 
     event.Skip();
+}
+
+void Button::DestroyTipWindow()
+{
+    if (!tipWindow)
+        return;
+    // ORCA: destroying this child re-triggers wxNavigationEnabled's RemoveChild
+    // bookkeeping, which recomputes and reassigns SetCanFocus() on this Button -
+    // restore our own explicit flag, matching the creation-side guard above.
+    bool canFocus_before = canFocus;
+    tipWindow->Dismiss();
+    tipWindow->Destroy();
+    tipWindow = nullptr;
+    SetCanFocus(canFocus_before);
 }

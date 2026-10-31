@@ -31,7 +31,9 @@ enum TempInputType {
     TEMP_OF_NORMAL_TYPE
 };
 
-class TempInput : public wxNavigationEnabled<StaticBox>
+// ORCA: StaticBox is now wxNavigationEnabled itself; the extra wrapper here
+// used to be this class's only source of TAB-traversal container behavior.
+class TempInput : public StaticBox
 {
     bool   hover;
 
