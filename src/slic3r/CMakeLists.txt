@@ -571,6 +571,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/TextureProjectorFrame.hpp
     GUI/TickCode.cpp
     GUI/TickCode.hpp
+    GUI/TransformDialog.cpp
+    GUI/TransformDialog.hpp
     GUI/TroubleshootDialog.cpp
     GUI/TroubleshootDialog.hpp
     GUI/UnsavedChangesDialog.cpp

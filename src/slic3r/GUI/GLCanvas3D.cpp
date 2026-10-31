@@ -108,6 +108,7 @@
 #include "NotificationManager.hpp"
 #include "DailyTips.hpp"
 #include "FilamentMapDialog.hpp"
+#include "TransformDialog.hpp"
 #include "Gizmos/GLGizmoUtils.hpp"
 
 #include "slic3r/GUI/Gizmos/GLGizmoPainterBase.hpp"
@@ -4266,6 +4267,11 @@ bool GLCanvas3D::handle_shortcut(const KeyChord& chord)
     case Shortcut::MoveSelectionRight: move_selection(Vec3d::UnitX()); break;
     case Shortcut::MoveSelectionUp:    move_selection(Vec3d::UnitY()); break;
     case Shortcut::MoveSelectionDown:  move_selection(-Vec3d::UnitY()); break;
+    case Shortcut::TransformSelection:
+        // Deferred so that the modal loop does not run inside this key handler.
+        if (m_canvas_type == CanvasView3D)
+            wxGetApp().CallAfter([]() { TransformDialog::show_for_selection(); });
+        break;
     case Shortcut::ZoomIn:  _update_camera_zoom(1.0); break;
     case Shortcut::ZoomOut: _update_camera_zoom(-1.0); break;
     case Shortcut::SwitchView: post_event(SimpleEvent(EVT_GLCANVAS_TAB)); break;

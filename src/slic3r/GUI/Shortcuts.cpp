@@ -28,6 +28,7 @@ constexpr uint8_t CANVAS      = PLATER | PREVIEW;
 
 constexpr int CTRL       = wxMOD_CONTROL;
 constexpr int SHIFT      = wxMOD_SHIFT;
+constexpr int ALT        = wxMOD_ALT;
 constexpr int CTRL_SHIFT = wxMOD_CONTROL | wxMOD_SHIFT;
 
 #ifdef __APPLE__
@@ -102,6 +103,8 @@ constexpr std::array<ShortcutInfo, size_t(Shortcut::Count)> shortcut_table = {{
     STEPPING(MoveSelectionDown,   "move_selection_down",    L("Move selection 10mm in negative Y direction"),    PLATER, { WXK_DOWN }),
     REPEATING(RotateSelectionLeft,  "rotate_selection_left",  L("Rotate selection 45 degrees counterclockwise"), PLATER, { WXK_PAGEUP }),
     REPEATING(RotateSelectionRight, "rotate_selection_right", L("Rotate selection 45 degrees clockwise"),        PLATER, { WXK_PAGEDOWN }),
+    // Alt+Enter is the platform "properties of the selection" convention.
+    SHORTCUT(TransformSelection,  "transform_selection",    L("Type exact position, rotation, scale and size values for the selection"), PLATER, { WXK_RETURN, ALT }),
 
     // Gizmos
     SHORTCUT(GizmoMove,         "gizmo_move",         L("Gizmo move"),                                           PLATER, { 'M' }),

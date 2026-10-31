@@ -14,6 +14,7 @@
 #include "OptionsGroup.hpp"
 #include "GLCanvas3D.hpp"
 #include "Selection.hpp"
+#include "TransformDialog.hpp"
 //BBS: add partplate related logic
 #include "PartPlate.hpp"
 #include "Gizmos/GLGizmoAlignment.hpp"
@@ -1348,12 +1349,25 @@ void MenuFactory::append_menu_item_merge_to_single_object(wxMenu* menu)
         []() { return obj_list()->can_merge_to_single_object(); }, m_parent);
 }
 
+void MenuFactory::append_menu_item_transform_dialog(wxMenu* menu)
+{
+    const std::string accel = wxGetApp().shortcuts().accelerator(Shortcut::TransformSelection);
+    append_menu_item(menu, wxID_ANY, _L("Transform") + dots + (accel.empty() ? wxString() : "\t" + from_u8(accel)),
+        _L("Type exact position, rotation, scale and size values for the selection"),
+        [](wxCommandEvent&) { TransformDialog::show_for_selection(); }, "", menu,
+        []() { return TransformDialog::can_open(); }, m_parent);
+}
+
 wxMenu* MenuFactory::append_menu_item_transform(wxMenu* menu, bool multi_selection, bool show_mirror, bool is_scalable)
 {
     wxMenu* sub_menu = new wxMenu();
 
+    // Numeric transform dialog first, ahead of the one-click transforms
+    append_menu_item_transform_dialog(sub_menu);
+
     if(show_mirror){
         // Mirror
+        sub_menu->AppendSeparator();
         append_menu_item(sub_menu, wxID_ANY, _L("Mirror") + ":", "", [](wxCommandEvent&){}, "", menu, [](){return false;}, m_parent);
         append_menu_item(sub_menu, wxID_ANY, _L("Along X Axis"), _L("Mirror along the X axis"),
             [](wxCommandEvent&) { plater()->mirror(X); }, "menu_mirror_x", m_parent);
