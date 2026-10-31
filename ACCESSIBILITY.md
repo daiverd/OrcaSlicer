@@ -1,10 +1,50 @@
-# OrcaSlicer accessibility: planned pull requests
+# Making OrcaSlicer accessible
 
-State on 2026-10-30. Every branch below is on [daiverd/OrcaSlicer](https://github.com/daiverd/OrcaSlicer). All of them sit on upstream main [52c50e626e](https://github.com/OrcaSlicer/OrcaSlicer/commit/52c50e626e) except the parked [`04`][04], [`06.02`][06.02] and [`07`][07]; the rest, merged together, build on Windows and pass Orca's tests. From now on they are updated by merging main, never rebased, so you can branch from them. The number in a branch name is its planned order; a dotted number builds on the branch with the shorter number. Tested on Windows 11 with NVDA unless a line says otherwise.
+I'm fully blind, I use NVDA, and I'm making OrcaSlicer usable with a keyboard and a screen reader. Several people now work on this. This file is the overview: what the problems are, how each part of Orca's interface is being fixed, and every branch and pull request. The public index of accessibility issues and PRs is [#10093]; the original request is [discussion #8260][#8260].
 
-[`accessibility-preview`][preview] is upstream main with every branch below merged in, for trying all of it at once. It is rebuilt from scratch when the branches change, so branch from the individual branches, not from it.
+David Sexton ([@daiverd](https://github.com/daiverd))
 
-## What can be worked on in parallel
+State on 2026-10-30, upstream main [52c50e626e](https://github.com/OrcaSlicer/OrcaSlicer/commit/52c50e626e).
+
+## Try it
+
+[`accessibility-preview`][preview] is upstream main with every finished branch below merged in, so you can try all of it at once. It builds like upstream main; its source, built on Windows 11, passes Orca's tests. A prebuilt preview for Windows, macOS and Linux will be linked here. It's for testing, not for production printing. Most of the screen reader work is Windows-only for now (see [Platforms](#platforms)).
+
+## How the work is split
+
+Orca's interface is five different technologies, and each needs its own approach.
+
+1. **Custom wx widgets** (buttons, dropdowns, checkboxes, spin boxes, tab strips). They're owner-drawn, so a screen reader gets no name or role, and many drop keyboard focus. The approach is one shared accessible object on `StaticBox`, so each widget sets its role, name, state and default action instead of writing its own. [#16788] (merged) started this for Button and CheckBox, including macOS; [#17068] builds on it.
+2. **wxWidgets itself.** Some bugs are in the library: the object list exposes no rows to a screen reader, and the WebView2 backend keeps app keys such as F6 inside embedded pages. Those fixes go to wxWidgets upstream first, then reach Orca through the [Orca-deps-wxWidgets](https://github.com/OrcaSlicer/Orca-deps-wxWidgets) fork when it moves to wx 3.3.4 ([#16370]).
+3. **Embedded web pages** (Home, the setup wizard, Project, several dialogs). They use clickable divs and a script that cancelled Tab, Enter, Space and the arrows. The approach is real HTML controls, a small shared `a11y.js` for focus and announcements, and a focus ring shown for keyboard focus only. The wizard comes first ([#17057]), because a blind user can't get past it on first run.
+4. **OpenGL toolbars on the 3D canvas.** These are painted pixels with no window behind them. The approach is keyboard focus stops for each toolbar item, plus one accessible object for the canvas that reports the focused item. This has to fit with the Ctrl+Tab and jump-to-tab shortcuts ([#16301], [#16918]) and the ImGui keyboard fixes ([#16505], [#16558], [#16673]).
+5. **ImGui overlays** (gizmo panels, notifications). There's no object model to attach to. Where an overlay is really a form, such as move, rotate and scale, the approach is a native dialog that does the same job.
+
+## Rules every change follows
+
+- One PR per problem, small enough to review in one sitting.
+- Each PR can be tested on plain main, without my other PRs.
+- Tab and Shift+Tab move between controls everywhere. Arrow keys move only inside a group: tab strips, lists, trees, radio groups, toolbars, menus.
+- Nothing hidden or unclickable gets keyboard focus, and hovering never moves focus.
+- Mouse users see no change, apart from a focus ring when they use the keyboard.
+- I test every PR with NVDA by hand and say in the PR what wasn't tested.
+
+## Platforms
+
+Keyboard changes work everywhere. On Windows, wxWidgets passes names and roles to screen readers through its accessibility layer. On macOS and Linux it mostly doesn't yet, which is why [#16788]'s macOS code matters. Help from anyone who knows VoiceOver or AT-SPI, the Linux accessibility interface, is very welcome.
+
+## Where help is most useful
+
+- **Testing:** the preview or a PR's build with NVDA, JAWS, Narrator, VoiceOver or Orca, the Linux screen reader. Name the screen and the control, and say what you heard.
+- **macOS and Linux:** carrying the widget work to VoiceOver and AT-SPI. [@doubletaco](https://github.com/doubletaco) has started on macOS.
+- **Keyboard and shortcuts:** the canvas work overlaps with [@raistlin7447](https://github.com/raistlin7447)'s shortcut and ImGui fixes; I'd rather design that part together.
+- **Sighted review:** checking that focus rings and layout look right in light and dark mode.
+
+## Branches
+
+Every branch below is on [daiverd/OrcaSlicer](https://github.com/daiverd/OrcaSlicer). All of them sit on upstream main 52c50e626e except the parked [`04`][04], [`06.02`][06.02] and [`07`][07]. From now on they are updated by merging main, never rebased, so you can branch from them; don't branch from `accessibility-preview`, which is rebuilt from scratch when the branches change. The number in a branch name is its planned order; a dotted number builds on the branch with the shorter number. Tested on Windows 11 with NVDA unless a line says otherwise.
+
+### What can be worked on in parallel
 
 Seven tracks. Within a track, a branch waits for the one it builds on; separate tracks don't wait for each other.
 
@@ -24,7 +64,7 @@ Where parallel tracks touch the same code, the second to merge has conflicts to 
 
 Orca's [contributing guide](https://github.com/OrcaSlicer/OrcaSlicer/blob/main/CONTRIBUTING.md) asks one contributor to keep only a few pull requests open at a time, so parallel work goes fastest when different people carry different tracks.
 
-## Open upstream
+### Open upstream
 
 | PR | Branch | What it does |
 |---|---|---|
@@ -32,7 +72,7 @@ Orca's [contributing guide](https://github.com/OrcaSlicer/OrcaSlicer/blob/main/C
 | [#17057] (draft) | [`accessibility-06-web-wizard`][06] | The setup wizard, Select Printers and Select Filaments work with the keyboard and a screen reader: real buttons, checkboxes and radio buttons, headings, named search fields, spoken result counts, a vendor list dialog. Adds the shared `a11y.js` the other web pages use. |
 | [#17068] (draft) | [`accessibility-05-widget-accessible`][05] | Screen readers get names, roles and states from Orca's custom-drawn widgets: the main and sidebar tabs read as tabs with only the current one selected, drop-downs as combo boxes with their value, checkboxes and radio buttons with their state; icon-only buttons get names; a long setting tooltip becomes a short name plus a description. Under the hood, one shared accessible (`WidgetAccessible`) that any widget sets a role and state on; [#16788]'s Windows Button accessible folds into it. Windows only; no keyboard changes. Built and tested; NVDA check of this exact build still to do. |
 
-## Planned, in order
+### Planned, in order
 
 | Branch | Builds on | What it does |
 |---|---|---|
@@ -58,7 +98,7 @@ Orca's [contributing guide](https://github.com/OrcaSlicer/OrcaSlicer/blob/main/C
 | [`accessibility-11-view-menu`][11] | main | Four options that were only in the 3D view's popup (zoom button, axes, wireframe, realistic view) are added to the View menu. |
 | [`accessibility-07-wx-dataview`][07] (Orca part) | main | The object list and its rename editor are named. Its wxWidgets fix is listed below. |
 
-## Fixes that belong in wxWidgets
+### Fixes that belong in wxWidgets
 
 Prepared as wxWidgets pull requests, not yet opened; they reach Orca when its wxWidgets fork moves to 3.3.4 ([#16370]).
 
@@ -67,7 +107,7 @@ Prepared as wxWidgets pull requests, not yet opened; they reach Orca when its wx
 - `wxDataViewCtrl` reports the tree expand/collapse key as a keyboard shortcut, so NVDA reads a direction key after every row.
 - Tabbing into an Edge web view focuses its first or last element, and tabbing out follows wx's tab order (two pull requests).
 
-## Overtaken by events
+### Overtaken by events
 
 - [`accessibility-06-web-content`][06-old]: split into [`06-web-wizard`][06] ([#17057]) and [`06.03-web-pages`][06.03]. To be deleted.
 - [`accessibility-04-wx-iolewindow`][04] and the wx patch in [`accessibility-07-wx-dataview`][07]: Orca no longer patches wxWidgets in its own tree; it builds from the [OrcaSlicer/Orca-deps-wxWidgets](https://github.com/OrcaSlicer/Orca-deps-wxWidgets) fork. Replaced by the wxWidgets pull requests above. 07's three Orca-side commits stay.
@@ -76,13 +116,19 @@ Prepared as wxWidgets pull requests, not yet opened; they reach Orca when its wx
   - [`05.06`][05.06]: "Give the filament-only and printer-only guide pages a real title" is also in [#17057]; it drops out when #17057 merges. Part of its web view focus handling may become unnecessary once Orca uses wxWidgets with the web view Tab fixes; to be rechecked then.
   - [`01.02.03`][01.02.03]: "Let Ctrl+Tab through the sidebar's page-key handler" only matters if someone rebinds Ctrl+Tab, now that [#16301] handles it as a global shortcut.
 
-## Not covered yet
+### Not covered yet
 
 - The Design tab (parametric CAD, new in upstream main) has had no accessibility work.
 - macOS and Linux screen readers: the widget work above is Windows-only, apart from [#16788]'s macOS code.
 - ImGui overlays other than move, rotate and scale.
 
+[#8260]: https://github.com/OrcaSlicer/OrcaSlicer/discussions/8260
+[#10093]: https://github.com/OrcaSlicer/OrcaSlicer/issues/10093
 [#15290]: https://github.com/OrcaSlicer/OrcaSlicer/pull/15290
+[#16505]: https://github.com/OrcaSlicer/OrcaSlicer/pull/16505
+[#16558]: https://github.com/OrcaSlicer/OrcaSlicer/pull/16558
+[#16673]: https://github.com/OrcaSlicer/OrcaSlicer/pull/16673
+[#16918]: https://github.com/OrcaSlicer/OrcaSlicer/pull/16918
 [#16301]: https://github.com/OrcaSlicer/OrcaSlicer/pull/16301
 [#16370]: https://github.com/OrcaSlicer/OrcaSlicer/pull/16370
 [#16788]: https://github.com/OrcaSlicer/OrcaSlicer/pull/16788
