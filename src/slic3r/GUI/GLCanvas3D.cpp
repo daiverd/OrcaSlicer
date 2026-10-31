@@ -4481,6 +4481,13 @@ void GLCanvas3D::on_key(wxKeyEvent& evt)
             else if (evt.GetEventType() == wxEVT_KEY_DOWN) {
                 if (handle_shortcut(KeyChord::from_event(evt)))
                     return;
+                // Tab and Shift+Tab move the keyboard focus unless the user bound them to a shortcut.
+                // The canvas is created with wxWANTS_CHARS, so wx never turns Tab into a navigation
+                // event on its own and evt.Skip() alone would not move the focus out of the canvas.
+                if (keyCode == WXK_TAB && !evt.ControlDown() && !evt.AltDown()) {
+                    m_canvas->Navigate(evt.ShiftDown() ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward);
+                    return;
+                }
                 if (keyCode == WXK_SHIFT) {
                     if (m_selection_edit.kind == SelectionEdit::Move)
                         apply_selection_move(true, evt.CmdDown());
@@ -5043,10 +5050,14 @@ void GLCanvas3D::on_mouse(wxMouseEvent& evt)
                     p = p->GetParent();
                 auto *top_level_wnd = dynamic_cast<wxTopLevelWindow*>(p);
                 //Orca: Set focus so hotkeys like 'tab' work when a notification is shown.
-                //But don't steal focus from text input controls.
+                //But don't steal focus from text input controls, and only while Tab is bound to a canvas
+                //shortcut: when Tab moves the keyboard focus, this would undo whatever the user tabbed to.
                 wxWindow* focused            = wxWindow::FindFocus();
                 bool      focus_in_text_ctrl = dynamic_cast<wxTextCtrl*>(focused) != nullptr;
-                if (top_level_wnd != nullptr && top_level_wnd->IsActive() && !focus_in_text_ctrl)
+                const ShortcutContext context = m_canvas_type == CanvasPreview ? ShortcutContext::Preview : ShortcutContext::Plater;
+                const bool tab_is_shortcut = wxGetApp().shortcuts().lookup(context, KeyChord{ WXK_TAB }).has_value() ||
+                                             wxGetApp().shortcuts().lookup(context, KeyChord{ WXK_TAB, wxMOD_SHIFT }).has_value();
+                if (top_level_wnd != nullptr && top_level_wnd->IsActive() && !focus_in_text_ctrl && tab_is_shortcut)
                     m_canvas->SetFocus();
             }
             m_mouse.position = pos.cast<double>();

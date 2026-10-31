@@ -161,8 +161,10 @@ constexpr std::array<ShortcutInfo, size_t(Shortcut::Count)> shortcut_table = {{
     // Application
     SHORTCUT(Preferences,       "preferences",        L("Preferences"),                                          GLOBAL, PREFERENCES_CHORD),
     SHORTCUT(Search,            "search",             L("Search"),                                               GLOBAL, { 'F', CTRL }),
-    SHORTCUT(SwitchView,        "switch_view",        L("Switch between Prepare/Preview"),                       CANVAS, { WXK_TAB }),
-    SHORTCUT(CollapseSidebar,   "collapse_sidebar",   L("Collapse/Expand the sidebar"),                          CANVAS, { WXK_TAB, SHIFT }),
+    // Unbound by default: Tab and Shift+Tab move the keyboard focus out of the canvas unless a
+    // user binds them here (GLCanvas3D::on_key).
+    SHORTCUT(SwitchView,        "switch_view",        L("Switch between Prepare/Preview"),                       CANVAS, {}),
+    SHORTCUT(CollapseSidebar,   "collapse_sidebar",   L("Collapse/Expand the sidebar"),                          CANVAS, {}),
     SHORTCUT(FocusNextPane,     "focus_next_pane",    L("Move focus to the next main pane"),                     GLOBAL, { WXK_F6 }),
     SHORTCUT(FocusPreviousPane, "focus_previous_pane", L("Move focus to the previous main pane"),                GLOBAL, { WXK_F6, SHIFT }),
     // The jump-to-tab shortcuts have no default key, so users can bind the ones they want.
@@ -379,8 +381,11 @@ void ShortcutRegistry::load(const AppConfig& config)
             auto it = section.find(info.key);
             if (it == section.end())
                 continue;
-            if (it->second == UNBOUND)
-                m_overrides[size_t(info.id)] = KeyChord{};
+            if (it->second == UNBOUND) {
+                // Saved before the default itself became unbound, as for SwitchView; not an override any more.
+                if (info.default_chord.valid())
+                    m_overrides[size_t(info.id)] = KeyChord{};
+            }
             else if (std::optional<KeyChord> chord = KeyChord::parse(it->second); chord.has_value())
                 // A Global chord is seen before any text field, so it needs a modifier or a non-typing key.
                 if ((info.contexts & GLOBAL) == 0 || chord->is_menu_accelerator())
