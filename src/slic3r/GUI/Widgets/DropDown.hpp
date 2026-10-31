@@ -147,11 +147,17 @@ private:
     void messureSize();
     void autoPosition();
 
-    void setHoverItem(int hover);
+    // open_group false only highlights a group header, without showing its second list
+    void setHoverItem(int hover, bool open_group = true);
 
     int findSelectable(int hover, int delta) const;
 
     void selectHoverItem();
+
+    // Keyboard counterparts of hovering and clicking
+    void moveHighlight(int hover);
+    void openHoverGroup();
+    void closeToMain();
 
     // some useful events
     void mouseDown(wxMouseEvent& event);
@@ -164,6 +170,16 @@ private:
     void sendDropDownEvent();
     void sendDropDownActionEvent(int index);
 
+    // The row a screen reader treats as focused: the highlighted one, else the selected one,
+    // else the header of the group holding the selection
+    int      focusedRow();
+    void     notifyFocusedRow();
+    wxString rowText(int row) const;
+
+#if wxUSE_ACCESSIBILITY
+    friend class DropDownAccessible;
+    wxAccessible *CreateAccessible() override;
+#endif
 
     DECLARE_EVENT_TABLE()
 };
