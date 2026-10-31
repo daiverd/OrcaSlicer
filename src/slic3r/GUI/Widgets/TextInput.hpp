@@ -57,6 +57,10 @@ public:
 
     void SetLabel(const wxString& label) override;
 
+    // ORCA: keyboard focus lands on the inner wxTextCtrl, so that is the window a
+    // screen reader takes the name from - keep the two in sync.
+    void SetName(const wxString& name) override;
+
     void SetStaticTips(const wxString& tips, const wxBitmap& bitmap);
 
     void SetIcon(const wxBitmap & icon);

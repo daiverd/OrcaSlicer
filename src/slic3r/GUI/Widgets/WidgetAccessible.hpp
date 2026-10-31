@@ -46,6 +46,7 @@ public:
     wxAccStatus GetState(int childId, long* state) override;
     wxAccStatus GetDescription(int childId, wxString* description) override;
     wxAccStatus GetValue(int childId, wxString* strValue) override;
+    wxAccStatus GetKeyboardShortcut(int childId, wxString* shortcut) override;
     wxAccStatus GetDefaultAction(int childId, wxString* actionName) override;
     wxAccStatus DoDefaultAction(int childId) override;
 
@@ -63,6 +64,36 @@ private:
     ExtraStateGetter     m_extra_state;
     wxString             m_default_action_name;
     DefaultActionHandler m_default_action;
+};
+
+// Accessible for a *native* control (a real Win32 window such as the EDIT behind
+// wxTextCtrl) that only needs a name. wxWindow::SetName() is not plumbed into MSAA
+// at all: with no wxAccessible attached, wx lets DefWindowProc answer WM_GETOBJECT
+// and the OS proxy names the control after a preceding static label - which Orca's
+// custom-drawn parameter rows do not have, so the control ends up nameless.
+//
+// The same holds for a help text hint (wxWindow::SetHelpText), which only reaches MSAA
+// through wxWindowAccessible - a native control does not have one.
+//
+// Every method other than those two is left to the base class, which for a wxControl
+// answers wxACC_NOT_IMPLEMENTED for role, state, value and the default action, so
+// wxIAccessible falls back to the control's own standard accessible object (see
+// wxAccessible::GetIAccessibleStd) and role, value, caret, selection and the
+// read-only state keep coming from the native control exactly as before.
+//
+// The base is wxWindowAccessible rather than wxAccessible because
+// wxAccessible's GetChildCount()/GetChild()/GetParent()/Navigate() are no-ops, and
+// wxIAccessible answers that by taking the child count from the child HWNDs while failing
+// get_accChild() for every one of them, so the window advertises children no client can
+// resolve. Latent on these controls today - a native EDIT has no child HWNDs - but the
+// class is generic and the next window given one may.
+class NativeCtrlAccessible : public wxWindowAccessible
+{
+public:
+    explicit NativeCtrlAccessible(wxWindow* win) : wxWindowAccessible(win) {}
+
+    wxAccStatus GetName(int childId, wxString* name) override;
+    wxAccStatus GetDescription(int childId, wxString* description) override;
 };
 
 #endif // wxUSE_ACCESSIBILITY

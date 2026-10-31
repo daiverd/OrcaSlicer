@@ -1,5 +1,6 @@
 #include "ComboBox.hpp"
 #include "Label.hpp"
+#include "../I18N.hpp"
 
 #include "slic3r/GUI/Widgets/TextInput.hpp"
 #include <utility>
@@ -63,7 +64,23 @@ ComboBox::ComboBox(wxWindow *parent,
     // ORCA: TextInput (StaticBox-family) already gets a real accessible object;
     // it just defaults to StaticBox's generic role. A combo box is a distinct,
     // well-known role screen readers announce specially - use it.
-    SetAccessibleRole(wxROLE_SYSTEM_COMBOBOX);
+    //
+    // The EXPANDED/COLLAPSED state is what screen readers announce for the popup being
+    // open or shut, and a non-null default action is what makes the control operable
+    // from assistive tech (Windows' MSAA-to-UIA proxy grants InvokePattern from it).
+    // The proxy does NOT carry the open/shut state over to UIA at all: an axe-windows
+    // scan of every combo here reports InvokePattern, ValuePattern and
+    // LegacyIAccessiblePattern and no ExpandCollapse pattern or ExpandCollapseState
+    // property, with the COLLAPSED state and the "Open" verb readable only through
+    // LegacyIAccessiblePattern.State / .DefaultAction. MSAA clients - NVDA, Narrator,
+    // Inspect in MSAA mode - do get both. Giving a UIA-only client the pattern needs a
+    // native provider (IAccessibleEx / IRawElementProviderSimple), which wx has no
+    // support for, so axe-windows keeps flagging every combo here for it.
+    SetAccessibleRole(wxROLE_SYSTEM_COMBOBOX, [this] {
+        return drop_down ? wxACC_STATE_SYSTEM_EXPANDED : wxACC_STATE_SYSTEM_COLLAPSED;
+    });
+    // MSAA's verb for a combo box, which is collapsed whenever anything asks.
+    SetAccessibleDefaultAction(_L("Open"), [this] { ToggleDropDown(); });
 #endif
     drop.Create(this, style & DD_STYLE_MASK);
 
@@ -130,6 +147,12 @@ void ComboBox::SetSelection(int n)
         SetStaticTips(wxEmptyString, wxNullBitmap);
     }
 
+#if wxUSE_ACCESSIBILITY
+    // ORCA: every selection change - arrow keys, mouse wheel, the popup, callers -
+    // funnels through here. Without an event a screen reader has nothing telling it to
+    // re-read the value.
+    NotifyValueChanged();
+#endif
 }
 
 void ComboBox::SelectAndNotify(int n) {
@@ -170,6 +193,10 @@ void ComboBox::SetValue(const wxString &value)
     } else {
         SetStaticTips(wxEmptyString, wxNullBitmap);
     }
+
+#if wxUSE_ACCESSIBILITY
+    SyncKnownValue();
+#endif
 }
 
 void ComboBox::SetLabel(const wxString &value)
@@ -291,6 +318,23 @@ void ComboBox::DoDeleteOneItem(unsigned int pos)
     drop.Invalidate(true);
 }
 
+void ComboBox::ToggleDropDown()
+{
+    // Assistive technology can ask for this without knowing the combo is unclickable.
+    if (!IsEnabled())
+        return;
+
+    if (drop_down) {
+        drop.DismissAndNotify();
+    } else if (!items.empty() && drop.HasDismissLongTime()) { // DropDown paints nothing for an empty list
+        drop.autoPosition();
+        drop_down = true;
+        drop.Popup();
+        wxCommandEvent e(wxEVT_COMBOBOX_DROPDOWN);
+        GetEventHandler()->ProcessEvent(e);
+    }
+}
+
 void ComboBox::ForceDropdownOpen()
 {
     if (!IsEnabled() || items.empty())
@@ -331,7 +375,12 @@ void ComboBox::SetString(unsigned int n, wxString const &value)
     if (n >= items.size()) return;
     items[n].text = value;
     drop.Invalidate();
-    if (n == drop.GetSelection()) SetLabel(value);
+    if (n == drop.GetSelection()) {
+        SetLabel(value);
+#if wxUSE_ACCESSIBILITY
+        SyncKnownValue();
+#endif
+    }
 }
 
 wxString ComboBox::GetItemTooltip(unsigned int n) const
@@ -396,6 +445,30 @@ void ComboBox::DoSetItemClientData(unsigned int n, void *data)
     if (n < items.size())
         items[n].data = data;
 }
+
+#if wxUSE_ACCESSIBILITY
+
+void ComboBox::NotifyValueChanged()
+{
+    // The index alone cannot say whether what a screen reader reads out has changed:
+    // choosing a preset repopulates the combo, and since Clear() resets the selection the
+    // same item is selected again afterwards, reaching SetSelection three times for one
+    // arrow press. Announce on the value instead, which is the thing being spoken.
+    const wxString value = GetValue();
+    if (value == m_known_value)
+        return;
+    m_known_value = value;
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_VALUECHANGE, this, wxOBJID_CLIENT, wxACC_SELF);
+}
+
+void ComboBox::SyncKnownValue()
+{
+    // Left unrecorded, a value change that announces nothing would be taken for the
+    // announced one, and a later selection back to it swallowed as a repeat.
+    m_known_value = GetValue();
+}
+
+#endif // wxUSE_ACCESSIBILITY
 
 void ComboBox::mouseDown(wxMouseEvent &event)
 {

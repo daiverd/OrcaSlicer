@@ -76,6 +76,9 @@ void TextInput::Create(wxWindow *     parent,
     state_handler.attach({&label_color, & text_color});
     state_handler.update_binds();
     text_ctrl = new TextCtrl(this, wxID_ANY, text, {4, 4}, wxDefaultSize, style | wxBORDER_NONE | wxTE_PROCESS_ENTER);
+    // ORCA: wx names an unnamed wxTextCtrl "text", which a screen reader would read
+    // back as this field's name; the real one arrives later through SetName().
+    text_ctrl->SetName(wxEmptyString);
 
 #ifdef __WXGTK__
     Slic3r::GUI::RemoveInputBorder(text_ctrl);
@@ -112,9 +115,24 @@ void TextInput::SetCornerRadius(double radius)
 
 void TextInput::SetLabel(const wxString& label)
 {
-    wxWindow::SetLabel(label);
+    // ORCA: on Windows this is a SetWindowText call, from which Windows raises an MSAA
+    // name change even when the text is identical - a combo reselected during a preset
+    // apply has its value read out again for each one. Rewriting the same text is a no-op
+    // for a widget that draws its own label in render(), and wxWindowMac::SetLabel already
+    // returns early on it, so skipping it only brings the other platforms in line. The
+    // measure and repaint stay unconditional: SetLabel(GetLabel()) is used elsewhere to
+    // force exactly those, and nothing else re-measures after a font change.
+    if (label != wxWindow::GetLabel())
+        wxWindow::SetLabel(label);
     messureSize();
     Refresh();
+}
+
+void TextInput::SetName(const wxString& name)
+{
+    wxWindow::SetName(name);
+    if (text_ctrl)
+        text_ctrl->SetName(name);
 }
 
 void TextInput::SetStaticTips(const wxString& tips, const wxBitmap& bitmap)

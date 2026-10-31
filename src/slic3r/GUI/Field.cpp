@@ -2836,6 +2836,12 @@ void PointCtrl::sys_color_changed()
 #endif
 }
 
+void PointCtrl::set_accessible_name(const wxString& name)
+{
+    if (x_input) x_input->SetName(name + " X");
+    if (y_input) y_input->SetName(name + " Y");
+}
+
 bool PointCtrl::value_was_changed(wxTextCtrl* win)
 {
 	if (m_value.empty())

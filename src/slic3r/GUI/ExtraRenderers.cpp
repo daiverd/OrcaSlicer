@@ -5,6 +5,7 @@
 #include "BitmapComboBox.hpp"
 #include "Plater.hpp"
 #include "Widgets/ComboBox.hpp"
+#include "Widgets/WidgetAccessible.hpp"
 
 #include "libslic3r/Technologies.hpp"
 #include <wx/dataview.h>
@@ -232,6 +233,15 @@ wxWindow* BitmapTextRenderer::CreateEditorCtrl(wxWindow* parent, wxRect labelRec
     text_editor->SelectAll();
     text_editor->SetBackgroundColour(parent->GetBackgroundColour());
     text_editor->SetForegroundColour(parent->GetForegroundColour());
+
+    // This is a plain wxTextCtrl (not the Widgets/TextCtrl.h wrapper), so there is
+    // no CreateAccessible() override to hook into. Name it directly and attach a
+    // NativeCtrlAccessible so the name reaches MSAA - wxWindow::SetName() alone
+    // is invisible to the native EDIT's own accessible object.
+    text_editor->SetName(_L("Name"));
+#if wxUSE_ACCESSIBILITY
+    text_editor->SetAccessible(new NativeCtrlAccessible(text_editor));
+#endif // wxUSE_ACCESSIBILITY
 
     return text_editor;
 }

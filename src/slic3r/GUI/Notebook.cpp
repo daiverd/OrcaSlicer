@@ -271,6 +271,12 @@ void ButtonsListCtrl::SetSelection(int sel)
     }
 
     Refresh();
+#if wxUSE_ACCESSIBILITY
+    // ORCA: the tab buttons only take the focus when the strip itself is walked, so a tab
+    // change from anywhere else (Ctrl+Tab, a menu, the app switching pages on its own) is
+    // silent without this.
+    wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_SELECTION, m_pageButtons[m_selection], wxOBJID_CLIENT, wxACC_SELF);
+#endif
 }
 
 wxWindow* ButtonsListCtrl::GetSelectedButton() const

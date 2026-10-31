@@ -3274,9 +3274,21 @@ Sidebar::Sidebar(Plater *parent)
     p->m_panel_filament_title = new StaticBox(p->scrolled, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL | wxBORDER_NONE);
     p->m_panel_filament_title->SetBackgroundColor(title_bg);
     p->m_panel_filament_title->SetBackgroundColor2(0xF1F1F1);
+    // ORCA: shared by the titlebar click and by the section button, which is the only way
+    // to reach this from the keyboard
+    auto toggle_filament_section = [this] {
+        if (!p || !p->m_filament_area_wrapper || !p->m_panel_filament_separator || !m_scrolled_sizer)
+            return;
+        bool isShown = p->m_filament_area_wrapper->IsShown();
+        p->m_filament_area_wrapper->Show(!isShown);
+        p->m_panel_filament_separator->Show(isShown);
+        m_scrolled_sizer->Layout();
+
+        CallAfter([this]{update_filaments_counter(true);}); // call after all UI processing done
+    };
     // ORCA Bind with LEFT_DOWN, since closing a dialog over the title bar can send it a stray LEFT_UP
-    auto toggle_filament_section = ([this](wxMouseEvent &e) {
-        if (!p || !p->m_filament_area_wrapper || !m_scrolled_sizer || !p->m_bpButton_set_filament || !p->m_purge_mode_btn || !p->m_flushing_volume_btn || !p->m_bpButton_add_filament || !ams_btn)
+    auto on_filament_title_click = [this, toggle_filament_section](wxMouseEvent &e) {
+        if (!p || !p->m_bpButton_set_filament || !p->m_purge_mode_btn || !p->m_flushing_volume_btn || !p->m_bpButton_add_filament || !ams_btn)
             return;
         // ORCA exclude area of del button from titlebar collapse/expand feature to fix undesired collapse when user spams del filament button
         // also block fold/unfold feature when user clicks to spacing between icons
@@ -3287,19 +3299,16 @@ Sidebar::Sidebar(Plater *parent)
         else if (ams_btn->IsShown())                    exclude_pt = ams_btn->GetPosition().x;
         if (e.GetPosition().x > exclude_pt)
             return;
-        bool isShown = p->m_filament_area_wrapper->IsShown();
-        p->m_filament_area_wrapper->Show(!isShown);
-        p->m_panel_filament_separator->Show(isShown);
-        m_scrolled_sizer->Layout();
-
-        CallAfter([this]{update_filaments_counter(true);}); // call after all UI processing done
-    });
-    p->m_panel_filament_title->Bind(wxEVT_LEFT_DOWN  , toggle_filament_section);
-    p->m_panel_filament_title->Bind(wxEVT_LEFT_DCLICK, toggle_filament_section);
+        toggle_filament_section();
+    };
+    p->m_panel_filament_title->Bind(wxEVT_LEFT_DOWN  , on_filament_title_click);
+    p->m_panel_filament_title->Bind(wxEVT_LEFT_DCLICK, on_filament_title_click);
 
     wxBoxSizer* bSizer39;
     bSizer39 = new wxBoxSizer( wxHORIZONTAL );
     p->m_filament_icon = new ScalableButton(p->m_panel_filament_title, wxID_ANY, "filament");
+    p->m_filament_icon->SetName(_L("Filament")); // ORCA: icon-only, no adjacent label to derive a name from
+    p->m_filament_icon->Bind(wxEVT_BUTTON, [toggle_filament_section](wxCommandEvent &) { toggle_filament_section(); });
     p->m_staticText_filament_settings = new Label(p->m_panel_filament_title, _L("Project Filaments"), LB_PROPAGATE_MOUSE_EVENT);
     bSizer39->Add(p->m_filament_icon, 0, wxALIGN_CENTER | wxLEFT, FromDIP(SidebarProps::TitlebarMargin()));
     bSizer39->Add(p->m_staticText_filament_settings, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT, FromDIP(SidebarProps::ElementSpacing()));
@@ -3455,6 +3464,7 @@ Sidebar::Sidebar(Plater *parent)
         auto* btn_sizer = new wxBoxSizer(wxHORIZONTAL);
         auto* icon_add  = new ScalableButton(p->m_btn_add_mixed_filament, wxID_ANY, "add_filament", wxEmptyString,
                                              wxDefaultSize, wxDefaultPosition, wxBU_EXACTFIT | wxNO_BORDER, false, 16);
+        icon_add->SetName(_L("Add Mixed Filament")); // ORCA: same text as the label beside it, which isn't itself linked to this icon
         auto* add_label = new wxStaticText(p->m_btn_add_mixed_filament, wxID_ANY, _L("Add Mixed Filament"),
                                            wxDefaultPosition, wxDefaultSize, 0);
         add_label->SetFont(::Label::Body_13);
@@ -3593,6 +3603,10 @@ Sidebar::Sidebar(Plater *parent)
 
     p->m_search_item = new TextInput(p->m_search_bar, wxEmptyString, wxEmptyString, "", wxDefaultPosition, wxDefaultSize, 0 | wxBORDER_NONE);
     p->m_search_item->SetIcon(*BitmapCache().load_svg("search", FromDIP(16), FromDIP(16))); // ORCA: Add search icon to search box
+    // ORCA: the only thing that says what this field is for is the placeholder hint below,
+    // and a hint is drawn text, not an accessible name - the field was announced unnamed.
+    // TextInput::SetName() forwards the name to the inner EDIT, which is what takes focus.
+    p->m_search_item->SetName(_L("Search the object list"));
 
     wxTextCtrl* text_ctrl = p->m_search_item->GetTextCtrl();
     text_ctrl->SetHint(_L("Search plate, object and part."));
@@ -3774,7 +3788,9 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox **combo, const int filame
     if ((filament_idx % 2) == 0) // Dont add right column item. this one create equal spacing on left, right & middle
         combo_and_btn_sizer->AddSpacer(FromDIP((filament_idx % 2) == 0 ? 12 : 3)); // Content Margin
 
-    (*combo)->clr_picker->SetLabel(wxString::Format("%d", filament_idx + 1));
+    // ORCA: a stock wxBitmapButton takes its label as the accessible name and never paints
+    // it (wxBitmapButton::Create forces wxBU_NOTEXT), so spell the name out instead of "1"
+    (*combo)->clr_picker->SetLabel(wxString::Format(_L("Filament %d color"), filament_idx + 1));
     combo_and_btn_sizer->Add((*combo)->clr_picker, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(SidebarProps::ElementSpacing()) - FromDIP(2)); // ElementSpacing - 2 (from combo box))
     combo_and_btn_sizer->Add(*combo, 1, wxALL | wxEXPAND, FromDIP(2))->SetMinSize({-1, 30 * wxGetApp().em_unit() / 10}); // ORCA ensure height matches with PlaterPresetComboBox
 
@@ -3793,6 +3809,7 @@ void Sidebar::init_filament_combo(PlaterPresetComboBox **combo, const int filame
     combo_and_btn_sizer->Add(del_btn, 0, wxALIGN_CENTER_VERTICAL, 5 * em / 10);
     */
     ScalableButton* edit_btn = new ScalableButton(p->m_panel_filament_content, wxID_ANY, "menu_filament");
+    edit_btn->SetName(_L("Edit preset")); // ORCA: without a name the tooltip is announced as the name
     edit_btn->SetToolTip(_L("Click to edit preset"));
 
     PlaterPresetComboBox* combobox = (*combo);

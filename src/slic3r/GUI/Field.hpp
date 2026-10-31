@@ -266,9 +266,15 @@ public:
     Field(wxWindow* parent, const ConfigOptionDef& opt, const t_config_option_key& id) : m_parent(parent), m_opt(opt), m_opt_id(id) {}
     virtual ~Field();
 
-    /// If you don't know what you are getting back, check both methods for nullptr. 
+    /// If you don't know what you are getting back, check both methods for nullptr.
     virtual wxSizer*	getSizer()  { return nullptr; }
     virtual wxWindow*	getWindow() { return nullptr; }
+
+    // ORCA: OG_CustomCtrl paints the row's label onto the panel instead of creating
+    // a wxStaticText for it, so a screen reader can only take the field's name from
+    // the field window itself. Fields built from more than one window override this
+    // to name each of them. Called by OptionsGroup once the field is on a line.
+    virtual void		set_accessible_name(const wxString& name) { if (wxWindow* win = getWindow()) win->SetName(name); }
 
 	bool				is_matched(const std::string& string, const std::string& pattern);
 	void				get_value_by_opt_type(wxString& str, const bool check_value = true);
@@ -666,6 +672,11 @@ public:
 		y_textctrl->Disable(); }
 	wxSizer*		getSizer() override { return sizer; }
 	wxWindow*		getWindow() override { return window; }
+
+	// ORCA: the two boxes are told apart only by an X / Y icon, so the axis has to
+	// be part of the name for them to be distinguishable. X and Y are axis letters
+	// here, not words, so they are used untranslated.
+	void			set_accessible_name(const wxString& name) override;
 };
 
 class StaticText : public Field {
@@ -729,6 +740,12 @@ public:
 	}
 	wxSizer*		getSizer() override { return m_sizer; }
 	wxWindow*		getWindow() override { return dynamic_cast<wxWindow*>(m_slider); }
+
+	// ORCA: slider and value box are two windows sharing one label.
+	void			set_accessible_name(const wxString& name) override {
+		if (m_slider)   m_slider->SetName(name);
+		if (m_textctrl) m_textctrl->SetName(name);
+	}
 };
 
 } // GUI

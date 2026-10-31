@@ -367,6 +367,10 @@ void Tab::create_preset_tab()
     set_tooltips_text();
 
     add_scaled_button(m_top_panel, &m_undo_btn,        m_bmp_white_bullet.name());
+    // ORCA: this button's tooltip only exists while the preset is dirty, so an
+    // unmodified preset left it with no accessible name at all. The name has to
+    // describe the control, not its current state, so keep it fixed.
+    m_undo_btn->SetName(_L("Reset all settings"));
     //add_scaled_button(m_top_panel, &m_undo_to_sys_btn, m_bmp_white_bullet.name());
     add_scaled_button(m_top_panel, &m_btn_search,      "search");
     m_btn_search->SetToolTip(_L("Search in preset"));
@@ -514,6 +518,7 @@ void Tab::create_preset_tab()
     // tree
     m_tabctrl = new TabCtrl(panel, wxID_ANY, wxDefaultPosition, wxSize(20 * m_em_unit, -1),
         wxTR_NO_BUTTONS | wxTR_HIDE_ROOT | wxTR_SINGLE | wxTR_NO_LINES | wxBORDER_NONE | wxWANTS_CHARS | wxTR_FULL_ROW_HIGHLIGHT);
+    m_tabctrl->SetName(_L("Settings pages")); // ORCA: StaticBox::Create leaves it nameless
     m_tabctrl->Bind(wxEVT_RIGHT_DOWN, [](auto &e) {}); // disable right select
     m_tabctrl->SetFont(Label::Body_14);
     //m_left_sizer->Add(m_tabctrl, 1, wxEXPAND);
@@ -559,6 +564,8 @@ void Tab::create_preset_tab()
 
     if (dynamic_cast<TabPrinter *>(this) || dynamic_cast<TabPrint *>(this)) {
         m_extruder_switch = new MultiSwitchButton(panel);
+        // ORCA: names the group its options are announced in; there is no visible label to derive it from
+        m_extruder_switch->SetName(_L("Extruder"));
         m_extruder_switch->SetFont(Label::Body_11);
         m_extruder_switch->SetFitToOptions();
         m_extruder_switch->Bind(wxCUSTOMEVT_MULTISWITCH_SELECTION, [this](auto &evt) {
@@ -610,6 +617,7 @@ void Tab::create_preset_tab()
         m_main_sizer->Add(m_variant_sizer, 0, wxEXPAND | wxTOP, m_em_unit);
     } else if (dynamic_cast<TabFilament *>(this)) {
         m_variant_combo = new MultiSwitchButton(panel);
+        m_variant_combo->SetName(_L("Extruder")); // ORCA: see m_extruder_switch above
         m_variant_combo->SetFont(Label::Body_11);
         m_variant_combo->Bind(wxCUSTOMEVT_MULTISWITCH_SELECTION, [this](auto &evt) {
             evt.Skip();

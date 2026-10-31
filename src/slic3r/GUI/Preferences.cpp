@@ -1555,6 +1555,7 @@ void PreferencesDialog::create()
     m_sizer_body = new wxBoxSizer(wxVERTICAL);
 
     m_pref_tabs = new TabCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_NO_BUTTONS | wxTR_HIDE_ROOT | wxTR_SINGLE | wxTR_NO_LINES | wxBORDER_NONE | wxWANTS_CHARS | wxTR_FULL_ROW_HIGHLIGHT);
+    m_pref_tabs->SetName(_L("Preference pages")); // ORCA: StaticBox::Create leaves it nameless
     m_pref_tabs->Bind(wxEVT_RIGHT_DOWN, [](auto &e) {}); // disable right select
     m_pref_tabs->SetFont(Label::Body_14);
 
