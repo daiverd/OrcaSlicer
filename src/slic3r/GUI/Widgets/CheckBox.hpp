@@ -29,6 +29,8 @@ public:
 protected:
 #ifdef __WXMSW__
     virtual State GetNormalState() const wxOVERRIDE;
+
+    WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
 #endif
     
 #ifdef __WXOSX__

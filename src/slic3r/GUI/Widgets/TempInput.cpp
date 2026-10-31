@@ -143,7 +143,9 @@ void TempInput::Create(wxWindow *parent, wxString text, wxString label, wxString
                 SetFinish();
 
                 SetOnChanging();// filter in wxEVT_KILL_FOCUS while navigating
-                text_ctrl->Navigate(); // quit edit mode
+                // ORCA: FromTab, because this leaves the field exactly as TAB would and
+                // GUI_App::FilterEvent drops navigation events that lack the flag.
+                text_ctrl->Navigate(wxNavigationKeyEvent::FromTab | wxNavigationKeyEvent::IsForward); // quit edit mode
                 ReSetOnChanging();
             }
         }

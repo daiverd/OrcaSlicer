@@ -112,6 +112,13 @@ bool SwitchButton::SetBackgroundColour(const wxColour& colour)
     return false;
 }
 
+#ifdef __WXMSW__
+WXLRESULT SwitchButton::MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam)
+{
+    return msw_claim_arrow_keys(nMsg, wParam, wxBitmapToggleButton::MSWWindowProc(nMsg, wParam, lParam));
+}
+#endif
+
 void SwitchButton::Rescale()
 {
 	if (labels[0].IsEmpty()) {

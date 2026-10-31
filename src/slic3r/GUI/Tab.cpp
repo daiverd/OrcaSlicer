@@ -8178,8 +8178,11 @@ bool Tab::tree_sel_change_delayed(wxCommandEvent& event)
 
 void Tab::OnKeyDown(wxKeyEvent& event)
 {
+    // FromTab: GUI_App::FilterEvent drops navigation events that lack the flag, and
+    // Navigate() replaces the event's default flags with the ones passed here.
     if (event.GetKeyCode() == WXK_TAB)
-        m_tabctrl->Navigate(event.ShiftDown() ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward);
+        m_tabctrl->Navigate(wxNavigationKeyEvent::FromTab |
+                            (event.ShiftDown() ? wxNavigationKeyEvent::IsBackward : wxNavigationKeyEvent::IsForward));
     else
         event.Skip();
 }

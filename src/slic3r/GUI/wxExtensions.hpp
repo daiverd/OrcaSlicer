@@ -33,6 +33,26 @@ void                msw_rescale_menu(wxMenu* menu);
 inline void         msw_rescale_menu(wxMenu* /* menu */) {}
 #endif /* __WXMSW__ */
 
+#ifdef __WXMSW__
+// ORCA: second half of the app-wide arrow-key policy (see GUI_App::FilterEvent). A control
+// of a native window class answers WM_GETDLGCODE from that class, and the Win32 BUTTON
+// class does not claim the arrow keys, so ::IsDialogMessage() walks focus between our
+// buttons itself through GetNextDlgGroupItem(). wxWindowMSW::MSWProcessMessage() calls it
+// once its own navigation is done (wx src/msw/window.cpp), and it never creates a wx event,
+// so GUI_App::FilterEvent cannot see it and the buttons keep leaking focus sideways.
+//
+// Claiming DLGC_WANTARROWS is what tells ::IsDialogMessage() to leave the key alone. wParam
+// carries the key it is asking about, and is 0 when the query is not driven by a keystroke,
+// so answering only for the four arrow keys keeps everything else exactly as it was: Space
+// and Enter activation, mnemonics and the DLGC_DEFPUSHBUTTON flags all still come from the
+// native class. It also leaves wx's own keystroke-independent probe unclaimed, which is what
+// keeps [Ctrl-]PageUp/PageDown paging the notebook from a focused button.
+//
+// Call from MSWWindowProc() with the base class result:
+//     return msw_claim_arrow_keys(nMsg, wParam, wxButton::MSWWindowProc(nMsg, wParam, lParam));
+WXLRESULT           msw_claim_arrow_keys(WXUINT nMsg, WXWPARAM wParam, WXLRESULT dlg_code);
+#endif /* __WXMSW__ */
+
 wxMenuItem* append_menu_item(wxMenu* menu, int id, const wxString& string, const wxString& description,
     std::function<void(wxCommandEvent& event)> cb, const wxBitmap& icon, wxEvtHandler* event_handler = nullptr,
     std::function<bool()> const cb_condition = []() { return true;}, wxWindow* parent = nullptr, int insert_pos = wxNOT_FOUND);
@@ -281,6 +301,11 @@ public:
 
     void    msw_rescale();
     void    UpdateDarkUI() { msw_rescale(); };
+
+protected:
+#ifdef __WXMSW__
+    WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
+#endif
 
 private:
     wxWindow*       m_parent { nullptr };
