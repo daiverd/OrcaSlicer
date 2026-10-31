@@ -40,6 +40,7 @@
 #include <wx/dialog.h>
 #include <wx/sizer.h>
 #include <wx/textctrl.h>
+#include <wx/dcclient.h>
 #include <wx/settings.h>
 #include <wx/tokenzr.h>
 #include <wx/utils.h>
@@ -66,6 +67,7 @@
 #include "PresetComboBoxes.hpp"
 #include "Widgets/CheckBox.hpp"
 #include "Widgets/DialogButtons.hpp"
+#include "Widgets/WidgetAccessible.hpp"
 
 #ifdef __linux__
 #define wxLinux true
@@ -819,6 +821,109 @@ static std::string none{"none"};
 #define GREY300 wxColour(238,238,238)
 #define GREY200 wxColour(248,248,248)
 
+// A wxPanel that only holds static text or acts as a spacer, a divider or a
+// layout wrapper. Such a panel must never be a Tab stop: it has no name, no
+// focus indicator and nothing to activate. wxPanel accepts focus for itself
+// whenever it has no focusable children (wxControlContainerBase::AcceptsFocus),
+// and wxNavigationEnabled overrides AcceptsFocusFromKeyboard() in a way that
+// ignores wxWindow::DisableFocusFromKeyboard(), so overriding the three
+// AcceptsFocus...() methods is the only way to take it out of the Tab order.
+class DecorativePanel : public wxPanel
+{
+public:
+    using wxPanel::wxPanel;
+
+    bool AcceptsFocus() const override { return false; }
+    bool AcceptsFocusRecursively() const override { return false; }
+    bool AcceptsFocusFromKeyboard() const override { return false; }
+};
+
+// Tint of a row that has the focus. The row is tinted towards the highlight
+// colour rather than filled with it because the labels keep their own
+// foreground colours - a changed value is deliberately painted in the
+// "modified" colour - so the background has to stay light enough for them.
+static wxColour focus_tint(const wxColour &bg)
+{
+    const wxColour hl  = wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT);
+    auto           mix = [](unsigned char b, unsigned char h) { return static_cast<unsigned char>((7 * b + h) / 8); };
+    return wxColour(mix(bg.Red(), hl.Red()), mix(bg.Green(), hl.Green()), mix(bg.Blue(), hl.Blue()));
+}
+
+// Every window of a row paints its own background, and invalidating a window
+// on MSW does not invalidate its children, so the tint has to be applied and
+// refreshed one window at a time. The labels are wxStaticText without a
+// background colour of their own, so they simply follow their parent.
+static void tint_row(wxWindow *win, const wxColour &bg)
+{
+    win->SetBackgroundColour(bg);
+    win->Refresh();
+    for (wxWindow *child : win->GetChildren())
+        tint_row(child, bg);
+}
+
+// One line of the diff table: a settings category header, an option group
+// header, or one changed option. The scrolled window is the single Tab stop
+// for the whole table, so a row is never reached with Tab; the arrow keys move
+// the focus from row to row the way they do between the items of a list
+// control (see UnsavedChangesDialog::on_list_char_hook), which means a row also
+// has to show when it has the focus.
+class DiffRow : public wxWindow
+{
+public:
+    DiffRow(wxWindow *parent, const wxSize &size, const wxColour &bg) : wxWindow(parent, wxID_ANY, wxDefaultPosition, size), m_bg(bg)
+    {
+        SetBackgroundColour(bg);
+        // Reachable with SetFocus(), never with Tab.
+        DisableFocusFromKeyboard();
+
+        Bind(wxEVT_PAINT, &DiffRow::on_paint, this);
+        Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent &e) { set_focused(true); e.Skip(); });
+        Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent &e) { set_focused(false); e.Skip(); });
+    }
+
+    // What a screen reader announces for this row. Header rows are groupings
+    // so that they are told apart from the rows carrying values by ear; the
+    // option rows are the items of the list the scrolled window announces.
+    void announce_as(const wxString &name, bool header)
+    {
+        SetName(name);
+#if wxUSE_ACCESSIBILITY
+        SetAccessible(new WidgetAccessible(this, header ? wxROLE_SYSTEM_GROUPING : wxROLE_SYSTEM_LISTITEM));
+#endif
+    }
+
+private:
+    void set_focused(bool focused)
+    {
+        if (m_focused == focused)
+            return;
+        m_focused = focused;
+        // The row's client area is completely covered by the column panels, so
+        // tinting the whole row is what actually makes the focus visible: a
+        // ring drawn by the row alone only shows in the couple of pixels left
+        // above and below them.
+        tint_row(this, focused ? focus_tint(m_bg) : m_bg);
+    }
+
+    void on_paint(wxPaintEvent &)
+    {
+        wxPaintDC dc(this);
+        if (!m_focused)
+            return;
+
+        // The same ring the dialog draws around the table when the list has the
+        // focus, so the two indicators read as one; here only its top and
+        // bottom edges are visible, the column panels cover the sides.
+        wxRect rect = GetClientRect();
+        rect.Deflate(FromDIP(1));
+        dc.SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT), FromDIP(2)));
+        dc.SetBrush(*wxTRANSPARENT_BRUSH);
+        dc.DrawRectangle(rect);
+    }
+
+    wxColour m_bg;
+    bool     m_focused { false };
+};
 
 UnsavedChangesDialog::UnsavedChangesDialog(const wxString &caption, const wxString &header, const std::string &app_config_key, int act_buttons)
     : DPIDialog(static_cast<wxWindow *>(wxGetApp().mainframe),
@@ -883,8 +988,12 @@ inline int UnsavedChangesDialog::ShowModal()
         }
     }
     int r = DPIDialog::ShowModal();
-    if (r != wxID_CANCEL && dynamic_cast<::CheckBox*>(FindWindowById(wxID_APPLY))->GetValue()) {
-        wxGetApp().app_config->set(choise_key, std::to_string(int(m_exit_action)));
+    if (r != wxID_CANCEL) {
+        // Search our own children only: an unparented FindWindowById() searches
+        // every window in the application, and the result may not be a CheckBox.
+        auto *checkbox = dynamic_cast<::CheckBox *>(FindWindowById(wxID_APPLY, this));
+        if (checkbox && checkbox->GetValue())
+            wxGetApp().app_config->set(choise_key, std::to_string(int(m_exit_action)));
     }
     return r;
 }
@@ -895,7 +1004,7 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
 
     wxBoxSizer *m_sizer_main = new wxBoxSizer(wxVERTICAL);
 
-    m_top_line = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1), wxTAB_TRAVERSAL);
+    m_top_line = new DecorativePanel(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 1), wxTAB_TRAVERSAL);
     m_top_line->SetBackgroundColour(wxColour(166, 169, 170));
 
     m_sizer_main->Add(m_top_line, 0, wxEXPAND, 0);
@@ -920,13 +1029,13 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_panel_tab->SetBackgroundColour(wxColour("#D9D9D9"));
     wxBoxSizer *m_sizer_tab = new wxBoxSizer(wxVERTICAL);
 
-    m_table_top = new wxPanel(m_panel_tab, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+    m_table_top = new DecorativePanel(m_panel_tab, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
     m_table_top->SetBackgroundColour(wxColour("#D9D9D9"));
 
     wxBoxSizer *m_sizer_top = new wxBoxSizer(wxHORIZONTAL);
 
     // m_sizer_top->Add(0, 0, 0, wxLEFT, UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH);
-    auto        m_panel_temp   = new wxPanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+    auto        m_panel_temp   = new DecorativePanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
     wxBoxSizer *top_title_temp_v = new wxBoxSizer(wxVERTICAL);
     top_title_temp_v->SetMinSize(wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1));
     wxBoxSizer *top_title_temp_h = new wxBoxSizer(wxHORIZONTAL);
@@ -940,11 +1049,11 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_panel_temp->Layout();
     m_sizer_top->Add(m_panel_temp, 1, wxALIGN_CENTER, 0);
 
-    title_block_middle = new wxPanel(m_table_top, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
+    title_block_middle = new DecorativePanel(m_table_top, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL);
     title_block_middle->SetBackgroundColour(wxColour(172, 172, 172));
 
     m_sizer_top->Add(title_block_middle, 0, wxBOTTOM | wxEXPAND | wxTOP, 2);
-    auto m_panel_oldv = new wxPanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1), wxTAB_TRAVERSAL );
+    auto m_panel_oldv = new DecorativePanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1), wxTAB_TRAVERSAL );
     wxBoxSizer *top_title_oldv = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer *top_title_oldv_h = new wxBoxSizer(wxHORIZONTAL);
 
@@ -959,12 +1068,12 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_panel_oldv->Layout();
     m_sizer_top->Add(m_panel_oldv, 0, wxALIGN_CENTER, 0);
 
-    title_block_right = new wxPanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(1, -1), wxTAB_TRAVERSAL);
+    title_block_right = new DecorativePanel(m_table_top, wxID_ANY, wxDefaultPosition, wxSize(1, -1), wxTAB_TRAVERSAL);
     title_block_right->SetBackgroundColour(wxColour(172, 172, 172));
 
     m_sizer_top->Add(title_block_right, 0, wxBOTTOM | wxEXPAND | wxTOP, 2);
 
-    auto m_panel_newv = new wxPanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize( UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1 ), wxTAB_TRAVERSAL );
+    auto m_panel_newv = new DecorativePanel( m_table_top, wxID_ANY, wxDefaultPosition, wxSize( UNSAVE_CHANGE_DIALOG_VALUE_WIDTH,-1 ), wxTAB_TRAVERSAL );
     wxBoxSizer *top_title_newv = new wxBoxSizer(wxVERTICAL);
     wxBoxSizer *top_title_newv_h = new wxBoxSizer(wxHORIZONTAL);
 
@@ -991,6 +1100,21 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     m_scrolledWindow = new wxScrolledWindow(m_panel_tab, wxID_ANY, wxDefaultPosition, UNSAVE_CHANGE_DIALOG_SCROLL_WINDOW_SIZE,  wxNO_BORDER|wxVSCROLL);
     m_scrolledWindow->SetScrollRate(0, FromDIP(20));
     m_scrolledWindow->SetBackgroundColour(GREY200);
+    // Nothing inside the diff table is a Tab stop, so the scrolled window is
+    // the single stop for the whole table. Announce it as a list and let it
+    // take the focus itself; the arrow keys then move the focus through the
+    // rows inside it (see on_list_char_hook).
+    m_scrolledWindow->SetName(_L("Modified settings"));
+#if wxUSE_ACCESSIBILITY
+    m_scrolledWindow->SetAccessible(new WidgetAccessible(m_scrolledWindow, wxROLE_SYSTEM_LIST));
+#endif
+    m_scrolledWindow->Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent &e) { set_list_focused(true); e.Skip(); });
+    // The ring stays around the whole table while the focus is on one of the
+    // rows: the focus is still inside the list, only deeper in.
+    m_scrolledWindow->Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent &e) { set_list_focused(is_in_list(e.GetWindow())); e.Skip(); });
+    Bind(wxEVT_PAINT, &UnsavedChangesDialog::paint_list_focus_ring, this);
+    Bind(wxEVT_CHAR_HOOK, &UnsavedChangesDialog::on_list_char_hook, this);
+
     m_sizer_bottom = new wxBoxSizer(wxVERTICAL);
     m_sizer_bottom->Add(m_scrolledWindow, 1, wxEXPAND, 0);
     m_sizer_tab->Add(m_sizer_bottom, 0, wxEXPAND, 0);
@@ -1012,6 +1136,9 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
 
     auto checkbox_sizer = new wxBoxSizer(wxHORIZONTAL);
     auto checkbox       = new ::CheckBox(this, wxID_APPLY);
+    // The visible label is a sibling wxStaticText, not a label attached to the
+    // checkbox, so the accessible name has to be set explicitly.
+    checkbox->SetName(_L("Remember my choice."));
     checkbox_sizer->Add(checkbox, 0, wxALL | wxALIGN_CENTER, FromDIP(2));
 
     auto checkbox_text = new wxStaticText(this, wxID_ANY, _L("Remember my choice."), wxDefaultPosition, wxDefaultSize, 0);
@@ -1142,6 +1269,135 @@ void UnsavedChangesDialog::build(Preset::Type type, PresetCollection *dependent_
     Layout();
     Fit();
     // Centre(wxBOTH);
+
+    // Without this, wxSetFocusToChild() gives the initial focus to the first
+    // focusable child, which is the diff table (and used to be the decorative
+    // top line). Start on the confirming action button instead.
+    if (Button *first_btn = m_transfer_btn ? m_transfer_btn : m_discard_btn ? m_discard_btn : m_save_btn)
+        first_btn->SetFocus();
+}
+
+// The scrolled diff list is a Tab stop but paints nothing of its own, and its
+// client area is completely covered by the row windows, so the focus indicator
+// is drawn by the dialog in the margin it already leaves around the table.
+wxRect UnsavedChangesDialog::list_focus_ring_rect() const
+{
+    wxRect rect = m_panel_tab->GetRect();
+    rect.Inflate(FromDIP(3));
+    return rect;
+}
+
+void UnsavedChangesDialog::set_list_focused(bool focused)
+{
+    if (m_list_focused == focused)
+        return;
+    m_list_focused = focused;
+    RefreshRect(list_focus_ring_rect());
+}
+
+void UnsavedChangesDialog::paint_list_focus_ring(wxPaintEvent &)
+{
+    wxPaintDC dc(this);
+    if (!m_list_focused)
+        return;
+
+    dc.SetPen(wxPen(wxSystemSettings::GetColour(wxSYS_COLOUR_HIGHLIGHT), FromDIP(2)));
+    dc.SetBrush(*wxTRANSPARENT_BRUSH);
+    dc.DrawRectangle(list_focus_ring_rect());
+}
+
+void UnsavedChangesDialog::register_row(wxWindow *row)
+{
+    // Keep the ring around the table while the focus travels between the rows,
+    // and drop it as soon as it leaves the list altogether.
+    row->Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent &e) { set_list_focused(true); e.Skip(); });
+    row->Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent &e) { set_list_focused(is_in_list(e.GetWindow())); e.Skip(); });
+    m_rows.push_back(row);
+}
+
+int UnsavedChangesDialog::row_index(const wxWindow *win) const
+{
+    auto it = std::find(m_rows.begin(), m_rows.end(), win);
+    return it == m_rows.end() ? -1 : int(std::distance(m_rows.begin(), it));
+}
+
+bool UnsavedChangesDialog::is_in_list(const wxWindow *win) const { return win && (win == m_scrolledWindow || row_index(win) >= 0); }
+
+void UnsavedChangesDialog::focus_row(int index)
+{
+    if (m_rows.empty())
+        return;
+    // Stop at the ends instead of wrapping around, as a list control does.
+    index = std::min(std::max(index, 0), int(m_rows.size()) - 1);
+    // wxScrollHelperBase::HandleOnChildFocus scrolls the row into view.
+    m_rows[index]->SetFocus();
+}
+
+void UnsavedChangesDialog::leave_list(bool forward)
+{
+    // The focus is on a row, and the rows are not Tab stops, so wx would look
+    // for the next stop inside the row and find none. Navigate from the
+    // scrolled window instead - the single stop the whole table occupies - so
+    // that Tab and Shift+Tab leave it for the buttons and the checkbox exactly
+    // as they do when the list itself has the focus.
+    wxNavigationKeyEvent nav;
+    nav.SetDirection(forward);
+    nav.SetFromTab(true);
+    nav.SetCurrentFocus(m_scrolledWindow);
+    nav.SetEventObject(m_scrolledWindow);
+    m_panel_tab->GetEventHandler()->ProcessEvent(nav);
+}
+
+// Arrow-key navigation inside the diff list. This has to be done in
+// wxEVT_CHAR_HOOK, which MSW generates from a keyboard hook before the message
+// is dispatched: by the time a key event would reach the focused window,
+// wxWindowMSW::MSWProcessMessage has already turned the arrow and Tab keys into
+// navigation events (src/msw/window.cpp), which is precisely what must not
+// happen here.
+void UnsavedChangesDialog::on_list_char_hook(wxKeyEvent &evt)
+{
+    wxWindow *focus = wxWindow::FindFocus();
+    // Ctrl and Alt combinations are never list navigation and may well be
+    // accelerators, so they keep their usual handling.
+    if (m_rows.empty() || !is_in_list(focus) || evt.ControlDown() || evt.AltDown()) {
+        evt.Skip();
+        return;
+    }
+
+    // -1 while the list itself has the focus, so that Down enters at the first
+    // row and Up at the last one.
+    const int row  = row_index(focus);
+    const int last = int(m_rows.size()) - 1;
+    // One viewport worth of rows; every row is UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT tall.
+    const int page = std::max(1, m_scrolledWindow->GetClientSize().y / UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT);
+
+    // The numpad keys come with their own key codes when Num Lock is off.
+    switch (evt.GetKeyCode()) {
+    case WXK_NUMPAD_DOWN:     case WXK_DOWN:     focus_row(row + 1); break;
+    case WXK_NUMPAD_UP:       case WXK_UP:       focus_row(row < 0 ? last : row - 1); break;
+    case WXK_NUMPAD_HOME:     case WXK_HOME:     focus_row(0); break;
+    case WXK_NUMPAD_END:      case WXK_END:      focus_row(last); break;
+    case WXK_NUMPAD_PAGEDOWN: case WXK_PAGEDOWN: focus_row(row + page); break;
+    case WXK_NUMPAD_PAGEUP:   case WXK_PAGEUP:   focus_row(row < 0 ? last : row - page); break;
+    case WXK_NUMPAD_LEFT:     case WXK_LEFT:
+    case WXK_NUMPAD_RIGHT:    case WXK_RIGHT:
+        // The list has a single column of rows: there is nowhere to go
+        // sideways, and letting these through would move the focus out of the
+        // table instead of doing nothing.
+        break;
+    case WXK_TAB:
+        // On the list itself wx already knows what to do.
+        if (row < 0) {
+            evt.Skip();
+            return;
+        }
+        leave_list(!evt.ShiftDown());
+        break;
+    default:
+        // Everything else, Escape in particular, keeps its usual handling.
+        evt.Skip();
+        return;
+    }
 }
 
 void UnsavedChangesDialog::show_info_line(Action action, std::string preset_name)
@@ -1402,6 +1658,8 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
         return;
     }
 
+    m_rows.clear();
+
     std::map<wxString, std::vector<PresetItem>> class_g_list;
     std::map<wxString, std::vector<wxString>>   class_c_list;
     std::vector<wxString>                       category_list;
@@ -1444,8 +1702,12 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
     for (auto category : category_list) {
         auto iter = class_c_list.find(category);
         //category
-        auto panel_category = new wxPanel(m_scrolledWindow, wxID_ANY, wxDefaultPosition, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT), wxTAB_TRAVERSAL);
-        panel_category->SetBackgroundColour(GREY300);
+        auto panel_category = new DiffRow(m_scrolledWindow, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT), GREY300);
+        // A category header carries the context for the option rows under it,
+        // which do not repeat it in their own names, so it has to be one of the
+        // rows the arrow keys stop on.
+        panel_category->announce_as(iter->first, /*header*/ true);
+        register_row(panel_category);
 
         wxBoxSizer *sizer_category   = new wxBoxSizer(wxHORIZONTAL);
         wxBoxSizer *sizer_category_v = new wxBoxSizer(wxHORIZONTAL);
@@ -1475,12 +1737,13 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
 
                  //first group
                 if (g == 0) {
-                     auto panel_item = new wxWindow(m_scrolledWindow, -1, wxDefaultPosition, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT));
-                     panel_item->SetBackgroundColour(GREY200);
+                     auto panel_item = new DiffRow(m_scrolledWindow, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT), GREY200);
+                     panel_item->announce_as(class_g_list[gname][0].group_name, /*header*/ true);
+                     register_row(panel_item);
 
                      wxBoxSizer *sizer_item = new wxBoxSizer(wxHORIZONTAL);
 
-                     auto panel_left = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+                     auto panel_left = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
                      panel_left->SetBackgroundColour(GREY200);
 
                      wxBoxSizer *sizer_left_v = new wxBoxSizer(wxVERTICAL);
@@ -1503,12 +1766,11 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
 
                 auto data = class_g_list[gname][g];
 
-                auto panel_item = new wxWindow(m_scrolledWindow, -1, wxDefaultPosition, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT));
-                panel_item->SetBackgroundColour(GREY200);
+                auto panel_item = new DiffRow(m_scrolledWindow, wxSize(-1, UNSAVE_CHANGE_DIALOG_ITEM_HEIGHT), GREY200);
 
                 wxBoxSizer *sizer_item = new wxBoxSizer(wxHORIZONTAL);
 
-                auto panel_left = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH , -1), wxTAB_TRAVERSAL);
+                auto panel_left = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_FIRST_VALUE_WIDTH , -1), wxTAB_TRAVERSAL);
                 panel_left->SetBackgroundColour(GREY200);
 
                 wxBoxSizer *sizer_left_v = new wxBoxSizer(wxVERTICAL);
@@ -1524,7 +1786,7 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
                 panel_left->Layout();
                 sizer_item->Add(panel_left, 0, wxALIGN_CENTER, 0);
 
-                auto        panel_oldv  = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+                auto        panel_oldv  = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
                 wxBoxSizer *sizer_old_v = new wxBoxSizer(wxVERTICAL);
 
 
@@ -1539,7 +1801,7 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
                 panel_oldv->Layout();
                 sizer_item->Add(panel_oldv, 0, wxALIGN_CENTER, 0);
 
-                auto        panel_newv  = new wxPanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
+                auto        panel_newv  = new DecorativePanel(panel_item, wxID_ANY, wxDefaultPosition, wxSize(UNSAVE_CHANGE_DIALOG_VALUE_WIDTH, -1), wxTAB_TRAVERSAL);
                 wxBoxSizer *sizer_new_v = new wxBoxSizer(wxVERTICAL);
 
                 data.new_value = subreplace(data.new_value.ToStdString(), "\n", " ");
@@ -1553,6 +1815,19 @@ void UnsavedChangesDialog::update_list(SyncExtruderParams *params)
                 panel_newv->SetSizer(sizer_new_v);
                 panel_newv->Layout();
                 sizer_item->Add(panel_newv, 0, wxALIGN_CENTER, 0);
+
+                // The three cells of the row read as three unrelated strings on
+                // their own, so the row is named after all of them, with the
+                // titles of the two value columns baked in - which is what wx
+                // does for the rows of a wxDataViewCtrl, except that the values
+                // go into the name rather than the description, so that they do
+                // not depend on the screen reader announcing descriptions.
+                // Category and group are not repeated here: they are announced
+                // by their own header rows, which the arrow keys pass through.
+                panel_item->announce_as(data.option_name + ", " + static_oldv_title->GetLabelText() + ": " + data.old_value + ", " +
+                                            static_newv_title->GetLabelText() + ": " + data.new_value,
+                                        /*header*/ false);
+                register_row(panel_item);
 
                 panel_item->SetSizer(sizer_item);
                 panel_item->Layout();
@@ -1934,6 +2209,8 @@ void DiffPresetDialog::create_info_lines()
 void DiffPresetDialog::create_tree()
 {
     m_tree = new DiffViewCtrl(this, wxSize(em_unit() * 65, em_unit() * 40));
+    // Without this the control announces wx's default wxDataViewCtrlNameStr.
+    m_tree->SetName(_L("Preset differences"));
     m_tree->AppendToggleColumn_(L"\u2714", DiffModel::colToggle, wxLinux ? 9 : 6);
     m_tree->AppendBmpTextColumn("",                      DiffModel::colIconText, 35);
     m_tree->AppendBmpTextColumn(_L("Left Preset Value"), DiffModel::colOldValue, 15);
