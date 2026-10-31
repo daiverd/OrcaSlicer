@@ -109,7 +109,7 @@ Prepared as wxWidgets pull requests, not yet opened; they reach Orca when its wx
 
 ### Overtaken by events
 
-- [`accessibility-06-web-content`][06-old]: split into [`06-web-wizard`][06] ([#17057]) and [`06.03-web-pages`][06.03]. To be deleted.
+- `accessibility-06-web-content`: split into [`06-web-wizard`][06] ([#17057]) and [`06.03-web-pages`][06.03], and deleted from the fork on 2026-10-31.
 - [`accessibility-04-wx-iolewindow`][04] and the wx patch in [`accessibility-07-wx-dataview`][07]: Orca no longer patches wxWidgets in its own tree; it builds from the [OrcaSlicer/Orca-deps-wxWidgets](https://github.com/OrcaSlicer/Orca-deps-wxWidgets) fork. Replaced by the wxWidgets pull requests above. 07's three Orca-side commits stay.
 - [`accessibility-06.02-web-check`][06.02] (static checker for the web pages, plus a CI job; the copy on the fork is from 2026-09-18): 7 of its 9 commits are old copies of the web page work, superseded by [#17057] and [`06.03`][06.03]. Its 2 own commits need moving onto 06.03, and the checker needs exemptions for the Export Presets dialog and the Home page staff picks, which 06.03 leaves out.
 - Partly overtaken, to trim before opening:
@@ -154,7 +154,6 @@ Prepared as wxWidgets pull requests, not yet opened; they reach Orca when its wx
 [05.06]: https://github.com/daiverd/OrcaSlicer/tree/accessibility-05.06-webview-focus
 [05.07]: https://github.com/daiverd/OrcaSlicer/tree/accessibility-05.07-printer-edit-keyboard
 [06]: https://github.com/daiverd/OrcaSlicer/tree/accessibility-06-web-wizard
-[06-old]: https://github.com/daiverd/OrcaSlicer/tree/accessibility-06-web-content
 [06.02]: https://github.com/daiverd/OrcaSlicer/tree/accessibility-06.02-web-check
 [06.03]: https://github.com/daiverd/OrcaSlicer/tree/accessibility-06.03-web-pages
 [07]: https://github.com/daiverd/OrcaSlicer/tree/accessibility-07-wx-dataview
