@@ -23,6 +23,11 @@ public:
     }
 
 protected:
+#if wxUSE_ACCESSIBILITY
+    // ORCA: a radio button rendered purely as bitmap swaps has no accessible
+    // role/state/name of its own by default.
+    wxAccessible* CreateAccessible() override;
+#endif
 #ifdef __WXMSW__
     WXLRESULT MSWWindowProc(WXUINT nMsg, WXWPARAM wParam, WXLPARAM lParam) override;
 #endif

@@ -21,6 +21,7 @@
 #include <wx/window.h>
 #include <wx/defs.h>
 #include <wx/notebook.h>
+#include <wx/access.h>
 
 class wxObject;
 
@@ -62,6 +63,8 @@ public:
         static const std::string empty;
         return n < m_pageIcons.size() ? m_pageIcons[n] : empty;
     }
+    wxWindow* GetPageButton(size_t n) const; // ORCA
+    wxWindow* GetSelectedPageButton() const; // ORCA
     wxFlexGridSizer* GetBtnsSizer(){return m_buttons_sizer;}; // ORCA
     // ORCA: button of the currently selected page, the landing target for keyboard pane navigation
     wxWindow* GetSelectedButton() const;
@@ -69,6 +72,11 @@ public:
     // an overflow indicator. Pass nullptr to remove it; ownership stays with the caller.
     void SetOverflowButton(wxWindow* button);
     wxWindow* GetOverflowButton() const { return m_overflow_button; }
+
+protected:
+#if wxUSE_ACCESSIBILITY
+    wxAccessible* CreateAccessible() override;
+#endif
 
 private:
     wxFlexGridSizer*                m_buttons_sizer;
