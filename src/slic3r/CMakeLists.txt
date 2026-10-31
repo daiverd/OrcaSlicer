@@ -432,6 +432,8 @@ set(SLIC3R_GUI_SOURCES
     GUI/NetworkTestDialog.hpp
     GUI/Notebook.cpp
     GUI/Notebook.hpp
+    GUI/NotificationAccessible.cpp
+    GUI/NotificationAccessible.hpp
     GUI/NotificationManager.cpp
     GUI/NotificationManager.hpp
     GUI/OAuthDialog.cpp

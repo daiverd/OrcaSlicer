@@ -2905,8 +2905,11 @@ void NotificationManager::set_slicing_progress_began()
 		wxGetApp().plater()->init_notification_manager();
 		notification = find_slicing_progress();
 	}
-	if (notification != nullptr)
+	if (notification != nullptr) {
 		notification->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_BEGAN);
+		// The slice is what the progress bar reports; it starts here and is not announced.
+		m_accessibility.set_progress(0);
+	}
 }
 void NotificationManager::set_slicing_progress_percentage(const std::string& text, float percentage)
 {
@@ -2915,6 +2918,14 @@ void NotificationManager::set_slicing_progress_percentage(const std::string& tex
 			SlicingProgressNotification* spn = dynamic_cast<SlicingProgressNotification*>(notification.get());
 			if(spn->set_progress_state(percentage)) {
 				spn->set_status_text(text);
+				if (spn->get_progress_state() == SlicingProgressNotification::SlicingProgressState::SP_COMPLETED) {
+					// The one transition worth interrupting a screen reader for. set_progress_state
+					// only reaches SP_COMPLETED once per slice, so this is said once per slice too.
+					m_accessibility.set_progress(100);
+					m_accessibility.announce(_L("Slice complete"));
+				} else {
+					m_accessibility.set_progress((int) (percentage * 100.f + 0.5f));
+				}
 				wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
 			}
 			return;
@@ -2930,6 +2941,10 @@ void NotificationManager::set_slicing_progress_canceled(const std::string& text)
 			SlicingProgressNotification* spn = dynamic_cast<SlicingProgressNotification*>(notification.get());
 			spn->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_CANCELLED);
 			spn->set_status_text(text);
+			// The slice ended without a result: the bar has nothing left to report, and the reason
+			// it stopped is the one thing the user needs to hear.
+			m_accessibility.set_progress(-1);
+			m_accessibility.announce(from_u8(text));
 			wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
 			return;
 		}
@@ -2943,6 +2958,9 @@ void NotificationManager::set_slicing_progress_hidden()
 		if (notification->get_type() == NotificationType::SlicingProgress) {
 			SlicingProgressNotification* notif = dynamic_cast<SlicingProgressNotification*>(notification.get());
 			notif->set_progress_state(SlicingProgressNotification::SlicingProgressState::SP_NO_SLICING);
+			// The notification is being taken off screen, silently: whatever replaced it - a slicing
+			// error, a new slice - does its own announcing.
+			m_accessibility.set_progress(-1);
 			wxGetApp().plater()->get_current_canvas3D()->schedule_extra_frame(0);
 			return;
 		}
@@ -3125,8 +3143,14 @@ bool NotificationManager::push_notification_data(std::unique_ptr<NotificationMan
         };
         notification->set_delete_callback(delete_self);
     }
+	// Stays valid across the move below: only the pointer moves, the notification itself does not.
+	const NotificationData& data = notification->get_data();
 	bool retval = false;
+	// A notification already on screen saying the same thing is not a change, and a screen reader
+	// should not hear it twice. A new one, or new text in an old one, is.
+	bool announce = true;
 	if (this->activate_existing(notification.get())) {
+		announce = !m_pop_notifications.back()->compare_text(data.text1);
 		if (m_initialized && m_imgui_ready) {
 			// Precise Seam already aggregates all causes; replace it on repeated warning events.
 			if (notification->get_type() == NotificationType::SlicingWarning &&
@@ -3143,9 +3167,33 @@ bool NotificationManager::push_notification_data(std::unique_ptr<NotificationMan
 	}
 	if (!m_initialized)
 		return retval;
+	// Every notification of every kind becomes visible here, whether it is a new one or an update
+	// of one already on screen, which makes this the one place a screen reader has to be told.
+	if (announce)
+		announce_notification(data);
 	GLCanvas3D& canvas = *wxGetApp().plater()->get_current_canvas3D();
 	canvas.schedule_extra_frame(0);
 	return retval;
+}
+
+void NotificationManager::announce_notification(const NotificationData& notification_data)
+{
+	if (notification_data.level != NotificationLevel::ErrorNotificationLevel &&
+		notification_data.level != NotificationLevel::SeriousWarningNotificationLevel)
+		return;
+
+	// What the notification says, on one line. A screen reader reads an alert in one breath and
+	// the line breaks are there to shape an ImGui window, not the sentence. The hypertext is part
+	// of that sentence rather than a link: on a slicing error it carries the names of the objects
+	// at fault, and the ImGui link it labels has no keyboard path to reach in any case.
+	std::string text = notification_data.text1;
+	for (const std::string& part : { notification_data.hypertext, notification_data.text2 }) {
+		if (!part.empty())
+			text += " " + part;
+	}
+	boost::algorithm::replace_all(text, "\n", " ");
+	boost::algorithm::trim(text);
+	m_accessibility.announce(from_u8(text));
 }
 
 void NotificationManager::push_delayed_notification_data(std::unique_ptr<NotificationManager::PopNotification> notification,

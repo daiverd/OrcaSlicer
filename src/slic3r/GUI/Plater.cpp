@@ -3379,8 +3379,12 @@ Sidebar::Sidebar(Plater *parent)
     ScalableButton* add_btn = new ScalableButton(p->m_panel_filament_title, wxID_ANY, "add_filament");
     add_btn->SetToolTip(_L("Add one filament"));
     add_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& e){
+        size_t count_before = p->combos_filament.size();
         add_filament();
         update_filaments_counter();
+        // The new slot is always appended last, so the resulting count is its own 1-based number.
+        if (p->combos_filament.size() > count_before)
+            wxGetApp().plater()->get_notification_manager()->announce(wxString::Format(_L("Filament %d added"), (int) p->combos_filament.size()));
     });
     p->m_bpButton_add_filament = add_btn;
 
@@ -3389,8 +3393,12 @@ Sidebar::Sidebar(Plater *parent)
     ScalableButton* del_btn = new ScalableButton(p->m_panel_filament_title, wxID_ANY, "delete_filament");
     del_btn->SetToolTip(_L("Remove last filament"));
     del_btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent &e) {
+        size_t count_before = p->combos_filament.size();
         delete_filament();
         update_filaments_counter();
+        // This button always removes the last slot, so its 1-based number is the count before delete.
+        if (p->combos_filament.size() < count_before)
+            wxGetApp().plater()->get_notification_manager()->announce(wxString::Format(_L("Filament %d removed"), (int) count_before));
     });
     p->m_bpButton_del_filament = del_btn;
 
