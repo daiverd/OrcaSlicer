@@ -63,6 +63,9 @@
 #include <wx/treebase.h>
 #include <wx/types.h>
 #include <wx/timer.h>
+#if wxUSE_HELP
+#include <wx/cshelp.h>
+#endif
 #include "NetworkTestDialog.hpp"
 #include "SceneBenchmark.hpp"
 #include "Widgets/StaticLine.hpp"
@@ -92,11 +95,43 @@ public:
     bool ShouldScrollToChildOnFocus(wxWindow* child) override { return false; }
 };
 
+// select_tab() finds a combobox row by the config key held as its window name, and
+// wxWindow::FindWindow(name) compares the stored name directly. Accessibles read the
+// virtual GetName() instead, so overriding it lets the control announce its label while
+// the key stays where the lookup expects it.
+class PreferencesComboBox : public ::ComboBox
+{
+public:
+    using ::ComboBox::ComboBox;
+
+    void     set_accessible_name(const wxString& name) { m_accessible_name = name; }
+    wxString GetName() const override { return m_accessible_name.empty() ? ::ComboBox::GetName() : m_accessible_name; }
+
+private:
+    wxString m_accessible_name;
+};
+
+#if wxUSE_ACCESSIBILITY
+class WikiLabelAccessible : public wxWindowAccessible
+{
+public:
+    explicit WikiLabelAccessible(wxWindow *win) : wxWindowAccessible(win) {}
+
+    wxAccStatus GetRole(int childId, wxAccRole *role) override
+    {
+        if (childId > 0)
+            return wxACC_NOT_IMPLEMENTED;
+        *role = wxROLE_SYSTEM_STATICTEXT;
+        return wxACC_OK;
+    }
+};
+#endif // wxUSE_ACCESSIBILITY
+
 // TODO before replacing with HyperLink class
 // make Wrap(-1) and Wrap(width) functional
 // ellipsize_end on wrap(-1)
 // add SetUnderlined() for allowing always highlighted while using as HyperLink
-class WikiLabel : public wxPanel {
+class WikiLabel : public wxWindow {
 private:
     wxString      m_label;
     wxString      m_url;
@@ -113,16 +148,21 @@ public:
         const wxPoint&  pos     = wxDefaultPosition,
         const wxSize&   size    = wxDefaultSize
     )
-        : wxPanel(parent, wxID_ANY, pos, size, wxFULL_REPAINT_ON_RESIZE)
+        : wxWindow(parent, wxID_ANY, pos, size, wxFULL_REPAINT_ON_RESIZE)
         , m_label(label)
         , m_url(url)
     {
-#ifndef __WXOSX__ 
+#ifndef __WXOSX__
         SetDoubleBuffered(true);// SetDoubleBuffered exists on Win and Linux/GTK, but is missing on OSX
 #endif
         SetBackgroundColour(parent->GetBackgroundColour());
 
         SetFont(Label::Body_14);
+
+        SetName(m_label); // the title is painted, so only the name keeps it readable to a screen reader
+#if wxUSE_ACCESSIBILITY
+        SetAccessible(new WikiLabelAccessible(this));
+#endif
 
         Bind(wxEVT_PAINT,        &WikiLabel::OnPaint, this);
         Bind(wxEVT_SIZE,         &WikiLabel::OnSize, this);
@@ -134,14 +174,20 @@ public:
     void SetLabel(const wxString& label) override
     {
         m_label = label;
+        SetName(m_label);
         m_last_wrap_width = -1; // force re-wrap
         ReflowText();
         Refresh();
     }
 
+    // wxPanel answers AcceptsFocus() from its wxNavigationEnabled container instead of from
+    // the window itself, which turns every childless label panel into a Tab stop of its own.
+    // Deriving from wxWindow lets the label opt out, leaving one Tab stop per settings row.
+    bool AcceptsFocus() const override { return false; }
+
     bool SetFont(const wxFont& font) override
     {
-        const bool changed = wxPanel::SetFont(font);
+        const bool changed = wxWindow::SetFont(font);
         m_font = font;
         m_last_wrap_width = -1; // force re-wrap
         if (IsShownOnScreen()) {
@@ -293,6 +339,55 @@ private:
     } 
 };
 
+// The label and the controls of a settings row are siblings in the sizer that
+// create_item_label() returns, so the row a control belongs to can be resolved without
+// every create_item_*() helper having to register its controls against a wiki URL.
+static WikiLabel *linked_label_of(wxSizer *sizer)
+{
+    if (sizer)
+        for (const wxSizerItem *item : sizer->GetChildren())
+            if (auto *label = dynamic_cast<WikiLabel *>(item->GetWindow()); label && !label->GetURL().IsEmpty())
+                return label;
+
+    return nullptr;
+}
+
+#if wxUSE_HELP
+// wxWindowAccessible reports a window's help text as its accessible description, but only
+// through a help provider. wxSimpleHelpProvider would also pop a tip window on F1 and
+// consume the event, so suppress that and let F1 reach PreferencesDialog::on_help().
+class SilentHelpProvider : public wxSimpleHelpProvider
+{
+public:
+    bool ShowHelp(wxWindowBase *) override { return false; }
+};
+
+static void set_help_text_recursively(wxWindow *win, const wxString &text)
+{
+    win->SetHelpText(text);
+    for (wxWindow *child : win->GetChildren()) // focus lands on the inner control of TextInput/SpinInput
+        set_help_text_recursively(child, text);
+}
+
+// Announce the F1 affordance on every control of a row whose label carries a wiki link.
+// It rides on the accessible description, so nothing changes on screen.
+static void add_wiki_help_hints(wxSizer *sizer, const wxString &hint)
+{
+    if (!sizer)
+        return;
+
+    const WikiLabel *label = linked_label_of(sizer);
+
+    for (const wxSizerItem *item : sizer->GetChildren()) {
+        if (wxWindow *win = item->GetWindow()) {
+            if (label && win != label)
+                set_help_text_recursively(win, hint);
+        } else
+            add_wiki_help_hints(item->GetSizer(), hint);
+    }
+}
+#endif // wxUSE_HELP
+
 wxBoxSizer *PreferencesDialog::create_item_title(wxString title)
 {
     wxBoxSizer *m_sizer_title = new wxBoxSizer(wxHORIZONTAL);
@@ -332,10 +427,11 @@ std::tuple<wxBoxSizer*, ComboBox*> PreferencesDialog::create_item_combobox_base(
 
     wxBoxSizer *m_sizer = create_item_label(title, tip, wiki_url);
 
-    auto combobox = new ::ComboBox(m_parent, wxID_ANY, wxEmptyString, wxDefaultPosition, DESIGN_LARGE_COMBOBOX_SIZE, 0, nullptr, wxCB_READONLY);
+    auto combobox = new PreferencesComboBox(m_parent, wxID_ANY, wxEmptyString, wxDefaultPosition, DESIGN_LARGE_COMBOBOX_SIZE, 0, nullptr, wxCB_READONLY);
     combobox->GetDropDown().SetUseContentWidth(true);
     combobox->SetToolTip(tip);
     combobox->SetName(param);   // select_tab() finds the row by this name
+    combobox->set_accessible_name(title); // ORCA: announce the label, not the key or the tooltip sentence (D31)
 
     std::vector<wxString>::iterator iter;
     for (iter = vlist.begin(); iter != vlist.end(); iter++) {
@@ -452,6 +548,7 @@ wxBoxSizer *PreferencesDialog::create_item_language_combobox(wxString title, wxS
     auto combobox = new ::ComboBox(m_parent, wxID_ANY, wxEmptyString, wxDefaultPosition, DESIGN_LARGE_COMBOBOX_SIZE, 0, nullptr, wxCB_READONLY);
     combobox->GetDropDown().SetUseContentWidth(true);
     combobox->SetToolTip(tip);
+    combobox->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
 
     auto language = app_config->get(param);
     m_current_language_selected = -1;
@@ -612,6 +709,7 @@ wxBoxSizer *PreferencesDialog::create_item_region_combobox(wxString title, wxStr
     auto combobox = new ::ComboBox(m_parent, wxID_ANY, wxEmptyString, wxDefaultPosition, DESIGN_LARGE_COMBOBOX_SIZE, 0, nullptr, wxCB_READONLY);
     combobox->GetDropDown().SetUseContentWidth(true);
     combobox->SetToolTip(tip);
+    combobox->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
 
     m_sizer->Add(combobox, 0, wxALIGN_CENTER);
 
@@ -686,6 +784,7 @@ wxBoxSizer *PreferencesDialog::create_item_loglevel_combobox(wxString title, wxS
     auto combobox = new ::ComboBox(m_parent, wxID_ANY, wxEmptyString, wxDefaultPosition, DESIGN_COMBOBOX_SIZE, 0, nullptr, wxCB_READONLY);
     combobox->GetDropDown().SetUseContentWidth(true);
     combobox->SetToolTip(tip);
+    combobox->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
 
     std::vector<wxString>::iterator iter;
     for (iter = vlist.begin(); iter != vlist.end(); iter++) { combobox->Append(*iter); }
@@ -717,6 +816,7 @@ wxBoxSizer *PreferencesDialog::create_item_input(wxString title, wxString title2
     input->GetTextCtrl()->SetValue(app_config->get(param));
     wxTextValidator validator(wxFILTER_DIGITS);
     input->SetToolTip(tip);
+    input->SetName(title); // ORCA: accessible name is the label; focus lands on the inner TextCtrl (D31)
     input->GetTextCtrl()->SetValidator(validator);
 
     auto second_title = new wxStaticText(m_parent, wxID_ANY, title2, wxDefaultPosition, wxDefaultSize, 0);
@@ -754,6 +854,7 @@ wxBoxSizer *PreferencesDialog::create_item_spinctrl(wxString title, wxString tit
 
     auto input = new SpinInput(m_parent, wxEmptyString, side_label, wxDefaultPosition, DESIGN_INPUT_SIZE, wxSP_ARROW_KEYS, min, max, stoi(app_config->get(param)));
     input->SetToolTip(tip);
+    input->SetName(title); // ORCA: accessible name is the label; focus lands on the inner TextCtrl (D31)
 
     // ORCA: this one is only meaningful while the dimming it controls is enabled
     if (param == "preview_dim_previous_layers_brightness") {
@@ -811,6 +912,7 @@ wxBoxSizer *PreferencesDialog::create_camera_orbit_mult_input(wxString title, wx
     input->GetTextCtrl()->SetValue(app_config->get(param));
     wxTextValidator validator(wxFILTER_NUMERIC);
     input->SetToolTip(tip);
+    input->SetName(title); // ORCA: accessible name is the label; focus lands on the inner TextCtrl (D31)
     input->GetTextCtrl()->SetValidator(validator);
 
     m_sizer->Add(input, 0, wxALIGN_CENTER_VERTICAL);
@@ -858,6 +960,7 @@ wxBoxSizer *PreferencesDialog::create_item_decimal_input(wxString title, wxStrin
     input->GetTextCtrl()->SetValue(app_config->get(param));
     wxTextValidator validator(wxFILTER_NUMERIC);
     input->SetToolTip(tooltip);
+    input->SetName(title); // ORCA: accessible name is the label; focus lands on the inner TextCtrl (D31)
     input->GetTextCtrl()->SetValidator(validator);
 
     m_sizer->Add(input, 0, wxALIGN_CENTER_VERTICAL);
@@ -896,6 +999,7 @@ wxBoxSizer *PreferencesDialog::create_item_backup(wxString title, wxString toolt
     auto checkbox = new ::CheckBox(m_parent);
     checkbox->SetValue(app_config->get_bool("backup_switch"));
     checkbox->SetToolTip(tip);
+    checkbox->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
 
     checkbox->Bind(wxEVT_TOGGLEBUTTON, [this, checkbox](wxCommandEvent &e) {
         app_config->set_bool("backup_switch", checkbox->GetValue());
@@ -916,6 +1020,7 @@ wxBoxSizer *PreferencesDialog::create_item_backup(wxString title, wxString toolt
     input->GetTextCtrl()->SetValue(m_backup_interval_time);
     wxTextValidator validator(wxFILTER_DIGITS);
     input->SetToolTip(_L("The period of backup in seconds."));
+    input->SetName(_L("Auto backup interval")); // ORCA: distinct name from the checkbox above (D31)
     input->GetTextCtrl()->SetValidator(validator);
 
     m_sizer->Add(checkbox, 0, wxALIGN_CENTER);
@@ -959,6 +1064,7 @@ wxBoxSizer *PreferencesDialog::create_item_auto_reslice(wxString title, wxString
     auto checkbox = new ::CheckBox(m_parent);
     checkbox->SetValue(app_config->get_bool("auto_slice_after_change"));
     checkbox->SetToolTip(checkbox_tooltip);
+    checkbox->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
 
     wxString delay_value = app_config->get("auto_slice_change_delay_seconds");
     if (delay_value.empty())
@@ -970,6 +1076,7 @@ wxBoxSizer *PreferencesDialog::create_item_auto_reslice(wxString title, wxString
     input->GetTextCtrl()->SetValue(delay_value);
     wxTextValidator validator(wxFILTER_DIGITS);
     input->SetToolTip(delay_tooltip);
+    input->SetName(_L("Auto slice delay")); // ORCA: distinct name from the checkbox above (D31)
     input->GetTextCtrl()->SetValidator(validator);
 
     m_sizer->Add(checkbox, 0, wxALIGN_CENTER);
@@ -1020,6 +1127,7 @@ wxBoxSizer* PreferencesDialog::create_item_darkmode(wxString title,wxString tool
     auto checkbox = new ::CheckBox(m_parent);
     checkbox->SetValue((app_config->get(param) == "1") ? true : false);
     checkbox->SetToolTip(tip);
+    checkbox->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
     m_dark_mode_ckeckbox = checkbox;
 
     m_sizer->Add(checkbox, 0, wxALIGN_CENTER);
@@ -1067,6 +1175,9 @@ wxBoxSizer *PreferencesDialog::create_item_checkbox(wxString title, wxString too
     auto checkbox = new ::CheckBox(m_parent);
     checkbox->SetValue(app_config->get_bool(param));
     checkbox->SetToolTip(tip);
+    // ORCA: accessible name is the label (D31); fold the secondary title in too so it
+    // travels with the checkbox instead of floating as unclaimed dialog text (D35)
+    checkbox->SetName(secondary_title.IsEmpty() ? title : title + " " + secondary_title);
 
     if (param == "sync_user_preset") { m_sync_user_preset_checkbox = checkbox; }
     if (param == SETTING_OPENGL_SKIP_IDENTICAL_FRAMES) { m_skip_identical_frames_checkbox = checkbox; }
@@ -1287,7 +1398,16 @@ wxBoxSizer* PreferencesDialog::create_item_downloads(wxString title, wxString to
     m_button_download->SetStyle(ButtonStyle::Regular, ButtonType::Parameter);
     m_button_download->SetToolTip(_L("Choose folder for downloaded items"));
 
-    m_button_download->Bind(wxEVT_BUTTON, [this, m_staticTextPath, m_sizer](auto& e) {
+    // ORCA: fold the current path into the button's and the static text's own accessible
+    // names, so the path travels with the controls it belongs to instead of riding along
+    // as unclaimed dialog text (D35).
+    auto update_download_path_names = [m_button_download, m_staticTextPath](const wxString& path) {
+        m_button_download->SetName(wxString::Format(_L("Browse for downloads folder (currently: %s)"), path));
+        m_staticTextPath->SetName(wxString::Format(_L("Current downloads folder: %s"), path));
+    };
+    update_download_path_names(download_path);
+
+    m_button_download->Bind(wxEVT_BUTTON, [this, m_staticTextPath, m_sizer, update_download_path_names](auto& e) {
         wxString defaultPath = wxT("/");
         wxDirDialog dialog(this, _L("Choose Download Directory"), defaultPath, wxDD_NEW_DIR_BUTTON);
 
@@ -1297,6 +1417,7 @@ wxBoxSizer* PreferencesDialog::create_item_downloads(wxString title, wxString to
             app_config->set("download_path", download_path_str);
             m_staticTextPath->SetLabelText(download_path);
             m_staticTextPath->SetToolTip(download_path);
+            update_download_path_names(download_path);
             m_sizer->Layout();
         }
     });
@@ -1315,6 +1436,7 @@ wxBoxSizer *PreferencesDialog::create_item_bambu_cloud(wxString title, wxString 
     m_bambu_cloud_checkbox = cb;
     cb->SetValue(app_config->has_cloud_provider(BBL_CLOUD_PROVIDER));
     cb->SetToolTip(tooltip);
+    cb->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
 
     cb->Bind(wxEVT_TOGGLEBUTTON, [this, cb](wxCommandEvent &e) {
         e.Skip(); // let CheckBox::update() refresh the bitmap
@@ -1342,6 +1464,7 @@ wxBoxSizer *PreferencesDialog::create_item_network_plugin_version(wxString title
     m_network_version_combo = new ::ComboBox(m_parent, wxID_ANY, wxEmptyString, wxDefaultPosition, DESIGN_LARGE_COMBOBOX_SIZE, 0, nullptr, wxCB_READONLY);
     m_network_version_combo->GetDropDown().SetUseContentWidth(true);
     m_network_version_combo->SetToolTip(tooltip);
+    m_network_version_combo->SetName(title); // ORCA: accessible name is the label, not the tooltip sentence (D31)
 
     std::string current_version = app_config->get_network_plugin_version();
     if (current_version.empty()) {
@@ -1548,16 +1671,18 @@ void PreferencesDialog::create()
 {
     app_config = get_app_config();
 
+    // ORCA: create the page strip before m_parent so it is first, not last, in Tab order
+    // (traversal follows child creation order); see docs/a11y/reports/8-28-defects.md D34.
+    m_pref_tabs = new TabCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_NO_BUTTONS | wxTR_HIDE_ROOT | wxTR_SINGLE | wxTR_NO_LINES | wxBORDER_NONE | wxWANTS_CHARS | wxTR_FULL_ROW_HIGHLIGHT);
+    m_pref_tabs->SetName(_L("Preference pages")); // ORCA: StaticBox::Create leaves it nameless
+    m_pref_tabs->Bind(wxEVT_RIGHT_DOWN, [](auto &e) {}); // disable right select
+    m_pref_tabs->SetFont(Label::Body_14);
+
     m_parent = new MyscrolledWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL);
     m_parent->SetScrollRate(0, FromDIP(20));
     m_parent->SetBackgroundColour(*wxWHITE);
 
     m_sizer_body = new wxBoxSizer(wxVERTICAL);
-
-    m_pref_tabs = new TabCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTR_NO_BUTTONS | wxTR_HIDE_ROOT | wxTR_SINGLE | wxTR_NO_LINES | wxBORDER_NONE | wxWANTS_CHARS | wxTR_FULL_ROW_HIGHLIGHT);
-    m_pref_tabs->SetName(_L("Preference pages")); // ORCA: StaticBox::Create leaves it nameless
-    m_pref_tabs->Bind(wxEVT_RIGHT_DOWN, [](auto &e) {}); // disable right select
-    m_pref_tabs->SetFont(Label::Body_14);
 
     create_items();
 
@@ -1592,6 +1717,13 @@ void PreferencesDialog::create()
     Layout();
     Fit();
     CenterOnParent();
+
+#if wxUSE_HELP
+    if (!wxHelpProvider::Get())
+        wxHelpProvider::Set(new SilentHelpProvider());
+    add_wiki_help_hints(m_parent->GetSizer(), _L("Press F1 to open the wiki page for this setting."));
+    Bind(wxEVT_HELP, &PreferencesDialog::on_help, this);
+#endif // wxUSE_HELP
 }
 
 PreferencesDialog::~PreferencesDialog()
@@ -1609,6 +1741,19 @@ void PreferencesDialog::select_tab(PreferencesTab tab, const std::string& option
     m_parent->GetScrollPixelsPerUnit(nullptr, &unit);
     m_parent->Scroll(wxDefaultCoord, (m_parent->CalcUnscrolledPosition(control->GetPosition()).y - FromDIP(10)) / unit);
     control->SetFocus();   // the focused tint marks the row
+}
+
+// The label of a row is clickable with the mouse only, so F1 gives the keyboard the same
+// wiki page while any control of that row has the focus.
+void PreferencesDialog::on_help(wxHelpEvent &event)
+{
+    for (wxWindow *win = FindFocus(); win && win != this; win = win->GetParent())
+        if (const WikiLabel *label = linked_label_of(win->GetContainingSizer())) {
+            wxLaunchDefaultBrowser(label->GetURL());
+            return;
+        }
+
+    event.Skip();
 }
 
 void PreferencesDialog::on_dpi_changed(const wxRect &suggested_rect) {
