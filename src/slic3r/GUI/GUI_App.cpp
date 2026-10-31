@@ -3827,6 +3827,24 @@ bool GUI_App::on_init_inner()
 
     Bind(EVT_HTTP_ERROR, &GUI_App::on_http_error, this);
 
+#ifdef __WXMSW__
+    // ORCA: Tab out of a multi-line text box. The EDIT asks for every key, so wxMSW leaves
+    // that Tab to Windows' own dialog navigation, which only stops on windows styled
+    // WS_TABSTOP - wx gives that to native controls alone - and so skipped every custom
+    // widget after the box (OK and Cancel of the Edit Custom G-code dialog). Run wx's own
+    // navigation instead, the one every other Tab already goes through. wxEVT_CHAR_HOOK
+    // comes from a keyboard hook, ahead of that dialog navigation.
+    Bind(wxEVT_CHAR_HOOK, [](wxKeyEvent& e) {
+        if (e.GetKeyCode() == WXK_TAB && !e.ControlDown() && !e.AltDown())
+            if (auto* text = wxDynamicCast(e.GetEventObject(), wxTextCtrl);
+                text && text->IsMultiLine() && !text->HasFlag(wxTE_PROCESS_TAB)) {
+                text->Navigate(wxNavigationKeyEvent::FromTab | (e.ShiftDown() ? 0 : wxNavigationKeyEvent::IsForward));
+                return;
+            }
+        e.Skip();
+    });
+#endif
+
 
     Bind(wxEVT_IDLE, [this](wxIdleEvent& event)
     {
