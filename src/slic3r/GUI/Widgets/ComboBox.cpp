@@ -421,7 +421,16 @@ void ComboBox::mouseWheelMoved(wxMouseEvent &event)
 
 void ComboBox::keyDown(wxKeyEvent& event)
 {
-    switch (event.GetKeyCode()) {
+    int code = event.GetKeyCode();
+    // Alt+Down, Alt+Up and F4 open the list like Enter, as on a native combo box. Any
+    // other Alt chord belongs to the window: Alt+Space opens its system menu.
+    if (code == WXK_F4 || (event.AltDown() && (code == WXK_DOWN || code == WXK_UP || code == WXK_NUMPAD_DOWN || code == WXK_NUMPAD_UP)))
+        code = WXK_RETURN;
+    else if (event.AltDown()) {
+        event.Skip();
+        return;
+    }
+    switch (code) {
         case WXK_RETURN:
         case WXK_SPACE:
             if (drop_down) {
@@ -436,21 +445,22 @@ void ComboBox::keyDown(wxKeyEvent& event)
                 GetEventHandler()->ProcessEvent(e);
             }
             break;
+        // Left/Right are deliberately absent: this list is vertical, and the rows they
+        // used to reach include actions that run on mere selection.
         case WXK_UP:
+        case WXK_NUMPAD_UP:
         case WXK_DOWN:
-        case WXK_LEFT:
-        case WXK_RIGHT: {
-            // Step over disabled rows: the mouse cannot select them either.
-            const int step = (event.GetKeyCode() == WXK_UP || event.GetKeyCode() == WXK_LEFT) ? -1 : 1;
-            int       n    = GetSelection() + step;
-            while (n >= 0 && n < int(items.size()) && (items[n].style & DD_ITEM_STYLE_DISABLED))
-                n += step;
-            if (n < 0 || n >= int(items.size()))
-                break;
-            SetSelection(n);
-            sendComboBoxEvent();
+        case WXK_NUMPAD_DOWN:
+        case WXK_HOME:
+        case WXK_NUMPAD_HOME:
+        case WXK_END:
+        case WXK_NUMPAD_END:
+        case WXK_PAGEUP:
+        case WXK_NUMPAD_PAGEUP:
+        case WXK_PAGEDOWN:
+        case WXK_NUMPAD_PAGEDOWN:
+            keyMoveSelection(event.GetKeyCode());
             break;
-        }
         case WXK_TAB:
             HandleAsNavigationKey(event);
             break;
@@ -458,6 +468,87 @@ void ComboBox::keyDown(wxKeyEvent& event)
             event.Skip();
             break;
     }
+}
+
+// Rows that key browsing on the collapsed combo must step over: the separators and
+// disabled entries the open popup also refuses, plus whatever IsItemKeySelectable()
+// rules out. Both stay clickable and Enter-activatable in the open popup.
+bool ComboBox::isKeyBrowsable(int n) const
+{
+    if (n < 0 || n >= (int) items.size())
+        return false;
+    if (items[n].style & (DD_ITEM_STYLE_SPLIT_ITEM | DD_ITEM_STYLE_DISABLED))
+        return false;
+    return IsItemKeySelectable(n);
+}
+
+// How far PageUp and PageDown move: the rows the popup shows at once, which
+// messureSize() caps at 15 and autoPosition() may shrink further on a short screen.
+// A grouped list shows one row per group there, a count that says nothing about the
+// presets inside the groups this browses, so those fall back to the 15 row cap.
+int ComboBox::keyPageSize()
+{
+    drop.messureSize(); // drop.count, drop.rowSize and the popup size are stale until this runs
+    const int page = drop.rowSize.y > 0 ? drop.GetSize().y / drop.rowSize.y : 0;
+    return drop.count == items.size() && page > 0 ? page : 15;
+}
+
+// Browse the list with the popup closed. The change commits at once, the native
+// Windows convention, so it must only ever land on a row the keyboard is allowed to
+// select. Movement runs over the raw item indices GetSelection() and SetSelection()
+// use, not the popup's top level rows: that top level collapses each group to a
+// single header, so stepping through it would leave every preset inside a group
+// unreachable from the keyboard.
+void ComboBox::keyMoveSelection(int keycode)
+{
+    const int last = (int) items.size() - 1;
+    if (last < 0)
+        return;
+    const int cur = GetSelection();
+
+    int dir = 1, from = 0, steps = 1;
+    switch (keycode) {
+    case WXK_UP:
+    case WXK_NUMPAD_UP:
+        dir = -1; from = cur < 0 ? last : cur - 1;
+        break;
+    case WXK_DOWN:
+    case WXK_NUMPAD_DOWN:
+        dir = 1; from = cur < 0 ? 0 : cur + 1;
+        break;
+    case WXK_PAGEUP:
+    case WXK_NUMPAD_PAGEUP:
+        dir = -1; from = cur < 0 ? last : cur - 1; steps = keyPageSize();
+        break;
+    case WXK_PAGEDOWN:
+    case WXK_NUMPAD_PAGEDOWN:
+        dir = 1; from = cur < 0 ? 0 : cur + 1; steps = keyPageSize();
+        break;
+    case WXK_HOME:
+    case WXK_NUMPAD_HOME:
+        from = 0;
+        break;
+    case WXK_END:
+    case WXK_NUMPAD_END:
+        dir = -1; from = last;
+        break;
+    default:
+        return;
+    }
+
+    // Nothing wraps, and a page that runs out of list keeps the last row it reached,
+    // so both ends clamp onto a real entry instead of moving nowhere.
+    int selection = -1;
+    for (int i = 0; i < steps; ++i) {
+        while (from >= 0 && from <= last && !isKeyBrowsable(from))
+            from += dir;
+        if (from < 0 || from > last)
+            break;
+        selection = from;
+        from += dir;
+    }
+    if (selection >= 0 && selection != cur)
+        SelectAndNotify(selection);
 }
 
 void ComboBox::onMove(wxMoveEvent &event)

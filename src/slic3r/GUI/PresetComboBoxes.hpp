@@ -68,6 +68,9 @@ public:
     };
 
     void set_label_marker(int item, LabelItemType label_item_type = LABEL_ITEM_MARKER);
+    // The marker rows OnSelect() refuses: separators, incompatible presets and the
+    // wizard action rows. Reachable by click or Enter in the open popup only.
+    bool IsItemKeySelectable(unsigned int n) const override;
     bool set_printer_technology(PrinterTechnology pt);
 
     void set_selection_changed_function(std::function<void(int)> sel_changed) { on_selection_changed = sel_changed; }
