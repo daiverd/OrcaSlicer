@@ -109,43 +109,64 @@ std::vector<size_t> GLGizmosManager::get_selectable_idxs() const
 }
 
 //BBS: GUI refactor: GLToolbar&&Gizmo adjust
+Vec2f GLGizmosManager::get_strip_origin() const
+{
+    const float border = m_layout.scaled_border();
+
+    //BBS: GUI refactor: GLToolbar&&Gizmo adjust
+    //float space_width = GLGizmosManager::Default_Icons_Size * wxGetApp().toolbar_icon_scale();;
+    float left;
+    if (m_parent.get_canvas_type() == GLCanvas3D::CanvasAssembleView) {
+        const float cnv_w = (float)m_parent.get_canvas_size().get_width();
+
+        left = 0.5f * cnv_w + 0.5f * m_parent.get_assembly_paint_toolbar_width() + border;
+    } else {
+        const float separator_width = m_parent.get_separator_toolbar_width();
+
+        left = m_parent.get_main_toolbar_offset();
+        left += m_parent.get_main_toolbar_width() + separator_width / 2 + border;
+    }
+
+    return Vec2f(left, border);
+}
+
+void GLGizmosManager::get_slot_rect(size_t slot, const Vec2f& strip_origin, float& left, float& right, float& top, float& bottom) const
+{
+    left = strip_origin.x() + (float)slot * m_layout.scaled_stride_x();
+    right = left + m_layout.scaled_icons_size();
+    top = strip_origin.y();
+    bottom = top + m_layout.scaled_icons_size();
+}
+
+bool GLGizmosManager::get_gizmo_rect(EType type, float& left, float& right, float& top, float& bottom) const
+{
+    if (!m_enabled)
+        return false;
+
+    const std::vector<size_t> selectable = get_selectable_idxs();
+    for (size_t slot = 0; slot < selectable.size(); ++slot) {
+        if (selectable[slot] == (size_t)type) {
+            get_slot_rect(slot, get_strip_origin(), left, right, top, bottom);
+            return true;
+        }
+    }
+    return false;
+}
+
 GLGizmosManager::EType GLGizmosManager::get_gizmo_from_mouse(const Vec2d &mouse_pos) const
 {
     if (! m_enabled)
         return Undefined;
 
-    float icons_size = m_layout.scaled_icons_size();
-    float border     = m_layout.scaled_border();
+    const Vec2f strip_origin = get_strip_origin();
+    const std::vector<size_t> selectable = get_selectable_idxs();
 
-    //BBS: GUI refactor: GLToolbar&&Gizmo adjust
-    //float space_width = GLGizmosManager::Default_Icons_Size * wxGetApp().toolbar_icon_scale();;
-    float top_x;
-    if (m_parent.get_canvas_type() == GLCanvas3D::CanvasAssembleView) {
-        const float cnv_w = (float)m_parent.get_canvas_size().get_width();
-
-        top_x = 0.5f * cnv_w + 0.5f * (m_parent.get_assembly_paint_toolbar_width());
-    } else {
-        const float separator_width = m_parent.get_separator_toolbar_width();
-
-        top_x = m_parent.get_main_toolbar_offset();
-        top_x += m_parent.get_main_toolbar_width() + separator_width / 2 + border;
-    }
-    float top_y = 0;
-    float stride_x = m_layout.scaled_stride_x();
-
-    // is mouse vertically in the area?
-    //if ((border <= (float)mouse_pos(0) && ((float)mouse_pos(0) <= border + icons_size))) {
-    if (((top_y + border) <= (float)mouse_pos(1)) && ((float)mouse_pos(1) <= (top_y + border + icons_size))) {
-        // which icon is it on?
-        int from_left = (float) mouse_pos(0) - top_x < 0 ? -1 : (int) ((float) mouse_pos(0) - top_x) / stride_x;
-        if (from_left < 0)
-            return Undefined;
-        // is it really on the icon or already past the border?
-        if ((float)mouse_pos(0) <= top_x + from_left * stride_x + icons_size) {
-            std::vector<size_t> selectable = get_selectable_idxs();
-            if (from_left < selectable.size())
-                return static_cast<EType>(selectable[from_left]);
-        }
+    for (size_t slot = 0; slot < selectable.size(); ++slot) {
+        float left, right, top, bottom;
+        get_slot_rect(slot, strip_origin, left, right, top, bottom);
+        if (left <= (float)mouse_pos(0) && (float)mouse_pos(0) <= right &&
+            top <= (float)mouse_pos(1) && (float)mouse_pos(1) <= bottom)
+            return static_cast<EType>(selectable[slot]);
     }
     return Undefined;
 }

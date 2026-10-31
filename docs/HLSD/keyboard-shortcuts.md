@@ -91,9 +91,12 @@ modal opens or closes in between, so a key never both runs a shortcut and types,
 keyboard move of the selection always sees the release of the key that started it.
 
 Tab and Shift+Tab are not bound in the canvas by default. When no shortcut claims them,
-`GLCanvas3D::on_key` moves the keyboard focus to the next or previous control with
-`Navigate()`, because the canvas is created with `wxWANTS_CHARS` and wx would not turn Tab
-into a navigation event by itself. A user can bind them, for example to `SwitchView` and
+`GLCanvas3D::on_key` moves the keyboard focus through the toolbars drawn on the canvas,
+which `GLCanvasKeyboardRing` makes virtual focus stops after the scene, and past either end
+to the next or previous control with `Navigate()`, because the canvas is created with
+`wxWANTS_CHARS` and wx would not turn Tab into a navigation event by itself. While a toolbar
+stop has the focus, the ring takes the arrows, Home, End, Enter and Space before any
+shortcut. A user can bind Tab and Shift+Tab, for example to `SwitchView` and
 `CollapseSidebar`, and the binding then wins over focus navigation. Only while Tab or
 Shift+Tab is bound does the canvas take the focus when the mouse enters it; otherwise that
 would undo whatever the keyboard user tabbed to.

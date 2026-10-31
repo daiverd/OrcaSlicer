@@ -10,6 +10,7 @@
 #include "libslic3r/CustomGCode.hpp"
 #include <string>
 #include <wx/event.h>
+#include <wx/gdicmn.h>
 #include <wx/slider.h>
 
 #include <set>
@@ -107,6 +108,16 @@ public:
     void set_render_as_disabled(bool value) { m_render_as_disabled = value; }
     bool is_rendering_as_disabled() const { return m_render_as_disabled; }
 
+    // The value in words, for whoever announces the slider rather than draws it: the face
+    // label of the thumb which moves, on one line and with the unit its number is in.
+    std::string get_accessible_value();
+    // The area the slider last rendered into, in canvas pixels. False until it has rendered
+    // once, as the layout is what ImGui made of it rather than anything kept here.
+    bool get_render_rect(wxRect& rect) const;
+    // Called after a thumb has moved to another value, for an owner which has to report it
+    // onwards. IMSlider knows nothing of what that reporting takes.
+    void set_value_changed_callback(std::function<void()> callback) { m_on_value_changed = std::move(callback); }
+
     bool is_horizontal() const { return m_style == wxSL_HORIZONTAL; }
     bool is_one_layer() const { return m_is_one_layer; }
     bool is_lower_at_min() const { return m_lower_value == m_min_value; }
@@ -168,6 +179,8 @@ protected:
 
 private:
     std::string get_label(int tick, LabelType label_type = ltHeightWithLayer);
+    // Report a moved thumb once, after the correction which may have moved the other one too
+    void value_changed_from(int lower, int higher);
     double get_double_value(const SelectedSlider& selection);
     int    get_tick_from_value(double value, bool force_lower_bound = false);
     float get_pos_from_value(int v_min, int v_max, int value, const ImRect& rect);
@@ -237,6 +250,8 @@ private:
 
     char m_custom_gcode[1024] = { 0 }; //menu
     char m_layer_number[64] = { 0 }; //menu
+
+    std::function<void()> m_on_value_changed;
 };
 
 }

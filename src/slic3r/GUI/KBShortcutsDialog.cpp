@@ -170,6 +170,7 @@ void KBShortcutsDialog::fill_pages()
     const wxString esc         = key(L_CONTEXT("Esc", "Keyboard Shortcut"));
     const wxString left_button = _L("Left mouse");
     const wxString wheel       = _L("Mouse wheel");
+    const wxString tab         = key(L_CONTEXT("Tab", "Keyboard Shortcut"));
     using Section              = ShortcutSection;
 
     if (wxGetApp().is_editor()) {
@@ -178,7 +179,7 @@ void KBShortcutsDialog::fill_pages()
             fixed(Section::SpeedDial, { ctrl, "B" }, L("Pin or unpin the selected action")),
             // wx cycles notebook pages on Ctrl+Tab, which is Cmd+Tab on macOS and never arrives there.
 #ifndef __APPLE__
-            fixed(Section::Application, { ctrl, key(L_CONTEXT("Tab", "Keyboard Shortcut")) }, L("Switch to the next main tab")),
+            fixed(Section::Application, { ctrl, tab }, L("Switch to the next main tab")),
 #endif
         });
 
@@ -195,6 +196,13 @@ void KBShortcutsDialog::fill_pages()
             mouse(Section::Camera, _L("Right mouse"), "right_mouse_drag_action"),
             fixed(Section::Camera, { wheel }, L("Zoom View")),
             fixed(Section::Display, { alt, wheel }, L("Move section plane")),
+            // The toolbars drawn on the canvas are keyboard focus stops of their own (GLCanvasKeyboardRing),
+            // reached with Tab while it is not bound to a shortcut.
+            fixed(Section::Application, { tab }, L("Move the keyboard focus to the next toolbar on the canvas, then out of the canvas")),
+            fixed(Section::Application, { shift, tab }, L("Move the keyboard focus to the previous toolbar on the canvas, then out of the canvas")),
+            fixed(Section::Application, { key(L_CONTEXT("Any arrow", "Keyboard Shortcut")) }, L("Toolbar in focus: move to the previous or next button")),
+            fixed(Section::Application, { key(L_CONTEXT("Enter", "Keyboard Shortcut")) }, L("Toolbar in focus: press the button")),
+            fixed(Section::Application, { key(L_CONTEXT("Space", "Keyboard Shortcut")) }, L("Toolbar in focus: press the button")),
         });
 
         page(_L("Painting"), _L("Available while a painting gizmo is open: supports, seam, fuzzy skin or color painting."), ShortcutContext::Painting, {
@@ -215,6 +223,8 @@ void KBShortcutsDialog::fill_pages()
         fixed(Section::Sliders, { shift_ctrl, any_key }, L("Move slider 5x faster")),
         fixed(Section::Sliders, { shift_ctrl, wheel }, L("Scroll slider 5x faster")),
         fixed(Section::Display, { alt, wheel }, L("Move section plane")),
+        fixed(Section::Application, { tab }, L("Move the keyboard focus to the next toolbar on the canvas, then out of the canvas")),
+        fixed(Section::Application, { shift, tab }, L("Move the keyboard focus to the previous toolbar on the canvas, then out of the canvas")),
     });
 }
 
