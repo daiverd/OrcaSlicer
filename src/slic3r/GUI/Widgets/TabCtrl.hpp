@@ -59,6 +59,10 @@ public:
     void SetItemText(unsigned int item, wxString const& value);
     void SetItemBitmap(unsigned int item, const wxBitmap& bitmap);
 
+    // Accessible name for an item whose text says nothing on its own - one whose whole
+    // content is a bitmap, say. A tab with real text is named from that text already.
+    void SetItemName(unsigned int item, wxString const& name);
+
     // Show/hide the small "has selection" dot next to a tab's text.
     void SetItemIndicator(unsigned int item, bool on);
 

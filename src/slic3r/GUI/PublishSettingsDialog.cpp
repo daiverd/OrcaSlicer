@@ -74,6 +74,14 @@ wxStaticText* add_checkbox_label(wxWindow* parent,
                                  int label_width = 0)
 {
     check->SetToolTip(tooltip);
+    // ORCA: the visible label is a separate wxStaticText, so the checkbox itself has nothing to
+    // be named from - WidgetAccessible would otherwise fall back to the tooltip (a description,
+    // not a name) or, for the setting rows, to nothing at all. Name it after the label it
+    // belongs to, minus the row label's trailing colon.
+    wxString acc_name = label;
+    if (acc_name.EndsWith(":"))
+        acc_name.RemoveLast();
+    check->SetName(acc_name);
     sizer->Add(check, 0, wxALIGN_CENTER_VERTICAL | wxTOP | wxBOTTOM, parent->FromDIP(2));
 
     auto* text = new wxStaticText(parent, wxID_ANY, label);
@@ -672,6 +680,12 @@ PublishSettingsDialog::PublishSettingsDialog(wxWindow* parent,
     m_filter_ctrl->SetFont(Label::Body_13);
     m_filter_ctrl->SetSize(wxSize(-1, FromDIP(16))); // centers text vertically
     m_filter_ctrl->SetHint(_L("Type to filter..."));
+    // ORCA: the field is otherwise nameless - its only visible cue is the magnifier icon and a
+    // hint that disappears as soon as anything is typed. Name both halves of the composite: the
+    // TextInput itself (read through its WidgetAccessible) and the inner native EDIT, which is
+    // the window that actually takes focus.
+    m_filter_box->SetName(_L("Filter settings"));
+    m_filter_ctrl->SetName(_L("Filter settings"));
     m_filter_ctrl->Bind(wxEVT_TEXT, [this](auto&) { apply_filter(m_filter_ctrl->GetValue()); });
     m_filter_ctrl->Bind(wxEVT_TEXT_ENTER, [this](auto&) { apply_filter(m_filter_ctrl->GetValue()); });
     m_filter_ctrl->Bind(wxEVT_LEFT_DOWN, [this](auto& e) {
@@ -1361,9 +1375,13 @@ size_t PublishSettingsDialog::category_index_for(const wxString& title,
             // its text.
             const DynamicPrintConfig full_cfg = wxGetApp().preset_bundle->full_config();
             const wxBitmap tab_bmp = mixed_filament_tab_bitmap(full_cfg, source_index, FromDIP(20), target->GetBackgroundColour());
-            if (tab_bmp.IsOk())
-                target->AppendItem(wxString(), tab_bmp);
-            else
+            if (tab_bmp.IsOk()) {
+                const int tab = target->AppendItem(wxString(), tab_bmp);
+                // The empty text leaves the tab with nothing to be named from, so give it the
+                // same composition the bitmap paints, plus the slot it belongs to.
+                target->SetItemName(static_cast<unsigned int>(tab),
+                                    wxString::Format(_L("Mixed filament %d: %s"), int(source_index + 1), title));
+            } else
                 target->AppendItem(title);
         } else if (wxBitmap* chip = get_extruder_color_icon(hex, chip_label, FromDIP(20), FromDIP(20))) {
             target->AppendItem(title, *chip);
@@ -2357,6 +2375,14 @@ void PublishSettingsDialog::refresh_tab_indicators()
                     section.variant_switch->SetOptionText(static_cast<unsigned int>(p), text);
                     section.page->Layout();
                 }
+#if wxUSE_ACCESSIBILITY
+                // ORCA: keep the bullet out of the accessible name and say what it means in the
+                // description instead, as the tab strips' indicator dot does (Button::SetIndicator).
+                if (Button* btn = section.variant_switch->GetButton(static_cast<unsigned int>(p))) {
+                    btn->SetName(category.title);
+                    btn->SetAccessibleDescription(on ? _L("Has selected settings") : wxString());
+                }
+#endif
             }
         if (section.page_tabs != nullptr)
             for (size_t j = 0; j < section.page_inners.size(); ++j)

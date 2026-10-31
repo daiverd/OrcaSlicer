@@ -42,10 +42,14 @@ void append_help_text(wxWindow*, wxString&) {}
 #endif // wxUSE_HELP
 } // namespace
 
-WidgetAccessible::WidgetAccessible(wxWindow* win, wxAccRole role, ExtraStateGetter extra_state)
+WidgetAccessible::WidgetAccessible(wxWindow*              win,
+                                   wxAccRole              role,
+                                   ExtraStateGetter       extra_state,
+                                   ExtraDescriptionGetter extra_description)
     : wxWindowAccessible(win)
     , m_role(role)
     , m_extra_state(std::move(extra_state))
+    , m_extra_description(std::move(extra_description))
 {}
 
 wxAccStatus WidgetAccessible::GetName(int childId, wxString* name)
@@ -99,6 +103,17 @@ wxAccStatus WidgetAccessible::GetDescription(int childId, wxString* description)
         text = explicit_name(win).empty() ? tip.Mid(para_break + 2) : tip;
 
     append_help_text(win, text);
+
+    // Painted state the widget reports for itself, after whatever the tooltip and the
+    // help text already said.
+    if (m_extra_description) {
+        const wxString extra = m_extra_description();
+        if (!extra.empty()) {
+            if (!text.empty())
+                text += "\n";
+            text += extra;
+        }
+    }
 
     if (text.empty())
         return wxACC_NOT_IMPLEMENTED;
