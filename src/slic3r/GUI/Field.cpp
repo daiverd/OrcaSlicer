@@ -1001,6 +1001,14 @@ void TextCtrl::BUILD() {
     if (!m_opt.multiline)
         temp->SetLabel(_L(m_opt.sidetext));
 	auto text_ctrl = m_opt.multiline ? (wxTextCtrl *)temp : ((TextInput *) temp)->GetTextCtrl();
+#if wxUSE_ACCESSIBILITY
+    // ORCA: a bare native EDIT ignores wxWindow::SetName(), so the name set_accessible_name()
+    // gives the multi-line fields (G-code, notes) never reached a screen reader
+    if (m_opt.multiline) {
+        text_ctrl->SetName(wxEmptyString); // wx's default "text" would otherwise be read as the name
+        text_ctrl->SetAccessible(new NativeCtrlAccessible(text_ctrl));
+    }
+#endif
     text_ctrl->SetValue(text_value);
     temp->SetSize(size);
     m_combine_side_text = !m_opt.multiline;

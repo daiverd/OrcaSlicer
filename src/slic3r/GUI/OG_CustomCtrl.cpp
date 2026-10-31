@@ -93,14 +93,281 @@ OG_CustomCtrl::OG_CustomCtrl(   wxWindow*            parent,
     this->Bind(wxEVT_MOTION,    &OG_CustomCtrl::OnMotion, this);
     this->Bind(wxEVT_LEFT_DOWN, &OG_CustomCtrl::OnLeftDown, this);
     this->Bind(wxEVT_LEAVE_WINDOW, &OG_CustomCtrl::OnLeaveWin, this);
+
+    // ORCA: keyboard access to an icon bar's buttons, see is_icon_bar()
+    this->Bind(wxEVT_NAVIGATION_KEY, &OG_CustomCtrl::OnIconNavigation, this);
+    this->Bind(wxEVT_CHAR_HOOK, &OG_CustomCtrl::OnIconKey, this);
+    this->Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent& e) {
+        e.Skip();
+        // Shift+Tab arrives on the last button, Tab (or a click) on the first
+        const int count = int(icon_actions().size());
+        m_icon_focus    = count == 0 ? -1 : wxGetKeyState(WXK_SHIFT) ? count - 1 : 0;
+        Refresh();
+        CallAfter([this] { notify_icon_focus(); });
+    });
+    this->Bind(wxEVT_KILL_FOCUS, [this](wxFocusEvent& e) {
+        e.Skip();
+        m_icon_focus = -1;
+        Refresh();
+    });
 }
 
 #if wxUSE_ACCESSIBILITY
+namespace {
+// A group while the panel holds fields; a tool bar of the painted buttons once it holds
+// none (see OG_CustomCtrl::is_icon_bar), each button a simple child element.
+class OG_CustomCtrlAccessible : public WidgetAccessible
+{
+public:
+    explicit OG_CustomCtrlAccessible(OG_CustomCtrl* ctrl) : WidgetAccessible(ctrl, wxROLE_SYSTEM_GROUPING), ctrl(ctrl) {}
+
+    wxAccStatus GetRole(int childId, wxAccRole* role) override
+    {
+        if (!ctrl->is_icon_bar())
+            return WidgetAccessible::GetRole(childId, role);
+        if (!valid(childId))
+            return wxACC_FAIL;
+        *role = childId == wxACC_SELF ? wxROLE_SYSTEM_TOOLBAR : wxROLE_SYSTEM_PUSHBUTTON;
+        return wxACC_OK;
+    }
+    wxAccStatus GetChildCount(int* count) override
+    {
+        if (!ctrl->is_icon_bar())
+            return WidgetAccessible::GetChildCount(count);
+        *count = int(ctrl->icon_actions().size());
+        return wxACC_OK;
+    }
+    wxAccStatus GetChild(int childId, wxAccessible** child) override
+    {
+        if (!ctrl->is_icon_bar() || childId == wxACC_SELF)
+            return WidgetAccessible::GetChild(childId, child);
+        if (!valid(childId))
+            return wxACC_FAIL;
+        *child = nullptr; // a simple element, answered by this object
+        return wxACC_OK;
+    }
+    wxAccStatus GetName(int childId, wxString* name) override
+    {
+        if (!ctrl->is_icon_bar() || childId == wxACC_SELF)
+            return WidgetAccessible::GetName(childId, name);
+        if (!valid(childId))
+            return wxACC_FAIL;
+        *name = ctrl->icon_name(action(childId));
+        return wxACC_OK;
+    }
+    wxAccStatus GetDescription(int childId, wxString* description) override
+    {
+        if (!ctrl->is_icon_bar() || childId == wxACC_SELF)
+            return WidgetAccessible::GetDescription(childId, description);
+        if (!valid(childId))
+            return wxACC_FAIL;
+        *description = ctrl->icon_description(action(childId));
+        return wxACC_OK;
+    }
+    wxAccStatus GetState(int childId, long* state) override
+    {
+        if (!ctrl->is_icon_bar() || childId == wxACC_SELF)
+            return WidgetAccessible::GetState(childId, state);
+        if (!valid(childId))
+            return wxACC_FAIL;
+        *state = wxACC_STATE_SYSTEM_FOCUSABLE;
+        if (ctrl->HasFocus() && childId - 1 == ctrl->focused_icon())
+            *state |= wxACC_STATE_SYSTEM_FOCUSED;
+        return wxACC_OK;
+    }
+    wxAccStatus GetLocation(wxRect& rect, int elementId) override
+    {
+        if (!ctrl->is_icon_bar() || elementId == wxACC_SELF)
+            return WidgetAccessible::GetLocation(rect, elementId);
+        if (!valid(elementId))
+            return wxACC_FAIL;
+        rect = ctrl->icon_rect(action(elementId));
+        rect.SetPosition(ctrl->ClientToScreen(rect.GetPosition()));
+        return wxACC_OK;
+    }
+    wxAccStatus GetFocus(int* childId, wxAccessible** child) override
+    {
+        if (!ctrl->is_icon_bar() || !ctrl->HasFocus() || ctrl->focused_icon() < 0 || !valid(ctrl->focused_icon() + 1))
+            return WidgetAccessible::GetFocus(childId, child);
+        *childId = ctrl->focused_icon() + 1;
+        *child   = nullptr;
+        return wxACC_OK;
+    }
+    wxAccStatus GetDefaultAction(int childId, wxString* actionName) override
+    {
+        if (!ctrl->is_icon_bar() || childId == wxACC_SELF)
+            return WidgetAccessible::GetDefaultAction(childId, actionName);
+        if (!valid(childId))
+            return wxACC_FAIL;
+        *actionName = _L("Press");
+        return wxACC_OK;
+    }
+    wxAccStatus DoDefaultAction(int childId) override
+    {
+        if (!ctrl->is_icon_bar() || childId == wxACC_SELF)
+            return WidgetAccessible::DoDefaultAction(childId);
+        if (!valid(childId))
+            return wxACC_FAIL;
+        // Once the screen reader's call has returned: Edit opens a modal dialog
+        ctrl->CallAfter([ctrl = ctrl, a = action(childId)] { ctrl->activate_icon(a); });
+        return wxACC_OK;
+    }
+
+private:
+    bool valid(int childId) const
+    {
+        return childId == wxACC_SELF || (childId >= 1 && childId <= int(ctrl->icon_actions().size()));
+    }
+    OG_CustomCtrl::IconAction action(int childId) const { return ctrl->icon_actions()[childId - 1]; }
+
+    OG_CustomCtrl* ctrl;
+};
+} // namespace
+
 wxAccessible* OG_CustomCtrl::CreateAccessible()
 {
-    return new WidgetAccessible(this, wxROLE_SYSTEM_GROUPING);
+    return new OG_CustomCtrlAccessible(this);
 }
 #endif // wxUSE_ACCESSIBILITY
+
+// ORCA: the line whose buttons an icon bar paints, and the field they act on
+const OG_CustomCtrl::CtrlLine* OG_CustomCtrl::icon_line() const
+{
+    for (const CtrlLine& line : ctrl_lines)
+        if (line.is_visible && !line.is_separator() && !line.og_line.get_options().empty())
+            return &line;
+    return nullptr;
+}
+
+Field* OG_CustomCtrl::icon_field() const
+{
+    const CtrlLine* line = icon_line();
+    return line ? opt_group->get_field(line->og_line.get_options().front().opt_id) : nullptr;
+}
+
+// The buttons that would do something now: the reset button's tooltip is empty while the
+// value matches the saved one, and the edit button exists only on custom G-code fields.
+std::vector<OG_CustomCtrl::IconAction> OG_CustomCtrl::icon_actions() const
+{
+    std::vector<IconAction> actions;
+    Field* field = is_icon_bar() ? icon_field() : nullptr;
+    if (!field)
+        return actions;
+    if (field->undo_bitmap() && field->undo_tooltip() && !field->undo_tooltip()->IsEmpty())
+        actions.push_back(IconAction::Undo);
+    if (field->has_edit_ui())
+        actions.push_back(IconAction::Edit);
+    return actions;
+}
+
+wxString OG_CustomCtrl::icon_name(IconAction action) const
+{
+    return action == IconAction::Undo ? _L("Reset to saved value") : _L("Edit Custom G-code");
+}
+
+wxString OG_CustomCtrl::icon_description(IconAction action) const
+{
+    Field* field = icon_field();
+    return field && action == IconAction::Undo && field->undo_tooltip() ? *field->undo_tooltip() : wxString();
+}
+
+wxRect OG_CustomCtrl::icon_rect(IconAction action) const
+{
+    const CtrlLine* line = icon_line();
+    if (!line)
+        return {};
+    const std::vector<wxRect>& rects = action == IconAction::Undo ? line->rects_undo_icon : line->rects_edit_icon;
+    return rects.empty() ? wxRect() : rects.front();
+}
+
+void OG_CustomCtrl::activate_icon(IconAction action)
+{
+    if (const CtrlLine* line = icon_line())
+        activate_icon(*line, line->og_line.get_options().front().opt_id, action);
+    // A reset leaves its button with nothing to do, so the list the focus indexes changes
+    const int count = int(icon_actions().size());
+    if (HasFocus() && m_icon_focus >= count)
+        m_icon_focus = count - 1;
+    Refresh();
+    notify_icon_focus();
+}
+
+// Shared by the mouse (OnLeftDown) and the keyboard
+void OG_CustomCtrl::activate_icon(const CtrlLine& line, const std::string& opt_key, IconAction action)
+{
+    if (action == IconAction::Edit) {
+        if (Field* field = opt_group->get_field(opt_key))
+            field->on_edit_value();
+        return;
+    }
+    if (line.og_line.has_undo_ui()) {
+        if (ConfigOptionsGroup* conf_OG = dynamic_cast<ConfigOptionsGroup*>(line.ctrl->opt_group))
+            conf_OG->back_to_initial_value(opt_key);
+    } else if (Field* field = opt_group->get_field(opt_key))
+        field->on_back_to_initial_value();
+}
+
+void OG_CustomCtrl::notify_icon_focus()
+{
+#if wxUSE_ACCESSIBILITY
+    if (HasFocus() && m_icon_focus >= 0 && m_icon_focus < int(icon_actions().size()))
+        wxAccessible::NotifyEvent(wxACC_EVENT_OBJECT_FOCUS, this, wxOBJID_CLIENT, m_icon_focus + 1);
+#endif
+}
+
+// Tab and Shift+Tab step through the buttons before leaving the bar
+void OG_CustomCtrl::OnIconNavigation(wxNavigationKeyEvent& event)
+{
+    if (HasFocus() && event.IsFromTab() && m_icon_focus >= 0) {
+        const int next = m_icon_focus + (event.GetDirection() ? 1 : -1);
+        if (next >= 0 && next < int(icon_actions().size())) {
+            m_icon_focus = next;
+            Refresh();
+            notify_icon_focus();
+            return;
+        }
+    }
+    event.Skip();
+}
+
+void OG_CustomCtrl::OnIconKey(wxKeyEvent& event)
+{
+    const int  code    = event.GetKeyCode();
+    const auto actions = icon_actions();
+    if (!HasFocus() || m_icon_focus < 0 || m_icon_focus >= int(actions.size()) || event.HasAnyModifiers()) {
+        event.Skip();
+        return;
+    }
+    switch (code) {
+    case WXK_RETURN:
+    case WXK_NUMPAD_ENTER:
+    case WXK_SPACE:
+        activate_icon(actions[m_icon_focus]);
+        return;
+    // As on a native tool bar, Left and Right walk the buttons and stop at either end.
+    // Unhandled, the arrows became dialog navigation and left for the page's scroll bar.
+    case WXK_LEFT:
+    case WXK_NUMPAD_LEFT:
+    case WXK_RIGHT:
+    case WXK_NUMPAD_RIGHT: {
+        const bool right = code == WXK_RIGHT || code == WXK_NUMPAD_RIGHT;
+        const int  next  = m_icon_focus + (right ? 1 : -1);
+        if (next >= 0 && next < int(actions.size())) {
+            m_icon_focus = next;
+            Refresh();
+            notify_icon_focus();
+        }
+        return;
+    }
+    case WXK_UP:
+    case WXK_NUMPAD_UP:
+    case WXK_DOWN:
+    case WXK_NUMPAD_DOWN:
+        return;
+    default:
+        event.Skip();
+    }
+}
 
 void OG_CustomCtrl::init_ctrl_lines()
 {
@@ -382,6 +649,16 @@ void OG_CustomCtrl::OnPaint(wxPaintEvent&)
         line.render(dc, h_pos, v_pos);
         v_pos += line.height;
     }
+
+    // ORCA: frame the icon bar button the keyboard is on (render() above filled its rect)
+    if (const auto actions = icon_actions(); HasFocus() && m_icon_focus >= 0 && m_icon_focus < int(actions.size())) {
+        wxRect rect = icon_rect(actions[m_icon_focus]);
+        if (!rect.IsEmpty()) {
+            dc.SetBrush(*wxTRANSPARENT_BRUSH);
+            dc.SetPen(wxPen(StateColor::darkModeColorFor("#009688"), 1));
+            dc.DrawRectangle(rect.Inflate(2));
+        }
+    }
 }
 
 void OG_CustomCtrl::OnMotion(wxMouseEvent& event)
@@ -496,12 +773,7 @@ void OG_CustomCtrl::OnLeftDown(wxMouseEvent& event)
         for (size_t opt_idx = 0; opt_idx < undo_icons_cnt; opt_idx++) {
             const std::string& opt_key = option_set[opt_idx].opt_id;
             if (is_point_in_rect(pos, line.rects_undo_icon[opt_idx])) {
-                if (line.og_line.has_undo_ui()) {
-                    if (ConfigOptionsGroup* conf_OG = dynamic_cast<ConfigOptionsGroup*>(line.ctrl->opt_group))
-                        conf_OG->back_to_initial_value(opt_key);
-                }
-                else if (Field* field = opt_group->get_field(opt_key))
-                    field->on_back_to_initial_value();
+                activate_icon(line, opt_key, IconAction::Undo);
                 event.Skip();
                 return;
             }
@@ -517,8 +789,7 @@ void OG_CustomCtrl::OnLeftDown(wxMouseEvent& event)
             }
 
             if (opt_idx < line.rects_edit_icon.size() && is_point_in_rect(pos, line.rects_edit_icon[opt_idx])) {
-                if (Field* field = opt_group->get_field(opt_key))
-                    field->on_edit_value();
+                activate_icon(line, opt_key, IconAction::Edit);
                 event.Skip();
                 return;
             }
