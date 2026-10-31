@@ -676,10 +676,7 @@ public:
 	// ORCA: the two boxes are told apart only by an X / Y icon, so the axis has to
 	// be part of the name for them to be distinguishable. X and Y are axis letters
 	// here, not words, so they are used untranslated.
-	void			set_accessible_name(const wxString& name) override {
-		if (x_input) x_input->SetName(name + " X");
-		if (y_input) y_input->SetName(name + " Y");
-	}
+	void			set_accessible_name(const wxString& name) override;
 };
 
 class StaticText : public Field {
