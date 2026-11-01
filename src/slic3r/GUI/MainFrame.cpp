@@ -3534,7 +3534,7 @@ void MainFrame::init_menubar_as_editor()
                 m_plater->get_current_canvas3D()->post_event(SimpleEvent(wxEVT_PAINT));
             },
             this, [this]() { return is_prepare_or_preview_tab(); },
-            [this]() { return wxGetApp().show_canvas_zoom_button(); }, this);
+            []() { return wxGetApp().show_canvas_zoom_button(); }, this);
 
         // ORCA same toggle as the canvas view options popup entry "Axes"
         append_menu_check_item(viewMenu, wxID_ANY, _L("Axes"), _L("Show world axes on plate"),
@@ -3652,7 +3652,7 @@ void MainFrame::init_menubar_as_editor()
                 m_plater->get_current_canvas3D()->post_event(SimpleEvent(wxEVT_PAINT));
             },
             this, [this]() { return m_plater->is_view3D_shown(); },
-            [this]() { return wxGetApp().app_config->get_bool(SETTING_OPENGL_REALISTIC_MODE); }, this);
+            []() { return wxGetApp().app_config->get_bool(SETTING_OPENGL_REALISTIC_MODE); }, this);
 
         //viewMenu->AppendSeparator();
         ////BBS orthogonal view
