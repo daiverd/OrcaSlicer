@@ -10,7 +10,7 @@ class TextCtrl : public wxTextCtrl
 {
 public:
     using wxTextCtrl::wxTextCtrl;
-    WXHBRUSH DoMSWControlColor(WXHDC pDC, wxColour colBg, WXHWND hWnd) { return wxTextCtrl::DoMSWControlColor(pDC, wxColour(), hWnd); }
+    WXHBRUSH DoMSWControlColor(WXHDC pDC, wxColour colBg, WXHWND hWnd) override { return wxTextCtrl::DoMSWControlColor(pDC, wxColour(), hWnd); }
 
 #if wxUSE_ACCESSIBILITY
     // ORCA: TextInput and SpinInput forward their accessible name to this inner
