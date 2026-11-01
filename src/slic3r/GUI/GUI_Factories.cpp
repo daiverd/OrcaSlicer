@@ -1352,7 +1352,8 @@ void MenuFactory::append_menu_item_merge_to_single_object(wxMenu* menu)
 void MenuFactory::append_menu_item_transform_dialog(wxMenu* menu)
 {
     const std::string accel = wxGetApp().shortcuts().accelerator(Shortcut::TransformSelection);
-    append_menu_item(menu, wxID_ANY, _L("Transform") + dots + (accel.empty() ? wxString() : "\t" + from_u8(accel)),
+    // ORCA: not "Transform", which is the submenu this item sits in
+    append_menu_item(menu, wxID_ANY, _L("Transform dialog") + dots + (accel.empty() ? wxString() : "\t" + from_u8(accel)),
         _L("Type exact position, rotation, scale and size values for the selection"),
         [](wxCommandEvent&) { TransformDialog::show_for_selection(); }, "", menu,
         []() { return TransformDialog::can_open(); }, m_parent);
