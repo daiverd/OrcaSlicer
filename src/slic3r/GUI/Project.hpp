@@ -109,7 +109,7 @@ public:
     void update_model_data();
     void clear_model_info();
 
-    bool Show(bool show);
+    bool Show(bool show) override;
     void OnScriptMessage(wxWebViewEvent& evt);
     void RunScript(std::string content);
 
