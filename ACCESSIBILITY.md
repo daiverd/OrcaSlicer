@@ -29,6 +29,57 @@ Orca's interface is five different technologies, and each needs its own approach
 - Mouse users see no change, apart from a focus ring when they use the keyboard.
 - I test every PR with NVDA by hand and say in the PR what wasn't tested.
 
+## Keyboard
+
+Every key the branches add or unblock, by area: the keys, how it's done, and the branch. All of them are in [`accessibility-preview`][preview]. Tested on Windows 11 with NVDA; "Windows" marks a fix that only applies there.
+
+### Moving around the main window
+
+- **F6 and Shift+F6** move between the top bar, the main tab strip and the current page, and wrap. The strip lands on the selected tab, a page on its first control. The Home page passes F6 back to Orca through its existing shortcut bridge. [#15290]
+- **Left, Right, Home and End** on the main tab strip move focus between tabs without opening them; **Enter or Space** opens the focused tab and keeps focus on it. `row_focus_target()` in `wxExtensions` computes the next tab; `DialogButtons` shares it. [#15290]
+- **Ctrl+Tab** lands on the selected tab button, as F6 does, instead of on the unnamed strip. [#15290]
+- **Tab and Shift+Tab** leave every container instead of cycling inside it. [`01.02`][01.02]
+  - `StaticBox`, the base of most custom panels, derives from `wxNavigationEnabled`, so it is a real Tab container.
+  - Both tab strips (the main one, and the Tabbook strip of the Auxiliary and Calibration panels) are one Tab stop each, with arrow keys inside. Shift+Tab from a page reaches its strip, and the strip is the book's first stop.
+  - The object list, the per-object settings grid and the object search popup let Tab and Shift+Tab out.
+  - The main strip's side tools come after the tabs; the slice and print split buttons go in the order they're drawn; separators, hidden side tools and the unused preset edit button are no longer Tab stops; clicking a tab moves the focus to it.
+  - The Process tab strip no longer swallows Tab, Escape, Space, Home, End, Page Up and Page Down.
+- **Tab** out of a multi-line text box (the custom G-code boxes, Notes) reaches the next control, custom widgets included. It's caught in `wxEVT_CHAR_HOOK` and sent through `Navigate()`. Windows. [`01.02.05`][01.02.05]
+- **Arrow keys** move only inside composite widgets (tab strips, lists, toolbars), never between ordinary buttons. `GUI_App::FilterEvent` drops wx's arrow navigation event, and Windows' own dialog arrow navigation is blocked too. [`01.02.03`][01.02.03]
+- **Page Up and Page Down** on a sidebar control page the settings list, not the main tab. Ctrl+Tab, which Windows reports as the same event, still switches the main tab. [`01.02.03`][01.02.03]
+
+### Tab strips, combo boxes and lists
+
+- **Home and End** jump to the first and last tab of every `TabCtrl` strip: Process, Settings and Preferences pages. [`05.02`][05.02]
+- **Arrow keys** move between tabs on the Tabbook strip. [`01.02`][01.02]
+- **Alt+Down, Alt+Up and F4** open a combo box's list; **Alt+Space** opens the window's system menu, as elsewhere. [`01.02.02`][01.02.02]
+- **On a closed combo box**, Up and Down browse the values and skip action rows such as "Add/Remove filament", which used to run without Enter. Left and Right no longer change the value (a bare Right opened the printer wizard). Home, End, Page Up and Page Down work. [`01.02.02`][01.02.02]
+- **In an open drop-down list**, Up and Down move, Enter picks, Escape closes. [`01.02`][01.02] In a grouped list (filament presets by vendor), the arrows reach the group headers; Right or Enter opens a group, Left or Escape goes back to its header. [`01.02.04`][01.02.04]
+- **Up and Down** walk the rows of the unsaved-changes list, which is one Tab stop. [`05.04`][05.04]
+
+### Settings and dialogs
+
+- **One Tab stop per Preferences row, and F1 for its wiki page.** Each row's title was a clickable wiki link and a Tab stop of its own, about 50 extra stops on the General page, and the dialog opened on a title instead of a control. The title is now a `wxWindow` that declines focus and is read as static text. The wiki link moved to F1: **F1** on any control of the row opens that row's wiki page; the row is found through the sizer that holds the title and its controls. A help provider that shows nothing lets F1 reach the dialog. [`08`][08]
+- **NVDA reads "Press F1 to open the wiki page for this setting."** as the control's description. Orca's own accessibles replaced the only code that publishes `SetHelpText()`, so they now add the help text after the tooltip. [`05.02`][05.02]
+- **Tab** reaches the reset and Edit Custom G-code buttons beside a full-width field (every custom G-code box, Notes, Post-processing Scripts); **Enter or Space** presses them. **Arrow keys** stay inside the G-code editor's icon bar. [`05.02.02`][05.02.02]
+- **Tab** in the unsaved-changes dialog skips the decorative panels, and the dialog opens on a control. [`05.04`][05.04]
+- **Tab** reaches the sidebar printer edit button, which shows while the printer box or the button has focus; after editing, focus returns to the printer box. [`05.07`][05.07]
+- **Tab** reaches File, the main menu, Save, Undo, Redo and Calibration in the top bar, and leaves it at either end. Its tools aren't windows, so a focusable proxy window sits over each one. [`05.03`][05.03]
+- **Alt+Enter** opens the Transform dialog for the selection (move, rotate, scale); so does the object menu's Transform > "Transform dialog...". The key is a new `TransformSelection` entry in the shortcut list, so it can be rebound. [`10`][10]
+- **The View menu** has the four options that were only in the 3D view's popup: Zoom button, Axes, Wireframe, Realistic View. Wireframe shows its key as a label only, so the macOS menu bar doesn't take the key from the canvas. [`11`][11]
+
+### 3D view
+
+- **Tab and Shift+Tab** leave the canvas. It no longer takes Tab for "switch Prepare and Preview" or Shift+Tab for "collapse sidebar", and no longer takes focus when the mouse enters it. Forward Tab, which died at `MainFrame`, now leaves the page. Ctrl+Tab switches tabs, and the hint says so. [`03`][03]
+- **Tab** stops on each item of the main toolbar, the gizmo bar, the assembly view toolbar and the sidebar collapse button, with a focus ring. They're painted on one `wxGLCanvas`, so a keyboard ring inside the canvas provides the stops; Tab past either end leaves the canvas. [`03.02`][03.02]
+
+### Web pages
+
+- **Tab no longer gets stuck in the Home, Device and Project pages.** A page holding only a web view isn't a Tab stop, and `Notebook` carries Tab past it, also when Tab starts on a tab button. The "Set filaments to use" window keeps Tab working after the first run, and focus returns to the 3D view when the setup wizard closes. [`05.06`][05.06]
+- **Tabbing into a page onto its first or last element, and out again in wx's Tab order,** needs the wxWidgets fix listed under [Fixes that belong in wxWidgets](#fixes-that-belong-in-wxwidgets). The preview doesn't have it: 05.06 carries it as `deps/wxWidgets/0004-webview-edge-directional-focus.patch`, which the build doesn't apply.
+- **Tab, arrows, Enter and Space** work in the setup wizard: `include/a11y.js` replaces the script that cancelled them, and still blocks browser keys such as F5 and Ctrl+P. Clickable divs are real buttons, Tab follows the page order and wraps at either end, and **Escape** closes the "at least one must be selected" notice. [#17057]
+- **The same on the other pages:** Home, Project, Preset Bundle, Plugins and its Terminal, Speed Dial, Flushing volumes. **Popup menus** open on their first item; **arrows, Home and End** move; **Escape and Tab** close the menu and return focus to its button. [`06.03`][06.03]
+
 ## Platforms
 
 Keyboard changes work everywhere. On Windows, wxWidgets passes names and roles to screen readers through its accessibility layer. On macOS and Linux it mostly doesn't yet, which is why [#16788]'s macOS code matters. Help from anyone who knows VoiceOver or AT-SPI, the Linux accessibility interface, is very welcome.
